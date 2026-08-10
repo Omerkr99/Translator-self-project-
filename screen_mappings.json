@@ -1,0 +1,399 @@
+{
+  "schema_version": 1,
+  "contexts": [
+    {
+      "id": "twilight.main_menu",
+      "game": "Twilight Syndrome: Tansaku Hen",
+      "chapter": "system",
+      "screen": "main_menu",
+      "overlay": null,
+      "runtime_profile": null,
+      "confidence": "LIVE_VERIFIED",
+      "native_width": 320,
+      "native_height": 240,
+      "capture_region": [
+        0,
+        0,
+        320,
+        240
+      ]
+    },
+    {
+      "id": "twilight.system_menu",
+      "game": "Twilight Syndrome: Tansaku Hen",
+      "chapter": "system",
+      "screen": "system_menu",
+      "overlay": "settings_panel",
+      "runtime_profile": null,
+      "confidence": "MANUAL_VERIFIED",
+      "native_width": 320,
+      "native_height": 240,
+      "capture_region": [
+        0,
+        0,
+        320,
+        240
+      ]
+    },
+    {
+      "id": "twilight.spoils.photos",
+      "game": "Twilight Syndrome: Tansaku Hen",
+      "chapter": "system",
+      "screen": "spoils_photos",
+      "overlay": null,
+      "runtime_profile": null,
+      "confidence": "MANUAL_VERIFIED",
+      "native_width": 320,
+      "native_height": 240,
+      "capture_region": [0, 0, 320, 240]
+    }
+  ],
+  "objects": {
+    "twilight.main_menu": [
+      {
+        "id": "main_menu.classroom_background",
+        "display_name": "Classroom Background",
+        "object_type": "COMPOSITE_IMAGE_ASSET",
+        "screen_bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 240
+        },
+        "source": {
+          "kind": "DISC_ASSET",
+          "file": "DAT/SINKOU/PROGDAT.BIN;1",
+          "local_file": "sdb_main_menu_asset/PROGDAT.BIN",
+          "members": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "asset_id": "main_menu.classroom_background"
+        },
+        "editor_target": {
+          "type": "ASSET_INSPECTOR",
+          "asset_id": "main_menu.classroom_background",
+          "members": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "confidence": "LIVE_VERIFIED",
+        "text_representation": "NOT_TEXT",
+        "translation_status": "NOT_EDITABLE",
+        "editable": true,
+        "metadata": {
+          "format": "TIM_8BPP_INDEXED_COMPOSITE",
+          "width": 320,
+          "height": 240,
+          "member_layout": "five 64x240 strips"
+        }
+      },
+      {
+        "id": "main_menu.start",
+        "display_name": "Start",
+        "object_type": "UI_TEXT_ASSET",
+        "screen_bounds": {
+          "x": 65,
+          "y": 200,
+          "width": 100,
+          "height": 24
+        },
+        "source": {
+          "kind": "DISC_ASSET",
+          "file": "DAT/SINKOU/MENUDAT.BIN;1",
+          "block": 7,
+          "asset_id": "main_menu.start"
+        },
+        "editor_target": {
+          "type": "ASSET_INSPECTOR",
+          "asset_id": "main_menu.start",
+          "block": 7
+        },
+        "confidence": "LIVE_VERIFIED",
+        "text_representation": "RASTER_TEXT_ASSET",
+        "translation_status": "TRANSLATED",
+        "editable": true,
+        "metadata": {
+          "format": "TIM_4BPP_INDEXED",
+          "width": 100,
+          "height": 24
+        }
+      },
+      {
+        "id": "main_menu.prepare",
+        "display_name": "Prepare / Settings",
+        "object_type": "UI_TEXT_ASSET",
+        "screen_bounds": {
+          "x": 160,
+          "y": 200,
+          "width": 100,
+          "height": 24
+        },
+        "source": {
+          "kind": "DISC_ASSET",
+          "file": "DAT/SINKOU/MENUDAT.BIN;1",
+          "block": 8,
+          "asset_id": "main_menu.prepare"
+        },
+        "editor_target": {
+          "type": "ASSET_INSPECTOR",
+          "asset_id": "main_menu.prepare",
+          "block": 8
+        },
+        "confidence": "LIVE_VERIFIED",
+        "text_representation": "RASTER_TEXT_ASSET",
+        "translation_status": "TRANSLATED",
+        "editable": true,
+        "metadata": {
+          "format": "TIM_4BPP_INDEXED",
+          "width": 100,
+          "height": 24
+        }
+      },
+      {
+        "id": "manual.unknown.2",
+        "display_name": "Unknown region",
+        "object_type": "UNKNOWN_REGION",
+        "screen_bounds": {
+          "x": 133,
+          "y": 32,
+          "width": 135,
+          "height": 27
+        },
+        "source": {
+          "kind": "UNKNOWN"
+        },
+        "editor_target": {
+          "type": "MAPPING_INVESTIGATION"
+        },
+        "confidence": "UNKNOWN",
+        "text_representation": "NOT_TEXT",
+        "translation_status": "UNKNOWN",
+        "editable": false,
+        "metadata": {}
+      }
+    ],
+    "twilight.system_menu": [
+      {
+        "id": "main_menu.classroom_background",
+        "display_name": "Classroom Background",
+        "object_type": "COMPOSITE_IMAGE_ASSET",
+        "screen_bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 240
+        },
+        "source": {
+          "kind": "DISC_ASSET",
+          "file": "DAT/SINKOU/PROGDAT.BIN;1",
+          "local_file": "sdb_main_menu_asset/PROGDAT.BIN",
+          "members": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "asset_id": "main_menu.classroom_background"
+        },
+        "editor_target": {
+          "type": "ASSET_INSPECTOR",
+          "asset_id": "main_menu.classroom_background",
+          "members": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "confidence": "LIVE_VERIFIED",
+        "text_representation": "NOT_TEXT",
+        "translation_status": "NOT_EDITABLE",
+        "editable": true,
+        "metadata": {
+          "format": "TIM_8BPP_INDEXED_COMPOSITE",
+          "width": 320,
+          "height": 240,
+          "member_layout": "five 64x240 strips"
+        }
+      },
+      {
+        "id": "menu.window_color",
+        "display_name": "Window Color",
+        "object_type": "UI_TEXT_ASSET",
+        "screen_bounds": {
+          "x": 80,
+          "y": 36,
+          "width": 160,
+          "height": 16
+        },
+        "source": {
+          "kind": "DISC_ASSET",
+          "file": "DAT/SINKOU/MENUDAT.BIN;1",
+          "block": 1,
+          "asset_id": "menu.window_color"
+        },
+        "editor_target": {
+          "type": "ASSET_INSPECTOR",
+          "asset_id": "menu.window_color",
+          "block": 1
+        },
+        "confidence": "MANUAL_VERIFIED",
+        "text_representation": "RASTER_TEXT_ASSET",
+        "translation_status": "ORIGINAL",
+        "editable": true,
+        "metadata": {
+          "format": "TIM_4BPP_INDEXED",
+          "width": 160,
+          "height": 16,
+          "evidence": "user screenshot 2026-08-09"
+        }
+      },
+      {
+        "id": "menu.view_spoils",
+        "display_name": "View Spoils",
+        "object_type": "UI_TEXT_ASSET",
+        "screen_bounds": {
+          "x": 80,
+          "y": 124,
+          "width": 160,
+          "height": 16
+        },
+        "source": {
+          "kind": "DISC_ASSET",
+          "file": "DAT/SINKOU/MENUDAT.BIN;1",
+          "block": 0,
+          "asset_id": "menu.view_spoils"
+        },
+        "editor_target": {
+          "type": "ASSET_INSPECTOR",
+          "asset_id": "menu.view_spoils",
+          "block": 0
+        },
+        "confidence": "MANUAL_VERIFIED",
+        "text_representation": "RASTER_TEXT_ASSET",
+        "translation_status": "ORIGINAL",
+        "editable": true,
+        "metadata": {
+          "format": "TIM_4BPP_INDEXED",
+          "width": 160,
+          "height": 16,
+          "evidence": "user screenshot 2026-08-09"
+        }
+      },
+      {
+        "id": "menu.return_to_title",
+        "display_name": "Return to Title",
+        "object_type": "UI_TEXT_ASSET",
+        "screen_bounds": {
+          "x": 106,
+          "y": 173,
+          "width": 108,
+          "height": 20
+        },
+        "source": {
+          "kind": "DISC_ASSET",
+          "file": "DAT/SINKOU/MENUDAT.BIN;1",
+          "block": 2,
+          "asset_id": "menu.return_to_title"
+        },
+        "editor_target": {
+          "type": "ASSET_INSPECTOR",
+          "asset_id": "menu.return_to_title",
+          "block": 2
+        },
+        "confidence": "MANUAL_VERIFIED",
+        "text_representation": "RASTER_TEXT_ASSET",
+        "translation_status": "ORIGINAL",
+        "editable": true,
+        "metadata": {
+          "format": "TIM_4BPP_INDEXED",
+          "width": 108,
+          "height": 20,
+          "evidence": "user screenshot 2026-08-09"
+        }
+      },
+      {
+        "id": "manual.unknown.4",
+        "display_name": "Unknown region",
+        "object_type": "UNKNOWN_REGION",
+        "screen_bounds": {
+          "x": 222,
+          "y": 76,
+          "width": 4,
+          "height": 8
+        },
+        "source": {
+          "kind": "UNKNOWN"
+        },
+        "editor_target": {
+          "type": "MAPPING_INVESTIGATION"
+        },
+        "confidence": "UNKNOWN",
+        "text_representation": "NOT_TEXT",
+        "translation_status": "UNKNOWN",
+        "editable": false,
+        "metadata": {}
+      },
+      {
+        "id": "manual.unknown.5",
+        "display_name": "Unknown region",
+        "object_type": "UNKNOWN_REGION",
+        "screen_bounds": {
+          "x": 209,
+          "y": 75,
+          "width": 16,
+          "height": 5
+        },
+        "source": {
+          "kind": "UNKNOWN"
+        },
+        "editor_target": {
+          "type": "MAPPING_INVESTIGATION"
+        },
+        "confidence": "UNKNOWN",
+        "text_representation": "NOT_TEXT",
+        "translation_status": "UNKNOWN",
+        "editable": false,
+        "metadata": {}
+      }
+    ],
+    "twilight.spoils.photos": [
+      {
+        "id": "spoils.table_background",
+        "display_name": "Spoils Table Background",
+        "object_type": "COMPOSITE_IMAGE_ASSET",
+        "screen_bounds": {"x": 0, "y": 0, "width": 320, "height": 240},
+        "source": {"kind": "DISC_ASSET", "file": "DAT/SINKOU/PROGDAT.BIN;1", "local_file": "sdb_main_menu_asset/PROGDAT.BIN", "members": [10, 11, 12, 13, 14], "asset_id": "spoils.table_background"},
+        "editor_target": {"type": "ASSET_INSPECTOR", "asset_id": "spoils.table_background", "members": [10, 11, 12, 13, 14]},
+        "confidence": "LIVE_VERIFIED",
+        "text_representation": "NOT_TEXT",
+        "translation_status": "NOT_EDITABLE",
+        "editable": true,
+        "metadata": {"format": "TIM_16BPP_DIRECT_COMPOSITE", "width": 320, "height": 240, "member_layout": "five 64x240 strips", "evidence": "decoded PROGDAT group 2 and user screenshot"}
+      },
+      {
+        "id": "category.photos",
+        "display_name": "Photos",
+        "object_type": "UI_TEXT_ASSET",
+        "screen_bounds": {"x": 40, "y": 28, "width": 64, "height": 32},
+        "source": {"kind": "DISC_ASSET", "file": "DAT/SINKOU/MENUDAT.BIN;1", "block": 9, "asset_id": "category.photos"},
+        "editor_target": {"type": "ASSET_INSPECTOR", "asset_id": "category.photos", "block": 9},
+        "confidence": "LIVE_VERIFIED",
+        "text_representation": "RASTER_TEXT_ASSET",
+        "translation_status": "ORIGINAL",
+        "editable": true,
+        "metadata": {"format": "TIM_4BPP_INDEXED", "width": 64, "height": 32, "evidence": "decoded MENUDAT block 9 and user screenshot"}
+      }
+    ]
+  }
+}

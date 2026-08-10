@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py -m pytest tests/ -v)",
+      "Bash(PYTHONIOENCODING=utf-8 py -m pytest tests/ -v)",
+      "Bash(py -c ' *)",
+      "Bash(curl -s -I https://github.com)",
+      "Bash(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest)",
+      "Bash(mkdir -p \"c:\\\\Users\\\\טופז\\\\tools\")",
+      "Read(//c/Users/טופז/**)",
+      "Read(//c/Users/טופז/tools/**)",
+      "Bash(curl -s \"https://api.github.com/repos/lab313ru/ghidra_psx_ldr/releases\")",
+      "Bash(curl -L -o ghidra_psx_ldr.zip \"https://github.com/lab313ru/ghidra_psx_ldr/releases/download/2026.07.08/ghidra_12.1.2_PUBLIC_20260709_ghidra_psx_ldr.zip\")",
+      "Read(//c/GhidraTools/ghidra/support/**)",
+      "Bash(./analyzeHeadless.bat \"C:\\\\GhidraTools\\\\ghidra_project\" TwilightSyndrome -process \"CAP0.EXE\" -noanalysis -scriptPath \"C:\\\\GhidraTools\\\\ghidra_project\" -postScript check_functions.py)",
+      "Bash(curl -s \"https://pcsx-redux.consoledev.net\")",
+      "Bash(curl -sL \"https://distrib.app/pub/org/pcsx-redux/project/dev-win-cli-x64\")",
+      "Read(//c/PCSXRedux/**)",
+      "Read(//c/PCSXRedux/drop/binaries/vsprojects/x64/ReleaseWithClangCL/**)",
+      "Bash(./pcsx-redux.exe -bios \"C:\\\\PCSXRedux\\\\game\\\\SCPH1001.BIN\" -iso \"C:\\\\PCSXRedux\\\\game\\\\game.cue\" -gdb -gdb-port 3333 -run -portable -stdout)",
+      "Bash(./analyzeHeadless.bat \"C:\\\\GhidraTools\\\\ghidra_project\" TwilightSyndrome -process \"CAP0.EXE\" -noanalysis -scriptPath \"C:\\\\GhidraTools\\\\ghidra_project\" -postScript DecompileMore.java)",
+      "Bash(py \"C:\\\\Users\\\\51EF~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users------starter-project\\\\f613ab9e-dae1-411f-a137-f6b4e4e70465\\\\scratchpad\\\\gdbclient.py\" continue)",
+      "Bash(\"/c/Users/טופז/AppData/Local/Programs/Python/Python313/python.exe\" -u \"/c/Users/51EF~1/AppData/Local/Temp/claude/c--Users------starter-project/f613ab9e-dae1-411f-a137-f6b4e4e70465/scratchpad/catch_glyph_codes.py\")",
+      "PowerShell(Start-Process -FilePath $binPath -ArgumentList '-bios','\"C:\\\\PCSXRedux\\\\game\\\\SCPH1001.BIN\"','-iso','\"C:\\\\PCSXRedux\\\\game\\\\game.cue\"','-debugger','-gdb','-gdb-port','3333','-run','-portable')",
+      "PowerShell($binPath = \"C:\\\\PCSXRedux\\\\drop\\\\binaries\\\\vsprojects\\\\x64\\\\ReleaseWithClangCL\\\\pcsx-redux.exe\")",
+      "PowerShell(py \"C:\\\\Users\\\\51EF~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users------starter-project\\\\f613ab9e-dae1-411f-a137-f6b4e4e70465\\\\scratchpad\\\\test_font_extension.py\")",
+      "Bash(ls /c/GhidraTools/ghidra_project/ 2>&1 | head -30)",
+      "Read(//c/GhidraTools/ghidra_project//**)",
+      "Bash(py -m pytest tests/ -q)"
+    ],
+    "additionalDirectories": [
+      "c:\\GhidraTools\\ghidra_project"
+    ]
+  }
+}

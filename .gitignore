@@ -1,0 +1,32 @@
+# Copyrighted game/BIOS material -- never push these (PS1 BIOS ROM,
+# the commercial game disc image, and third-party source of unclear
+# provenance all live under this folder).
+קיבצי דמה/
+
+# Leftover scratch/test-run artifacts from local test sessions (some are
+# even permission-locked) -- not real project state.
+asset_test_tmp/
+asset_test_tmp_final/
+asset_test_tmp_full/
+asset_test_tmp_full2/
+composite_tmp/
+composite_tmp2/
+gpu_full_tmp/
+runtime_full_tmp/
+snapshot_profile_tmp/
+spoils_tmp/
+test-temp-runtime-workflow/
+test-temp-runtime-workflow-final/
+visual_background_tmp/
+visual_context_tmp/
+visual_full_tmp/
+visual_test_tmp/
+visual_test_tmp2/
+workflow_finish_tmp/
+workflow_full_tmp/
+.test-tmp/
+
+# Python / tooling caches
+__pycache__/
+*.pyc
+.pytest_cache/
