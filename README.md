@@ -1,6 +1,27 @@
 # GCRTS — Game Content Reconstruction & Translation System
 
-Phases implemented so far:
+## Project status & documentation map
+
+This README documents the project's *original* phases (below) — the
+data-only investigation, disassembly, and the `.CDB` codec breakthrough.
+A large amount of work has happened since then: a live runtime-tracking
+stack (asset lifecycle, screen object mapping, a Visual Inspector), a
+full script bytecode decoder/encoder, and a complete audio/XA
+investigation chain culminating in a live-captured, reproduced
+`Setfilter(file=2, channel=1)` call. 506 tests pass as of the last
+update.
+
+- **For current, up-to-date project state**: [`docs/status/CURRENT_SYSTEM_STATUS.md`](docs/status/CURRENT_SYSTEM_STATUS.md)
+  — the single, continuously-updated "present truth" doc (test counts,
+  capability matrix, what's live-verified vs. still open).
+- **For everything else, by topic**: [`docs/README.md`](docs/README.md)
+  — the full documentation index (audio, assets, renderer, text engine,
+  runtime tracking, tooling, investigations).
+
+The rest of this file is the original, still-accurate account of Phases
+1–5 and the `.CDB` codec breakthrough.
+
+## Phases implemented so far
 
 - **Phase 1** — binary loader, ASCII string extraction, JSON output.
   Extended with real CD-ROM XA Mode2/2352 sector de-interleaving
@@ -231,7 +252,7 @@ python -m gcrts.visual_inspector_ui --registry screen_mappings.json --asset-sour
 
 Choose `twilight.main_menu`, then capture the current frame or load a screenshot.
 START and SETTINGS/PREPARE route directly to their existing Asset Inspector
-entries. See `VISUAL_ASSET_INSPECTOR.md` for the workflow and current limits.
+entries. See [`docs/assets/VISUAL_ASSET_INSPECTOR.md`](docs/assets/VISUAL_ASSET_INSPECTOR.md) for the workflow and current limits.
 
 ## Test
 
