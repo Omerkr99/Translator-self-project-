@@ -13,13 +13,15 @@ capability matrix, and what's live-verified vs. still open.
 
 ### [`audio/`](audio/) — the XA/voice audio investigation chain
 Script cue → selector → XAPACK file → event/stream descriptor → real
-CD-ROM driver → live-captured Setfilter call. Read in this order for
-the full story: `RUNTIME_AUDIO_TRACKER.md` (lifecycle) →
-`AUDIO_CUE_RESOLUTION.md` (source resolution) →
+CD-ROM driver → live-captured Setfilter call → read-only extraction
+backend. Read in this order for the full story: `RUNTIME_AUDIO_TRACKER.md`
+(lifecycle) → `AUDIO_CUE_RESOLUTION.md` (source resolution) →
 `SCRIPT_AUDIO_ASSOCIATION.md` (which script line owns which audio) →
 `AUDIO_CONTEXT_RESOLUTION.md` (why that line picks its source) →
 `XA_STREAM_RESOLUTION.md` (file-open, CD-ROM driver, and the real
-Setfilter capture) → `AUDIO_CAPTIONS.md` (what is being heard).
+Setfilter capture) → `AUDIO_CAPTIONS.md` (what is being heard) →
+`AUDIO_EVENT_EXTRACTION.md` (the extraction backend, and the "Setfilter
+not proven event-specific" correction).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

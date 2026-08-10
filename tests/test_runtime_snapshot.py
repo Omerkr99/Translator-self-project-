@@ -191,6 +191,34 @@ def test_snapshot_active_audio_empty_when_provider_has_no_audio_event():
     assert snapshot.active_audio == []
 
 
+def test_snapshot_extraction_status_not_ready_without_stream_source():
+    """Audio Event Isolation milestone: no live-verified AudioStreamSource
+    means no confirmed start LBA, so extraction is NOT_READY -- never
+    silently upgraded to a higher readiness state."""
+    provider = _FakeProvider({}, last_audio_event=_audio_event(state=AudioLifecycleState.PLAYING))
+    snapshot = capture_runtime_snapshot(provider, frame=1, objects=[])
+    assert snapshot.active_audio[0]["extraction_status"] == "NOT_READY"
+
+
+def test_snapshot_extraction_status_never_defaults_to_ready():
+    """Even with a live-verified stream source giving a start LBA, this
+    project's own finding (the historical Setfilter is not proven
+    event-specific) means extraction_status must NOT silently reach
+    READY or CHANNEL_CONFIRMED without an explicitly-supplied,
+    event-specific file/channel -- only START_CONFIRMED at most."""
+    from gcrts.audio_stream_source import AudioStreamConfidence, AudioStreamSource
+
+    provider = _FakeProvider({}, last_audio_event=_audio_event(state=AudioLifecycleState.PLAYING))
+    provider.last_audio_stream_source = AudioStreamSource(
+        source_id="s", descriptor_ptr=0x800A60EC, file_start_lba=126218,
+        file_start_lba_matches_disc=True, matched_disc_path="DAT/XA1/XAPACK08.BIN",
+        field_0x08_value=129542, field_0x14_value=131841,
+        confidence=AudioStreamConfidence.LIVE_VERIFIED, resolution_note="matches",
+    )
+    snapshot = capture_runtime_snapshot(provider, frame=1, objects=[])
+    assert snapshot.active_audio[0]["extraction_status"] == "START_CONFIRMED"
+
+
 def test_active_audio_round_trips_through_saved_snapshot(tmp_path):
     provider = _FakeProvider({}, last_audio_event=_audio_event())
     snapshot = capture_runtime_snapshot(provider, frame=1, objects=[])

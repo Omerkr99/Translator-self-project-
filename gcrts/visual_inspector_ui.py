@@ -187,6 +187,15 @@ class VisualInspectorApp(tk.Tk):
                     lines.append(f"Stream start LBA: {stream_source.file_start_lba} ({stream_source.matched_disc_path})")
                 else:
                     lines.append("Stream descriptor: UNKNOWN")
+                # Audio Event Isolation / Extraction milestone -- honest
+                # readiness, never defaults file/channel from the
+                # historical Setfilter observation (see
+                # gcrts.cdrom_setfilter's "not proven event-specific"
+                # correction and AUDIO_EVENT_EXTRACTION.md).
+                from gcrts.audio_event_extraction import extraction_readiness
+                extraction_start_lba=stream_source.file_start_lba if stream_source is not None and stream_source.confidence==AudioStreamConfidence.LIVE_VERIFIED else None
+                extraction_status=extraction_readiness(start_lba=extraction_start_lba,end_lba=None,xa_file_number=None,xa_channel=None)
+                lines.append(f"Extraction status: {extraction_status.value}")
                 # XA Channel/Filter Runtime Resolution milestone -- the
                 # low-level CD-ROM driver's own hardware register map,
                 # not per-event (see gcrts.cdrom_driver_map). True XA

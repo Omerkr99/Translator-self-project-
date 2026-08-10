@@ -99,3 +99,15 @@ regression that a caption is never confused with source identity (no
 `source_file`/`xa_channel`-shaped fields on `AudioCaption` at all) and
 that genuinely empty dialogue text stays `UNKNOWN` rather than becoming
 a fabricated placeholder.
+
+## Follow-up (Audio Event Isolation milestone): caption/extraction handoff not yet reached
+
+`AUDIO_EVENT_EXTRACTION.md` set out to connect an isolated, listenable
+audio artifact to this caption layer (so a user could eventually type
+`[children laughing in the distance]` against a real extracted clip).
+That handoff was not reached this pass: extraction itself is blocked on
+a real per-event XA channel (the previously-captured Setfilter was
+found not to be proven event-specific — see that document and
+`gcrts.cdrom_setfilter.is_proven_event_specific()`). This module's own
+scope and behavior are unchanged; only real dialogue text remains its
+one self-produced caption source, exactly as designed.

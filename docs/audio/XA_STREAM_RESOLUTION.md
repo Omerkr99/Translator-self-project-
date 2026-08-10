@@ -341,3 +341,18 @@ Setfilter (historical): file=2 channel=1 [LIVE_CAPTURED]").
 ### Tests
 
 9 new tests in `tests/test_cdrom_setfilter.py`.
+
+### Important follow-up correction (Audio Event Isolation milestone)
+
+A later live re-check found this Setfilter call is **not proven to be
+event-specific** — two independent simultaneous cross-checks (position
+counter + playback state read at the exact same instant as the hit)
+both found it firing during a STOPPED state with stale, unrelated
+`last_req_params`, never during an active PLAYING dispatch. It's most
+likely a fixed default/reset value, not a per-cue channel selection.
+See `AUDIO_EVENT_EXTRACTION.md` for the full account and
+`gcrts.cdrom_setfilter.is_proven_event_specific()` (returns `False`,
+with the evidence attached). The raw register/memory evidence
+(`file=2, channel=1`, the real command protocol, the real hardware
+register map) remains real and reproduced — only the "this is what a
+specific playing event selects" interpretation is retracted.

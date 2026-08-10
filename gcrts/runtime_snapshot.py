@@ -181,6 +181,28 @@ def capture_runtime_snapshot(provider, frame: int, objects: list) -> RuntimeSnap
         # position-counter-based resolver and the selector-table one --
         # see AUDIO_CONTEXT_RESOLUTION.md. Present even when
         # UNKNOWN/unconfirmed, never silently discarded.
+        # Audio Event Isolation / Extraction milestone: report readiness
+        # honestly via gcrts.audio_event_extraction.extraction_readiness
+        # -- deliberately does NOT plug in the historical
+        # Setfilter(file=2, channel=1) observation for whatever event
+        # happens to be active. A follow-up live capture (see
+        # AUDIO_EVENT_EXTRACTION.md) found that specific Setfilter fired
+        # while state was STOPPED with stale, unrelated last_req_params,
+        # so it is not proven to be this or any other specific event's
+        # own channel selection -- silently assuming it here would be
+        # exactly the kind of unproven claim this project's own
+        # discipline exists to prevent.
+        from gcrts.audio_event_extraction import extraction_readiness
+        from gcrts.audio_stream_source import AudioStreamConfidence
+
+        start_lba = (
+            audio_stream_source.file_start_lba
+            if audio_stream_source is not None and audio_stream_source.confidence == AudioStreamConfidence.LIVE_VERIFIED
+            else None
+        )
+        entry["extraction_status"] = extraction_readiness(
+            start_lba=start_lba, end_lba=None, xa_file_number=None, xa_channel=None
+        ).value
         if audio_stream_source is not None:
             entry["stream_source"] = audio_stream_source.to_dict()
         active_audio.append(entry)

@@ -60,6 +60,33 @@ the standard documented parameter order, not an independent same-instant
 position check. Reported honestly as `LIVE_CAPTURED` for the raw
 register/memory evidence.
 
+## Important follow-up correction: NOT proven to be per-event
+
+A later milestone (Audio Event Isolation / Extraction, see
+`AUDIO_EVENT_EXTRACTION.md`) re-captured this exact same Setfilter call
+site, this time also reading the live position counter, playback state,
+and `last_req_params` at the EXACT SAME instant as the hit -- twice
+independently (fresh state reload each time), always with
+byte-identical results:
+
+  - `params` always exactly `[2, 1]`, never varying
+  - `state` always `0x02` (STOPPED), never caught during STARTING/PLAYING
+  - `last_req_params` always a stale, already-finished cue's value,
+    never a fresh dispatch's parameters
+  - `position_counter` varying wildly between captures (observed once
+    at 182935, deep in `XAPACK42`'s range -- nowhere near `XAPACK02`)
+
+This is real, reproduced evidence that this specific Setfilter call is
+**most likely a fixed default/reset value issued during idle periods,
+not a per-event channel selection**. `KNOWN_SETFILTER_OBSERVATIONS`
+below is kept exactly as originally captured (real, reproduced, honest
+evidence of the mechanism and protocol), but callers must NOT treat it
+as "the channel for whatever `RuntimeAudioEvent` happens to be active."
+`gcrts.audio_event_extraction` enforces this directly: it never
+defaults `xa_file_number`/`xa_channel` to this observation's values --
+a caller must supply values independently confirmed for the specific
+event being extracted.
+
 ## Why this isn't a live-pollable function
 
 Every other resolver in this package (`runtime_audio.capture_audio_event`,
@@ -182,6 +209,67 @@ KNOWN_SETFILTER_OBSERVATIONS: tuple[SetfilterCallObservation, ...] = (
         confidence=SetfilterEvidenceConfidence.LIVE_CAPTURED,
     ),
 )
+
+
+@dataclass(frozen=True)
+class SetfilterContextCheck:
+    """One live capture that read the position counter, playback state,
+    and last-requested params at the EXACT SAME instant as a Setfilter
+    hit -- the cross-check that revealed the observation above is not
+    proven event-specific (see module docstring)."""
+
+    t_seconds_after_resume: float
+    params: tuple[int, ...]
+    position_counter_at_hit: int
+    state_at_hit: int
+    last_req_params_at_hit: int
+
+    def to_dict(self) -> dict:
+        return {
+            "t_seconds_after_resume": self.t_seconds_after_resume,
+            "params": list(self.params),
+            "position_counter_at_hit": self.position_counter_at_hit,
+            "state_at_hit": self.state_at_hit,
+            "last_req_params_at_hit": self.last_req_params_at_hit,
+        }
+
+
+# Two independent live captures (Audio Event Isolation / Extraction
+# milestone, fresh state reload before each), each reading
+# position/state/last_req_params at the exact same instant as the
+# Setfilter hit -- see AUDIO_EVENT_EXTRACTION.md. Both:
+# params=(2, 1) unchanged, state=STOPPED (0x02), and a stale
+# last_req_params -- the evidence behind `is_proven_event_specific()`.
+# The identical position_counter value across both (182935) is itself
+# informative: consistent with a fully deterministic replay from the
+# same frozen save state, not a value influenced by live gameplay.
+KNOWN_SETFILTER_CONTEXT_CHECKS: tuple[SetfilterContextCheck, ...] = (
+    SetfilterContextCheck(
+        t_seconds_after_resume=5.188129663467407,
+        params=(2, 1),
+        position_counter_at_hit=182935,
+        state_at_hit=0x02,
+        last_req_params_at_hit=0x0000007F,
+    ),
+    SetfilterContextCheck(
+        t_seconds_after_resume=5.26,
+        params=(2, 1),
+        position_counter_at_hit=182935,
+        state_at_hit=0x02,
+        last_req_params_at_hit=0x0000007F,
+    ),
+)
+
+
+def is_proven_event_specific() -> bool:
+    """False, honestly, per `KNOWN_SETFILTER_CONTEXT_CHECKS`: every
+    simultaneous cross-check found the Setfilter call firing during a
+    STOPPED state with a stale, already-finished cue's params -- never
+    during STARTING/PLAYING with fresh params. Callers (e.g.
+    `gcrts.audio_event_extraction`) must never treat
+    `KNOWN_SETFILTER_OBSERVATIONS` as "the channel for the current
+    event" based on this evidence alone."""
+    return False
 
 
 def cross_validate_file_number(file_number: int) -> str | None:

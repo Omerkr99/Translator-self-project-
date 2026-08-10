@@ -147,6 +147,26 @@ in this stack) -- documented as a historical record
 `KNOWN_CUE_SOURCES` already established. Test count: **506 passed**
 (497 + 9 in `test_cdrom_setfilter.py`).
 
+**Eighth follow-up milestone (Audio Event Isolation / Extraction,
+`AUDIO_EVENT_EXTRACTION.md`, `gcrts.audio_event_extraction`)**: built
+and tested a read-only extraction backend (sector selection filtered by
+real CD-XA subheader file/channel/Audio-flag, honest
+`ExtractionConfidence` states, never guesses an end boundary from
+timing). While verifying whether the Setfilter capture applied to one
+specific target event (as the milestone itself required before using
+it), a live re-check with a simultaneous position/state read found the
+Setfilter is most likely a fixed default/reset value, not proven tied
+to any specific event -- a real, honest correction to the previous
+milestone's interpretation, recorded permanently
+(`gcrts.cdrom_setfilter.is_proven_event_specific()` -> `False`, with
+evidence attached), not walked back quietly. The extraction backend
+therefore never defaults file/channel from that historical observation.
+`event_end_lba` remains unresolved; no `PLAYING -> STOPPED` transition
+was observed live this pass either. Test count: **528 passed**
+(506 + 22: 14 in `test_audio_event_extraction.py`, 2 in
+`test_runtime_snapshot.py`, 6 in `test_cdrom_setfilter.py`
+[correction + regression coverage]).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

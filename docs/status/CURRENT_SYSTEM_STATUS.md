@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 506 passed, 0 failed (`py -m pytest tests/ -q`), ~17s.
-  78 modules in `gcrts/`, 59 test files.
+- **Test count**: 528 passed, 0 failed (`py -m pytest tests/ -q`), ~15s.
+  79 modules in `gcrts/`, 60 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -62,7 +62,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   "XA Channel / Filter Runtime Resolution" follow-up): the real
   `0x1F801800`-`0x1F801803` register map, the shared command-issuing
   routine, and the real Setfilter command number (`0x0D`) are all
-  confirmed. **A real, live, reproduced Setfilter call has now been
+  confirmed. **A real, live, reproduced Setfilter call has been
   caught** (`gcrts.cdrom_setfilter`, `XA_STREAM_RESOLUTION.md`'s "Capture
   the Real CD-XA Setfilter Command" follow-up): `file=2, channel=1`,
   identical across two independent captures, `file=2` cross-validated
@@ -70,13 +70,23 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   out to be a real bug (wrong stack offset, silently returning a
   plausible-but-wrong `0x00`), found and fixed via a static scan rather
   than repeating the same live technique — documented honestly, not
-  glossed over. This is a historical, live-captured-and-reproduced
-  observation, not a per-event live-pollable value (Setfilter is a
-  one-shot event with no persistent RAM field to poll) and not
-  independently cross-checked against a simultaneous LBA read. The
-  original file-open-consumer blocker (two systematic code searches,
-  zero consumers of the constructed path string) is unchanged and is now
-  the last remaining open thread in the audio chain.
+  glossed over.
+  **Important correction (`AUDIO_EVENT_EXTRACTION.md`)**: a follow-up
+  live re-check, this time reading the position counter and playback
+  state at the exact same instant as the Setfilter hit (closing the gap
+  flagged above), found the call firing during a STOPPED state with a
+  stale, unrelated `last_req_params` — twice, independently. This
+  Setfilter is most likely a fixed default/reset value, **not proven to
+  be any specific event's own channel selection**
+  (`gcrts.cdrom_setfilter.is_proven_event_specific()` returns `False`,
+  evidence attached). A read-only extraction backend
+  (`gcrts.audio_event_extraction`) was built and tested regardless —
+  it deliberately never defaults file/channel from that historical
+  observation, so it's ready the moment a genuinely per-event channel
+  source is found. The original file-open-consumer blocker (two
+  systematic code searches, zero consumers of the constructed path
+  string) is unchanged. `event_end_lba` also remains unresolved — no
+  `PLAYING → STOPPED` transition was observed live this pass.
 
 ## Key current distinctions (do not lose these)
 
@@ -414,15 +424,17 @@ section) rather than being a data-model-only proof.
   trace at a `CAP*.EXE` address, or trace the boot/overlay-loader chain
   directly) before any further movie-specific tracing can proceed.
 
-### Audio / XA / voice tracking — PARTIAL (lifecycle, occurrence identity, and causal source-selection all fully proven and cross-validated; only downstream file-open mechanics, xa_channel, and position calibration remain open)
+### Audio / XA / voice tracking — PARTIAL (lifecycle, occurrence identity, and causal source-selection all fully proven and cross-validated; downstream file-open mechanics, per-event xa_channel, event_end_lba, and position calibration remain open)
 
 Full detail, evidence, and reproduction steps: `RUNTIME_AUDIO_TRACKER.md`
 (lifecycle), `AUDIO_CUE_RESOLUTION.md` (source resolution),
 `SCRIPT_AUDIO_ASSOCIATION.md` (which script occurrence owns which audio
 event), `AUDIO_CONTEXT_RESOLUTION.md` (why that occurrence picks its
-source), `XA_STREAM_RESOLUTION.md` (the constructed file path and a real
-event-boundary structure, plus the honest file-open blocker), and
-`AUDIO_CAPTIONS.md` (what is being heard).
+source), `XA_STREAM_RESOLUTION.md` (the constructed file path, a real
+event-boundary structure, the honest file-open blocker, and the real
+Setfilter capture), `AUDIO_CAPTIONS.md` (what is being heard), and
+`AUDIO_EVENT_EXTRACTION.md` (the read-only sector-extraction backend,
+and the "Setfilter not proven event-specific" correction).
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal
@@ -572,17 +584,22 @@ event-boundary structure, plus the honest file-open blocker), and
   8`, to the byte) — not independently proven to reflect the actual SPU
   playback channel. Reported under a dedicated
   `AudioConfidence.POSITIONAL_UNCONFIRMED` tier rather than silently
-  presented with the same confidence as file resolution. **This
-  positional heuristic now has a real, live-captured comparison point**:
+  presented with the same confidence as file resolution.
   `gcrts.cdrom_setfilter.KNOWN_SETFILTER_OBSERVATIONS` records a real,
   reproduced Setfilter call (`file=2, channel=1`), caught by fixing a
   real bug (a wrong stack offset) that three earlier live sessions had
-  silently masked as "channel unreachable." No simultaneous LBA read was
-  taken at that exact capture instant, so a rigorous MATCH/MISMATCH
-  comparison against the positional heuristic for that specific instant
-  isn't possible from this evidence alone — reported as a live,
-  reproduced value in its own right, not yet formally reconciled with
-  the positional tier.
+  silently masked as "channel unreachable." **A follow-up simultaneous
+  LBA/state cross-check (Audio Event Isolation milestone,
+  `AUDIO_EVENT_EXTRACTION.md`) found this Setfilter is NOT proven to be
+  event-specific** — it fired during a STOPPED state with a stale,
+  unrelated `last_req_params`, twice independently, most likely a fixed
+  default/reset value. A rigorous MATCH/MISMATCH comparison against the
+  positional heuristic for a specific playing event therefore still
+  isn't possible from this evidence — the positional heuristic remains
+  the only value reported for any given live event's `xa_channel`.
+  A read-only extraction backend (`gcrts.audio_event_extraction`) was
+  built and tested regardless, deliberately never defaulting
+  file/channel from this observation.
 - 101 new tests across all eight milestones (25 lifecycle + 13 resolution
   + 14 script association + 16 audio context (incl. cross-validation)
   + 10 audio captions + net changes to existing tests), full suite
@@ -660,6 +677,6 @@ instructions, not as a sign of partial implementation.
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
 | Movies / `.STR` | PARTIAL | No | Runtime trigger unidentified; wrong overlay assumed so far |
-| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but historical only (not per-event/not re-derivable by polling, not simultaneously LBA-cross-checked); position counter's real-time unit uncalibrated; captions limited to dialogue text only |
+| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only |
 | Subtitles | UNSUPPORTED | No | Not started; blocked on Movies + Audio |
 | Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |
