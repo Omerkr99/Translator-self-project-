@@ -255,6 +255,37 @@ combined an armed breakpoint with a genuinely confirmed audible
 trigger. Test count: **566 passed** (551 + 15 in
 `test_spu_audio_path.py`).
 
+**Fourteenth follow-up milestone (Live Audible Trigger Correlation,
+`SPU_AUDIO_PATH_DISCOVERY.md`'s own follow-up section,
+`gcrts.spu_audio_path`)**: closed the gap the thirteenth milestone left
+open. Using the project's own established automated-input technique
+(`Keyboard_PadCircle`/'D', `0x44`) to trigger dialogue from save-slot 9
+with `CD_init`'s SPUCNT write and all 5 known Key ON/OFF sites armed
+beforehand, a live run produced a genuine, decisive result: the user
+explicitly confirmed hearing a real voice line during the exact
+captured window (script context verifiably changed, proving the
+trigger reached the game), while **zero of the 6 armed sites fired
+meaningfully** — a real, CPU-register-level-confirmed negative,
+ruling out `CD_init` and both Key ON/OFF families as the mechanism for
+that instance. Separately, while attempting to poll the full SPU
+register block during that same window, discovered and diagnostically
+confirmed a second, independent finding: **GDB's own memory read/write
+path for the SPU hardware I/O range (`0x1F801xxx`) does not round-trip
+even a debug-issued write, while genuinely, verifiably running** (a
+direct write-then-readback test failed both immediately and a full
+second later, while plain RAM writes round-tripped correctly in the
+same session). This retroactively reclassifies the prior milestone's
+"`CD_init`'s write does not persist" finding as an unverifiable
+tooling limitation, not a confirmed behavioral fact — CPU-register-based
+findings (the actual bug this milestone needed to fix along the way:
+an earlier "keep the emulator running" helper never re-sent `c` after
+PCSX-Redux's per-interrupt halt, silently freezing execution after the
+first interrupt) remain unaffected and reliable. Playback backend
+stays `UNKNOWN`, now for a stronger, more precise reason: a real
+capture window was achieved and decisively rules out the known sites,
+rather than never having been achieved at all. Test count: **574
+passed** (566 + 8 in `test_spu_audio_path.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

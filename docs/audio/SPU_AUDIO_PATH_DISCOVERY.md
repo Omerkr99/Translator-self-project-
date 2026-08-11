@@ -6,7 +6,9 @@ traced `ReadN`/Setmode cycle ruled out, and a second full-RAM
 pointer-value scan on the CD-ROM side found only interrupt/DMA
 infrastructure). Pivot direction: `audible event -> SPU state/register
 activity -> writer -> audio subsystem -> upstream source`. New module:
-`gcrts/spu_audio_path.py`, `tests/test_spu_audio_path.py` (15 tests).
+`gcrts/spu_audio_path.py`, `tests/test_spu_audio_path.py` (23 tests
+after the follow-up Live Audible Trigger Correlation experiment,
+below).
 
 ## SPU pointer scan
 
@@ -114,25 +116,72 @@ comparison above became the priority per the milestone's own "stop
 broad scanning once a strong writer family is found" instruction. Left
 open for a follow-up.
 
+## Follow-up: Live Audible Trigger Correlation experiment
+
+Closed the exact gap the original pass left open. Used the project's
+own established automated-input technique (`Keyboard_PadCircle` =
+`0x44`/'D', the confirmed advance/confirm binding from `pcsx.json`) to
+trigger dialogue deterministically from save-slot 9, with
+`CD_init`'s SPUCNT write and all 5 known Key ON/OFF sites armed
+*before* the trigger — `gcrts.spu_audio_path.LIVE_CORRELATION_RUNS`.
+
+**Decisive result (run 2):** the user explicitly confirmed hearing a
+real voice line during the exact ~24-second captured window.
+`script_parameter`/`position_counter`/`source_file` genuinely changed
+across that window (`XAPACK42.BIN@182935` → `XAPACK20.BIN@158842`),
+proving the automated input reached the game. **Zero of the 6 armed
+sites fired meaningfully**: `CD_init`'s SPUCNT write never fired at
+all; the `0x800A32C0` Key ON/OFF pair fired 814/815 times, every one
+`a0=0x0` (no-op); the `0x800A38A8` family never fired. Per this
+milestone's own Phase 8: **audible playback in this observed instance
+is not triggered through any of these known SPU writer sites at event
+start.** This is a genuine, decisive, CPU-register-level-confirmed
+negative result — `live_correlation_confirmed_audible_with_zero_known_hits()`
+→ `True`.
+
+### A second, independent finding: the SPU MMIO read/write channel itself is unreliable
+
+Attempting Phase 9/10 (poll the full SPU register block — all 24
+voices + control registers, 640 bytes — during the confirmed-audible
+window) found **zero byte-level change across the entire block for the
+whole session**. Before trusting that as a real result, a direct
+diagnostic was run: write `0x3FFF` to Main Volume via GDB, then read
+it back, **while independently verified to be genuinely, continuously
+running** (RAM position counter climbing every second under a
+corrected continue-loop that properly re-issues `c` after every
+PCSX-Redux interrupt-halt). The write did **not** round-trip — readback
+was `0x0000` immediately and still `0x0000` a full second later. Plain
+RAM writes round-tripped correctly in the same session, and the KSEG1
+uncached mirror (`0xBF801D80`) showed the identical stuck-zero
+behavior, isolating the problem to the SPU hardware I/O address range
+specifically. **`gcrts.spu_audio_path.spu_mmio_read_write_roundtrip_reliable()`
+→ `False`** — a confirmed tooling limitation, not a game-behavior fact.
+
+This *reclassifies* the original pass's "the write does not persist"
+finding: it was never established that `CD_init`'s write fails to
+persist on the real emulated hardware — only that this project's
+chosen read channel cannot verify it either way. The same caveat
+applies retroactively to every "SPU register reads back 0" observation
+across this whole investigation. Findings based on **CPU register
+reads** at breakpoint hits (the value actually loaded into `$v0`/`$a0`
+at the write instruction) remain fully valid — that read path has been
+reliable throughout this entire project, unaffected by this finding.
+
 ## Actual playback backend
 
 Per the milestone's required taxonomy (`gcrts.spu_audio_path.PlaybackBackendClassification`):
-**`UNKNOWN`** (`classify_playback_backend()`). `CD_init` is a real,
-live-firing, structurally strong candidate — it is, so far, the single
-strongest concrete lead across all thirteen audio milestones this
-project has run. It is not upgraded to `XA_ADPCM_CONFIRMED` or
-`CD_INPUT_UNKNOWN_FORMAT` because:
-
-1. Its SPUCNT/CD-Volume/Main-Volume writes were never once observed to
-   persist on a later read — every subsequent check, in both sessions,
-   found all three back at `0x0000`/`0x00000000`.
-2. No single capture window combined an armed breakpoint on `CD_init`
-   (or the Key ON sites) with a user confirming, in the same instant,
-   that real audible dialogue was playing.
-
-Per this milestone's own explicit instruction, evidence outranks
-architectural expectation — this stays `UNKNOWN` rather than guessed
-past what was actually caught live.
+**`UNKNOWN`** (`classify_playback_backend()`) — but now for a stronger,
+more precise reason. A real capture window WAS achieved this
+follow-up: armed breakpoints on every known SPU writer site, a real
+automated trigger, and explicit user confirmation of audible dialogue
+in that exact window. None of the known sites fired — `CD_init` and
+both Key ON/OFF site families are decisively ruled out as the
+mechanism for that instance. What actually IS responsible remains
+unknown, compounded by the confirmed inability to directly verify true
+SPU hardware register state through this project's GDB-based read
+channel. Per this milestone's own explicit instruction, evidence
+outranks architectural expectation — this stays `UNKNOWN` rather than
+guessed past what was actually caught live.
 
 ## XAPACK correlation
 
@@ -154,26 +203,27 @@ exists yet to add.
 
 ## Tests
 
-**566 passed** (551 baseline + 15 new in `test_spu_audio_path.py`), no
-regressions. Full suite run via `pytest tests/` (the repo root also
-contains several unrelated, pre-existing scratch/temp directories from
-prior sessions that pytest's default collection cannot access on this
-Windows environment — a pre-existing, unrelated condition, not
-introduced by this milestone; scoping collection to `tests/` avoids it
-the same way prior sessions have).
+**574 passed** (566 baseline + 8 new in `test_spu_audio_path.py`, now
+23 total in that file), no regressions. Full suite run via
+`pytest tests/` (the repo root also contains several unrelated,
+pre-existing scratch/temp directories from prior sessions that
+pytest's default collection cannot access on this Windows environment
+— a pre-existing, unrelated condition, not introduced by this
+milestone; scoping collection to `tests/` avoids it the same way prior
+sessions have).
 
 ## Remaining blocker
 
-No capture session has yet combined an armed breakpoint on `CD_init`
-or a real Key ON site with the user confirming, at that exact instant,
-that audible dialogue is playing — every prior "we heard a sound"
-confirmation in this project's history came from live chat during an
-unrelated capture, not a session built around these specific new
-addresses.
+This project has no working channel to directly verify true SPU
+hardware register state — GDB's own memory read/write path for
+`0x1F801xxx` does not round-trip even a debug-issued write while
+genuinely running, so the real playback mechanism (now confirmed to be
+none of the known writer sites) cannot be found by reading SPU
+registers directly; a different observation channel is needed.
 
 ## Next milestone
 
-Run a session where these exact breakpoints (`CD_init`'s SPUCNT write,
-both real Key ON sites) are armed first, and only then have the user
-trigger and immediately confirm a real audible dialogue line — closing
-the one gap left in this pass's otherwise-strong `CD_init` lead.
+Find or build a reliable way to observe true SPU hardware state (e.g.
+a PCSX-Redux-side inspector/watchpoint mechanism instead of raw GDB
+memory peeks of `0x1F801xxx`), then repeat the voice/DMA-activity scan
+(Phases 9-11) that this pass could not trust the results of.

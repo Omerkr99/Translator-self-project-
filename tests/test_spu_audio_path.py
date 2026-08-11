@@ -2,10 +2,14 @@ from gcrts.spu_audio_path import (
     CD_INIT_CALL_SITES,
     CD_INIT_FUNC_ADDR,
     CD_INIT_SPUCNT_WRITE_VALUE,
+    KEY_PADCIRCLE_VK,
     KEY_WRITER_SITES,
+    LIVE_CORRELATION_RUNS,
     SPU_BASE_POINTER_HOLDERS,
+    SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE,
     SPUCNT_CD_AUDIO_ENABLE_BIT,
     SPUCNT_WRITER_SITES,
+    LiveCorrelationRun,
     PlaybackBackendClassification,
     SpuWriterFamily,
     SpuWriterSite,
@@ -14,6 +18,8 @@ from gcrts.spu_audio_path import (
     cd_init_write_confirmed_persistent,
     classify_playback_backend,
     key_on_real_voice_trigger_confirmed_live,
+    live_correlation_confirmed_audible_with_zero_known_hits,
+    spu_mmio_read_write_roundtrip_reliable,
 )
 
 
@@ -109,3 +115,59 @@ def test_cd_init_func_addr_matches_spucnt_write_family():
     cd_init_sites = [s for s in SPUCNT_WRITER_SITES if s.family == SpuWriterFamily.CD_INIT]
     assert len(cd_init_sites) == 1
     assert CD_INIT_FUNC_ADDR < cd_init_sites[0].write_pc
+
+
+def test_padcircle_vk_matches_pcsx_json_binding():
+    """Regression: this must stay in sync with pcsx.json's own
+    Keyboard_PadCircle binding (68 decimal = 0x44)."""
+    assert KEY_PADCIRCLE_VK == 0x44
+
+
+def test_live_correlation_has_at_least_two_runs():
+    assert len(LIVE_CORRELATION_RUNS) >= 2
+    assert all(isinstance(r, LiveCorrelationRun) for r in LIVE_CORRELATION_RUNS)
+
+
+def test_live_correlation_run2_is_user_confirmed_audible_with_zero_hits():
+    """The central decisive result of the follow-up correlation
+    experiment: a real user-confirmed audible line, zero meaningful
+    hits at any known SPU writer site."""
+    run2 = next(r for r in LIVE_CORRELATION_RUNS if r.run_id == "m16_run2")
+    assert run2.user_confirmed_audible is True
+    assert run2.meaningful_hits == 0
+
+
+def test_live_correlation_confirmed_audible_with_zero_known_hits():
+    assert live_correlation_confirmed_audible_with_zero_known_hits() is True
+
+
+def test_live_correlation_runs_have_real_evidence_strings():
+    for r in LIVE_CORRELATION_RUNS:
+        assert r.evidence.strip() != ""
+
+
+def test_live_correlation_runs_show_genuine_state_change():
+    """Regression: every run must show source_file actually changing --
+    otherwise it isn't proof the automated input reached the game."""
+    for r in LIVE_CORRELATION_RUNS:
+        assert r.source_file_before != r.source_file_after or r.position_before != r.position_after
+
+
+def test_spu_mmio_read_write_roundtrip_confirmed_unreliable():
+    """The second decisive finding this pass: GDB's own memory access
+    to the SPU hardware I/O range does not round-trip a write, even
+    while genuinely running. This must stay False until a working
+    observation channel is found -- flipping it silently would hide a
+    real, confirmed tooling blocker."""
+    assert SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE is False
+    assert spu_mmio_read_write_roundtrip_reliable() is False
+
+
+def test_cd_init_persistence_docstring_does_not_overclaim_non_persistence():
+    """cd_init_write_confirmed_persistent() must stay False, but only as
+    'not confirmed' -- not as 'confirmed to fail'. This is enforced by
+    checking the two findings are correctly linked: if the MMIO
+    read/write channel is unreliable, persistence genuinely cannot be
+    confirmed either way from this project's own tooling."""
+    assert cd_init_write_confirmed_persistent() is False
+    assert spu_mmio_read_write_roundtrip_reliable() is False

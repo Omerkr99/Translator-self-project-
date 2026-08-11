@@ -83,7 +83,7 @@ session. `CD_init`'s SPUCNT write also never fired in this same
 confirming it is conditional on some game state this project has not
 yet isolated, not a guaranteed per-load event.
 
-## Honest conclusion
+## Honest conclusion (original pass)
 
 Neither hypothesis achieved a clean, live, user-confirmed audible
 correlation within a single capture window this pass. `CD_init` is
@@ -93,9 +93,77 @@ concrete anchor this project has found across all six audio milestones
 so far. But its write not persisting, and the total absence of a
 same-session "armed breakpoint + real audible confirmation" capture,
 means the actual playback backend is **not yet confirmed** either way.
-Per this milestone's own required taxonomy, this is classified `UNKNOWN`
--- not `XA_ADPCM_CONFIRMED`, not `SPU_SAMPLE_PLAYBACK` -- rather than
-guessing past the evidence.
+
+## Follow-up: Live Audible Trigger Correlation experiment
+
+Closed the exact gap the previous pass left open -- a capture window
+combining armed breakpoints AND a real, user-confirmed audible line.
+Used the project's own established automated-input technique
+(`Keyboard_PadCircle` = `0x44`/'D', per `pcsx.json`, the confirmed
+confirm/advance button from an earlier session) to trigger dialogue
+deterministically from save-slot 9, with `CD_INIT_SPUCNT_WRITE` and all
+5 known Key ON/OFF sites armed *before* the trigger.
+
+**Run 2 result (decisive):** the user confirmed hearing a real voice
+line during the exact ~24-second captured window. `script_parameter`/
+`position_counter`/`source_file` genuinely changed across the window
+(`XAPACK42.BIN@182935` -> `XAPACK20.BIN@158842`), proving the
+automated input reached the game. **Zero** of the 6 armed sites fired
+meaningfully: `CD_INIT_SPUCNT_WRITE` never fired at all; the
+`0x800A32C0` Key ON/OFF pair fired 814/815 times, every single one
+`a0=0x0` (no-op); the `0x800A38A8` sites never fired. This is a real,
+CPU-register-level-confirmed negative result (register reads via `g`
+are unaffected by the finding below) -- per this milestone's own Phase
+8, the conclusion is stated directly: **audible playback in this
+observed instance is not triggered through any of these known SPU
+writer sites at event start.**
+
+### A second, independent finding: the SPU MMIO read/write channel itself is unreliable
+
+While attempting Phase 9/10 (poll the full SPU register block during
+the confirmed-audible window), the poll showed **zero byte-level
+change across all 640 bytes** (24 voices + control registers) for the
+entire session. Before trusting that as a real negative, a direct
+diagnostic was run: write `0x3FFF` to Main Volume (`0x1F801D80`) via
+GDB, then read it back -- **while independently verified to be
+genuinely, continuously running** (RAM position counter climbing every
+second under a corrected continue-loop). The write did **not**
+round-trip: readback was `0x0000` immediately and still `0x0000` a
+full second later. Plain RAM writes (a scratch address) round-tripped
+perfectly in the same session, and the KSEG1 uncached mirror
+(`0xBF801D80`) showed the same stuck-zero behavior. **Conclusion: GDB's
+memory read/write path for the SPU hardware I/O range
+(`0x1F801xxx`) does not reflect true emulated hardware state in this
+PCSX-Redux build** -- most likely because its debug-memory bridge
+proxies only the main 2MB RAM array, not each peripheral's internal
+register file. This is a genuine, confirmed **tooling limitation**, not
+a game-behavior fact.
+
+This *retroactively reclassifies* the original pass's "the write does
+not persist" finding: it was never established that `CD_init`'s write
+fails to persist on the real emulated hardware -- only that this
+project's chosen read channel cannot verify it either way. Every
+previous "SPU register reads back 0" observation across this whole
+investigation (this module and its predecessor passes) inherits the
+same caveat. By contrast, every finding based on **CPU register
+reads** at breakpoint hits (the command/value actually loaded into
+`$v0`/`$a0` at the exact write instruction) remains fully valid and
+unaffected -- that read path (`g`, GDB's register-read command) has
+been reliable throughout this entire project.
+
+## Honest conclusion (current)
+
+Per this milestone's own required taxonomy, this stays classified
+`UNKNOWN` -- not `XA_ADPCM_CONFIRMED`, not `SPU_SAMPLE_PLAYBACK` --
+but the reasoning is now stronger and more precise: a real capture
+window with a user-confirmed audible trigger WAS achieved, and it
+decisively rules out the known writer sites as the mechanism for that
+specific instance. What remains open is not "did we ever catch the
+right moment" but "what mechanism actually is responsible," compounded
+by a confirmed inability to directly verify SPU hardware register
+state through this project's GDB-based tooling. The next concrete step
+is a different observation channel, not another round of the same
+correlation experiment.
 """
 from __future__ import annotations
 
@@ -212,6 +280,61 @@ KEY_WRITER_SITES: tuple[SpuWriterSite, ...] = (
 )
 
 
+KEY_PADCIRCLE_VK = 0x44  # 'D', pcsx.json Keyboard_PadCircle -- confirmed real advance/confirm button
+
+SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE = False  # confirmed broken: see module docstring's diagnostic
+
+
+@dataclass(frozen=True)
+class LiveCorrelationRun:
+    run_id: str
+    press_count: int
+    duration_seconds: float
+    source_file_before: str
+    source_file_after: str
+    position_before: int
+    position_after: int
+    user_confirmed_audible: bool | None
+    meaningful_hits: int
+    evidence: str
+
+
+LIVE_CORRELATION_RUNS: tuple[LiveCorrelationRun, ...] = (
+    LiveCorrelationRun(
+        "m16_run1", 20, 19.5, "DAT/XA2/XAPACK42.BIN", "DAT/XA1/XAPACK20.BIN",
+        182935, 158685, None, 0,
+        "First attempt; script context genuinely changed (proving the automated trigger reached the game), but the user was not positioned to confirm audibility for this specific run. Script itself also crashed at final cleanup (threading bug, fixed for run 2) -- data up to the crash is intact and used here.",
+    ),
+    LiveCorrelationRun(
+        "m16_run2", 20, 24.4, "DAT/XA2/XAPACK42.BIN", "DAT/XA1/XAPACK20.BIN",
+        182935, 158842, True, 0,
+        "User explicitly confirmed hearing a real voice line during this exact captured window. Zero of the 6 armed sites (CD_INIT_SPUCNT_WRITE, both Key ON/OFF site pairs) fired meaningfully -- Key ON/OFF at 0x800A32C0 fired 814/815 times, all a0=0x0 (no-op). Decisive Phase-8 negative result.",
+    ),
+)
+
+
+def live_correlation_confirmed_audible_with_zero_known_hits() -> bool:
+    """True: run2 combined a real, user-confirmed audible trigger with
+    zero meaningful hits across every known SPU writer site this
+    project has found. The one clean, decisive negative result this
+    whole investigation chain has produced."""
+    return any(
+        r.user_confirmed_audible is True and r.meaningful_hits == 0
+        for r in LIVE_CORRELATION_RUNS
+    )
+
+
+def spu_mmio_read_write_roundtrip_reliable() -> bool:
+    """False: a direct GDB write of 0x3FFF to Main Volume (0x1F801D80),
+    performed while independently verified to be genuinely running
+    (RAM position counter climbing), did not round-trip -- readback was
+    0x0000 immediately and a full second later. Plain RAM writes
+    round-trip correctly in the same session, isolating the problem to
+    the SPU hardware I/O address range specifically, not GDB memory
+    access in general. See module docstring for the full diagnostic."""
+    return SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE
+
+
 class PlaybackBackendClassification(str, Enum):
     """The milestone's own required taxonomy for the actual playback
     backend. Only set to a *_CONFIRMED value on real, live,
@@ -240,29 +363,43 @@ def cd_init_sets_documented_cd_audio_enable_bit() -> bool:
 
 
 def cd_init_write_confirmed_persistent() -> bool:
-    """False: every post-write read this project has taken (in both
-    capture sessions) found SPUCNT/CD-Volume/Main-Volume back at zero,
-    never holding CD_init's own written values. Recorded as an open
-    question, not assumed away."""
+    """False -- but read the follow-up section of the module docstring
+    before treating this as "the write fails on real hardware." A
+    direct diagnostic (write 0x3FFF to Main Volume while genuinely
+    running, read it back) proved GDB's own memory read/write path for
+    the SPU hardware I/O range does not round-trip at all, even for a
+    debug-issued write. This function honestly reports "not confirmed
+    persistent" -- it must NOT be read as "confirmed non-persistent";
+    that would overclaim past what this project's tooling can verify."""
     return False
 
 
 def key_on_real_voice_trigger_confirmed_live() -> bool:
     """False: the only live-firing Key ON site (0x800866A8) carried a
-    nonzero voice bitmask in just 2 of 2657 observed hits, both
-    immediately after a state-slot load and not confirmed against a
-    real heard dialogue-voice segment. The other Key ON site
-    (0x8008E9D8) never fired at all."""
+    nonzero voice bitmask in just 2 of 2657 observed hits (an earlier
+    session), both immediately after a state-slot load and not
+    confirmed against a real heard dialogue-voice segment. A dedicated
+    follow-up correlation run (LIVE_CORRELATION_RUNS, run2) then
+    combined a user-confirmed real audible line with this exact site
+    armed and found 0/815 nonzero hits across the whole window -- this
+    is now a decisive negative, not just an unconfirmed positive. Read
+    via CPU register capture (`$a0` at the breakpoint), a channel
+    unaffected by the separate SPU-MMIO-read-path finding."""
     return False
 
 
 def classify_playback_backend() -> PlaybackBackendClassification:
-    """UNKNOWN: this milestone found a real, live-firing, structurally
-    strong CD-audio-enable candidate (CD_init) and ruled out sustained
-    real Key ON activity as an explanation for the observed session --
-    but achieved no single capture window with both an armed
-    breakpoint AND a user-confirmed audible trigger landing together.
-    Per this milestone's own instruction, evidence outranks
+    """UNKNOWN -- but for a stronger, more precise reason than the
+    original pass. A real capture window WAS achieved this follow-up:
+    armed breakpoints on every known SPU writer site, a real automated
+    trigger, and explicit user confirmation of audible dialogue in that
+    exact window (see LIVE_CORRELATION_RUNS). None of the known sites
+    fired -- CD_init and both Key ON/OFF site families are decisively
+    ruled out as the mechanism for that instance. What actually IS
+    responsible remains unknown, compounded by a confirmed inability to
+    directly verify true SPU hardware register state through this
+    project's GDB-based read channel (spu_mmio_read_write_roundtrip_reliable()
+    -> False). Per this milestone's own instruction, evidence outranks
     architectural expectation; guessing past what was actually caught
     live would violate that."""
     return PlaybackBackendClassification.UNKNOWN

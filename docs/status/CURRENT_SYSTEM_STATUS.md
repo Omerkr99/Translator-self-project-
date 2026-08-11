@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 566 passed, 0 failed (`py -m pytest tests/ -q`), ~17s.
+- **Test count**: 574 passed, 0 failed (`py -m pytest tests/ -q`), ~20s.
   83 modules in `gcrts/`, 64 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -142,9 +142,20 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   neither `CD_init` re-firing nor a real non-empty Key ON bitmask
   alongside a confirmed audible trigger.
   `gcrts.spu_audio_path.classify_playback_backend()` honestly returns
-  `UNKNOWN`. The real path is still open; next direction is a session
-  where these exact breakpoints are armed first, then the user triggers
-  and immediately confirms a real audible line.
+  `UNKNOWN`. **Follow-up (Live Audible Trigger Correlation)**: ran that
+  exact session. The user explicitly confirmed a real audible voice
+  line during a captured window where **zero of the 6 armed sites
+  fired** — a decisive negative, ruling out `CD_init` and both Key
+  ON/OFF families as the mechanism for that instance. Separately
+  discovered, via a direct write-then-readback diagnostic while
+  genuinely running, that GDB's own memory access to the SPU hardware
+  I/O range does not round-trip at all in this environment
+  (`gcrts.spu_audio_path.spu_mmio_read_write_roundtrip_reliable()` →
+  `False`) — reclassifying every prior "SPU register reads back 0"
+  observation as tooling-limited, not a confirmed game-behavior fact.
+  The real path is still open; the blocker has shifted from "no
+  capture window" to "no reliable channel to observe true SPU hardware
+  state" — next direction is finding one.
 
 ## Key current distinctions (do not lose these)
 
@@ -503,8 +514,10 @@ pointer sets found via a full RAM value scan, identified as
 interrupt/DMA infrastructure, not a second audio driver), and
 `SPU_AUDIO_PATH_DISCOVERY.md` (pivoted to the SPU side; found a
 real, live-firing `CD_init` function that sets the documented "CD
-Audio Enable" SPUCNT bit — the strongest anchor so far, still not
-confirmed live against a real audible moment).
+Audio Enable" SPUCNT bit, then decisively ruled it and all known Key
+ON/OFF sites out via a real user-confirmed audible correlation
+experiment; separately confirmed GDB's own SPU-register read/write
+path is unreliable in this environment).
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal
@@ -747,6 +760,6 @@ instructions, not as a sign of partial implementation.
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
 | Movies / `.STR` | PARTIAL | No | Runtime trigger unidentified; wrong overlay assumed so far |
-| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) is the strongest playback-backend anchor found so far but is NOT yet confirmed live against a real audible moment — `classify_playback_backend()` is honestly `UNKNOWN` |
+| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is separately confirmed unreliable in this environment, blocking direct verification; `classify_playback_backend()` is honestly `UNKNOWN` |
 | Subtitles | UNSUPPORTED | No | Not started; blocked on Movies + Audio |
 | Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |

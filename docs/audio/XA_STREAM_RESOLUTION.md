@@ -421,3 +421,21 @@ confirmed audible trigger. `gcrts.spu_audio_path.classify_playback_backend()`
 honestly returns `UNKNOWN`. The real path remains open; next suggested
 direction is a session with the user live-confirming an audible moment
 at the exact instant these specific breakpoints are armed.
+
+### Eighth follow-up (Live Audible Trigger Correlation): the gap closed, decisively negative
+
+Took that exact suggestion. Armed `CD_init`'s SPUCNT write and all 5
+known Key ON/OFF sites, triggered dialogue from save-slot 9 via the
+project's own established automated-input technique, and this time the
+user explicitly confirmed a real audible voice line during the
+captured window — while **zero of the 6 armed sites fired**. A real,
+decisive negative, not another inconclusive attempt. Separately,
+confirmed via a direct write-then-readback diagnostic (while
+genuinely, verifiably running) that GDB's own memory access to the SPU
+hardware I/O range does not round-trip at all in this environment —
+reclassifying every prior "SPU register reads back 0" observation as
+tooling-limited rather than a real behavioral fact.
+`gcrts.spu_audio_path.spu_mmio_read_write_roundtrip_reliable()` →
+`False`. The real path remains open; the blocker has shifted from "no
+capture window" to "no reliable channel to observe true SPU hardware
+state" — the next direction is finding one.
