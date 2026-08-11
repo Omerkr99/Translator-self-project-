@@ -3,6 +3,9 @@ from gcrts.spu_audio_path import (
     CD_INIT_FUNC_ADDR,
     CD_INIT_GATEKEEPER_SITES,
     CD_INIT_SPUCNT_WRITE_VALUE,
+    DMA_CDROM_CHANNEL,
+    DMA_SPU_CHANNEL,
+    DMA_TRANSPORT_OBSERVATIONS,
     KEY_PADCIRCLE_VK,
     KEY_WRITER_SITES,
     LIVE_CORRELATION_RUNS,
@@ -13,17 +16,23 @@ from gcrts.spu_audio_path import (
     SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE,
     SPUCNT_CD_AUDIO_ENABLE_BIT,
     SPUCNT_WRITER_SITES,
+    DmaChannelObservation,
     LiveCorrelationRun,
     ManualMuteExperiment,
     PlaybackBackendClassification,
     SpuWriterFamily,
     SpuWriterSite,
+    StreamFormat,
+    TransportPath,
     all_spu_voices_muted_dialogue_still_audible,
     cd_init_confirmed_live,
     cd_init_gatekeeper_sites_fired_during_confirmed_trigger,
     cd_init_sets_documented_cd_audio_enable_bit,
     cd_init_write_confirmed_persistent,
     classify_playback_backend,
+    classify_stream_format,
+    classify_transport_path,
+    dma_cdrom_or_spu_channel_active_during_confirmed_voice_line,
     key_on_real_voice_trigger_confirmed_live,
     live_correlation_confirmed_audible_with_zero_known_hits,
     setmode_xa_adpcm_bit_ever_observed_set,
@@ -244,3 +253,70 @@ def test_setmode_capture_sample_count_and_uniform_value():
 
 def test_setmode_xa_adpcm_bit_never_observed_set():
     assert setmode_xa_adpcm_bit_ever_observed_set() is False
+
+
+def test_dma_transport_observations_cover_cdrom_spu_and_a_control_channel():
+    channels = {o.channel for o in DMA_TRANSPORT_OBSERVATIONS}
+    assert DMA_CDROM_CHANNEL in channels
+    assert DMA_SPU_CHANNEL in channels
+    assert any(o.channel not in (DMA_CDROM_CHANNEL, DMA_SPU_CHANNEL) for o in DMA_TRANSPORT_OBSERVATIONS)
+
+
+def test_dma_cdrom_and_spu_channels_did_not_change_during_confirmed_voice_line():
+    """The decisive DMA evidence: neither the CD-ROM nor SPU DMA
+    channel moved at all during a confirmed voice line."""
+    for o in DMA_TRANSPORT_OBSERVATIONS:
+        if o.channel in (DMA_CDROM_CHANNEL, DMA_SPU_CHANNEL):
+            assert o.changed_during_window is False
+            assert o.madr_first == o.madr_last
+            assert o.bcr_first == o.bcr_last
+            assert o.chcr_first == o.chcr_last
+
+
+def test_dma_control_channel_did_change_proving_genuine_execution():
+    """Regression: at least one observed channel must show real
+    change, otherwise the CDROM/SPU 'no activity' result could just be
+    a frozen-emulator artifact rather than a genuine negative."""
+    assert any(o.changed_during_window for o in DMA_TRANSPORT_OBSERVATIONS)
+
+
+def test_dma_cdrom_or_spu_channel_active_during_confirmed_voice_line_is_false():
+    assert dma_cdrom_or_spu_channel_active_during_confirmed_voice_line() is False
+
+
+def test_dma_channel_observation_round_trips_as_dataclass_equality():
+    a = DmaChannelObservation(3, "CDROM", "0x1", "0x1", "0x1", "0x1", "0x1", "0x1", False, "evidence")
+    b = DmaChannelObservation(3, "CDROM", "0x1", "0x1", "0x1", "0x1", "0x1", "0x1", False, "evidence")
+    assert a == b
+
+
+def test_dma_transport_observations_have_real_evidence_strings():
+    for o in DMA_TRANSPORT_OBSERVATIONS:
+        assert o.evidence.strip() != ""
+
+
+def test_transport_path_and_stream_format_are_separate_enums():
+    """Regression: the milestone's own explicit instruction was to
+    never collapse routing and format into one enum again."""
+    assert TransportPath is not StreamFormat
+    assert set(TransportPath) != set(StreamFormat)
+
+
+def test_classify_transport_path_is_direct_hardware_audio_bus():
+    assert classify_transport_path() == TransportPath.DIRECT_HARDWARE_AUDIO_BUS
+
+
+def test_classify_stream_format_stays_unknown():
+    """Must not be silently upgraded to XA_ADPCM without the format
+    itself (not just the routing) being independently observed."""
+    assert classify_stream_format() == StreamFormat.UNKNOWN
+
+
+def test_classify_playback_backend_and_transport_path_are_consistent():
+    """The legacy combined classification and the new separated model
+    must not contradict each other: CD_INPUT_UNKNOWN_FORMAT implies
+    the transport is not a regular SPU voice and the format is
+    unknown, matching the separated model's own results."""
+    assert classify_playback_backend() == PlaybackBackendClassification.CD_INPUT_UNKNOWN_FORMAT
+    assert classify_transport_path() != TransportPath.SPU_VOICE_RAM
+    assert classify_stream_format() == StreamFormat.UNKNOWN

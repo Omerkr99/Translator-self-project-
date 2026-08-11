@@ -397,6 +397,38 @@ the only way) XA-ADPCM decode gets enabled, if it is toggled
 explicitly at all. Test count: **602 passed** (598 + 4 in
 `test_spu_audio_path.py`).
 
+**Nineteenth follow-up milestone (CD Input Data-Path Identification,
+`AUDIO_TRANSPORT_PATH.md`, `gcrts.spu_audio_path`)**: per an explicit
+instruction to stop chasing "prove XA-ADPCM" through Setmode/`ReadS`
+(both exhausted) and instead ask what actually feeds CD Input during a
+confirmed audible line, inventoried PCSX-Redux's Debug menu rather
+than assuming raw GDB MMIO was the only option, and found `Debug >
+Misc hardware > Show HW Registers` -- a reliable, non-GDB window
+exposing all 7 system DMA channels' `MADR`/`BCR`/`CHCR` plus the 3
+hardware timers. With a save state positioned right at a confirmed
+voice-line moment and the emulator verified genuinely, continuously
+running (Timer 1's own counter changed on every one of 25 captured
+frames), **DMA channel 3 (CD-ROM) and DMA channel 4 (SPU) showed zero
+change whatsoever across the entire window**, while DMA channel 2
+(GPU) showed a real, distinct transfer-completion pattern in the same
+captures -- ruling out "the emulator was frozen" as an explanation and
+making the CD-ROM/SPU silence a genuine negative.
+`dma_cdrom_or_spu_channel_active_during_confirmed_voice_line()` ->
+`False`. Combined with the earlier finding that no regular SPU voice
+carries the dialogue either, this points to CD-ROM audio output
+reaching the SPU's CD Input via a direct hardware bus, separate from
+the general-purpose DMA controller entirely -- a real PS1 architectural
+pattern (DMA channel 3 moves sector data for asset loading, a
+different signal path from the CD-ROM's own decoded audio output).
+Per the milestone's own explicit instruction, `TransportPath` and
+`StreamFormat` are now modeled as separate enums rather than folded
+into one classification: `classify_transport_path()` ->
+`DIRECT_HARDWARE_AUDIO_BUS`, `classify_stream_format()` -> `UNKNOWN`
+(unchanged -- the format question remains genuinely open). The legacy
+`classify_playback_backend()` stays `CD_INPUT_UNKNOWN_FORMAT`,
+unaffected and consistent with the new separated model. Test count:
+**612 passed** (602 + 10 in `test_spu_audio_path.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

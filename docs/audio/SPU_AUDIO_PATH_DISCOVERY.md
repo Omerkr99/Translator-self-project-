@@ -213,8 +213,8 @@ exists yet to add.
 
 ## Tests
 
-**602 passed** (598 baseline + 4 new in `test_spu_audio_path.py`, now
-33 total in that file), no regressions. Full suite run via
+**612 passed** (602 baseline + 10 new in `test_spu_audio_path.py`, now
+43 total in that file), no regressions. Full suite run via
 `pytest tests/` (the repo root also contains several unrelated,
 pre-existing scratch/temp directories from prior sessions that
 pytest's default collection cannot access on this Windows environment
@@ -222,7 +222,7 @@ pytest's default collection cannot access on this Windows environment
 milestone; scoping collection to `tests/` avoids it the same way prior
 sessions have).
 
-## Remaining blocker (superseded three times)
+## Remaining blocker (superseded four times)
 
 This section originally read: "This project has no working channel to
 directly verify true SPU hardware register state." **Resolved** by the
@@ -232,20 +232,25 @@ isolated as the dialogue source." **Also resolved**, by the manual
 all-voices-muted experiment above: the answer turned out to be that
 *no* regular SPU voice channel carries the dialogue at all — it
 bypasses per-voice mixing entirely via the CD input path. Playback
-backend is `CD_INPUT_UNKNOWN_FORMAT`, no longer `UNKNOWN`. A further
-follow-up chasing the exact stream format found two more negatives
-(the position-change-gated `CD_init` call sites never fire during a
-confirmed trigger; 46 live Setmode captures across ~150s spanning a
-confirmed voice line all show the XA-ADPCM bit off) without
-confirming the format positively — the blocker is now specifically
+backend is `CD_INPUT_UNKNOWN_FORMAT`, no longer `UNKNOWN`. It then read
 "the software Setmode toggle this project can observe is evidently not
-how (or not the only way) XA-ADPCM decode gets enabled."
+how XA-ADPCM decode gets enabled" — see
+`docs/audio/AUDIO_TRANSPORT_PATH.md` for the full follow-up: this
+project stopped chasing Setmode/`ReadS` entirely and instead found,
+via PCSX-Redux's native `HW Registers` window, that the confirmed
+audible dialogue involves **zero DMA activity on the CD-ROM or SPU
+channels** during the whole window it plays — a decisive transport
+finding, verified against genuine execution via a real DMA transfer on
+an unrelated channel (GPU) in the same captures.
+`TransportPath`/`StreamFormat` are now modeled as explicitly separate
+concepts; transport is reasonably well-understood (leading
+interpretation: a direct hardware audio bus, bypassing system DMA
+entirely), format remains genuinely `UNKNOWN`.
 
 ## Next milestone
 
-Investigate whether the CD-ROM controller's hardware-level XA-ADPCM
-decode applies automatically to any Form2/Audio-flagged sector once
-SPUCNT's CD Audio Enable bit is set, independent of the software
-Setmode toggle — this project has confirmed the disc's own sectors for
-the resolved XAPACK files carry that flag (`AUDIO_EVENT_EXTRACTION.md`),
-but has not yet connected that directly to a live decode event.
+See `docs/audio/AUDIO_TRANSPORT_PATH.md`'s own "Next milestone": find a
+way to inspect the PS1 SPU's internal RAM content directly (not just
+its MMIO control registers) during a confirmed voice line, to check
+for a decoded-sample buffer rather than continuing to infer transport
+from its absence in system DMA.

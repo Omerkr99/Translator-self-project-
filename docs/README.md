@@ -44,8 +44,14 @@ sites out via a real user-confirmed audible correlation experiment) →
 debugger, proving GDB's SPU register reads were simply wrong — CD
 Audio Enable is genuinely, persistently set on real hardware; also
 found a real crash-loop bug and confirmed synthetic keyboard input
-doesn't reach the game) → `AUDIO_INVESTIGATION_RESUME.md` (the
-actionable "pick up here" page for the next session).
+doesn't reach the game) → `AUDIO_TRANSPORT_PATH.md` (a manual
+all-voices-muted experiment proved dialogue bypasses all 24 SPU
+voices; a DMA investigation via PCSX-Redux's native HW Registers
+window then found zero CD-ROM/SPU DMA activity during a confirmed
+voice line, pointing to a direct hardware audio bus bypassing system
+DMA — transport and stream format are now modeled as separate
+concepts) → `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up
+here" page for the next session).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

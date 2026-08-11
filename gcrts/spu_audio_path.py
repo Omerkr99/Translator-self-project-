@@ -243,22 +243,72 @@ command" is only valid when the calling convention is actually known
 to put a command there; this is recorded so a future pass doesn't
 mistake register noise for command traffic again.
 
+## Honest conclusion (superseded -- see below)
+
+`classify_playback_backend()` stayed `CD_INPUT_UNKNOWN_FORMAT` -- the
+routing finding (CD input bypasses SPU voices) remained this project's
+strongest, most direct evidence. What that pass added was two further
+negatives on the *format*-confirmation side: neither `CD_init`'s real
+per-event trigger candidates nor the already-known Setmode dispatch
+site ever show XA-ADPCM being enabled, even during confirmed real
+playback.
+
+## Follow-up: DMA data-path investigation -- the real transport found
+
+Per the explicit instruction to stop chasing Setmode/`ReadS` and
+instead ask what actually *feeds* CD Input during a confirmed audible
+line, this pass used PCSX-Redux's native `Debug > Misc hardware > Show
+HW Registers` window -- a reliable, non-GDB channel exposing all 7
+system DMA channels' `MADR`/`BCR`/`CHCR` plus the 3 hardware timers,
+found by inventorying the Debug menu rather than assuming raw GDB MMIO
+was the only option.
+
+With a save state positioned right at a confirmed voice-line moment,
+and the emulator genuinely, continuously running (verified via
+Timer 1's own counter changing across every captured frame -- not
+just an "interrupts happened" proxy, an actual elapsed-time signal),
+**DMA channel 3 (CD-ROM) and DMA channel 4 (SPU) showed zero change
+whatsoever across the entire captured window** -- `MADR`, `BCR`, and
+`CHCR` all stayed byte-identical from the first frame to the last.
+This is not an absence-of-execution artifact: DMA channel 2 (GPU), in
+the same captures, showed a real, distinct transfer-completion pattern
+(`MADR` hitting `0xFFFFFF`, `BCR` dropping to `0`, `CHCR`'s busy-adjacent
+bit shifting), exactly as expected for a game that keeps rendering
+frames throughout.
+
+**This directly answers the milestone's core question.** Whatever
+carries the confirmed audible dialogue, it does not move through the
+system DMA controller's CD-ROM or SPU channels at all -- no `MADR`
+advances, no transfer-size decrements, no busy-bit toggling, for the
+entire window a real voice line was known to be playing. Combined with
+the earlier finding that no regular SPU voice carries the dialogue
+either (`all_spu_voices_muted_dialogue_still_audible()`), this is
+consistent with a genuine PS1 hardware fact this project had not yet
+confirmed directly: CD-ROM audio output (CD-DA/XA-ADPCM alike) is
+typically wired to the SPU's CD Input as a **direct hardware audio
+bus**, separate from the general-purpose DMA controller entirely --
+DMA channel 3 exists for transferring CD-ROM *sector data* into main
+RAM (used for loading game assets), which is architecturally a
+different signal path from the CD-ROM's own decoded audio output
+feeding straight into the SPU's mixer. This pass did not independently
+re-verify that specific PS1 architectural claim beyond what the DMA
+observation itself rules out (no DMA involvement), so it is recorded
+as the leading interpretation of solid negative evidence, not as an
+independently proven mechanism.
+
 ## Honest conclusion (current)
 
-`classify_playback_backend()` stays `CD_INPUT_UNKNOWN_FORMAT` -- the
-routing finding (CD input bypasses SPU voices) remains this project's
-strongest, most direct evidence, unaffected by this follow-up. What
-this pass added is two further negatives on the *format*-confirmation
-side: neither `CD_init`'s real per-event trigger candidates nor the
-already-known Setmode dispatch site ever show XA-ADPCM being enabled,
-even during confirmed real playback. XA-ADPCM remains the only
-realistic candidate by elimination (CD-DA is structurally impossible on
-this disc), but the software-side Setmode toggle this project has
-instrumented is evidently not how it gets enabled, if it is enabled
-explicitly at all -- the CD-ROM controller's hardware-level XA-ADPCM
-decode may simply apply automatically to any Form2/Audio-flagged
-sector once CD Audio Enable is set, independent of Setmode's own XA
-bit. That specific mechanism was not directly tested this pass.
+`classify_playback_backend()` stays `CD_INPUT_UNKNOWN_FORMAT`. The new
+DMA evidence does not change the classification, but it substantially
+narrows what "CD input" means in practice: it is confirmed **not**
+DMA-mediated through channels 3 or 4, on top of the earlier
+confirmation that it is not routed through any of the SPU's 24 regular
+voices either. `TransportPath` and `StreamFormat` are now modeled as
+explicitly separate concepts (see below) rather than folded into one
+enum, per this milestone's own instruction -- the transport question
+(how does the data physically move) is now reasonably well-understood;
+the format question (is it really XA-ADPCM, and if so how is it
+decoded) remains genuinely open.
 """
 from __future__ import annotations
 
@@ -572,3 +622,116 @@ def setmode_xa_adpcm_bit_ever_observed_set() -> bool:
     XA-ADPCM decode, if that is what is happening, is not gated by this
     specific software Setmode toggle at this specific dispatch site."""
     return False
+
+
+# --- DMA data-path investigation: what actually feeds CD Input ---
+
+HW_REGISTERS_MENU_PATH = ("Debug", "Misc hardware", "Show HW Registers")
+
+DMA_CHANNEL_NAMES = {
+    0: "MDECin", 1: "MDECout", 2: "GPU", 3: "CDROM", 4: "SPU", 5: "PIO", 6: "OTC",
+}
+DMA_CDROM_CHANNEL = 3
+DMA_SPU_CHANNEL = 4
+
+
+@dataclass(frozen=True)
+class DmaChannelObservation:
+    channel: int
+    name: str
+    madr_first: str
+    madr_last: str
+    bcr_first: str
+    bcr_last: str
+    chcr_first: str
+    chcr_last: str
+    changed_during_window: bool
+    evidence: str
+
+
+# Real values transcribed from a 25-frame, ~24-second live capture of
+# PCSX-Redux's native "HW Registers" window, with a save state
+# positioned right at a confirmed voice-line moment and the emulator
+# verified genuinely, continuously running throughout (Timer 1's own
+# counter changed on every single frame).
+DMA_TRANSPORT_OBSERVATIONS: tuple[DmaChannelObservation, ...] = (
+    DmaChannelObservation(
+        DMA_CDROM_CHANNEL, "CDROM", "0x0ade34", "0x0ade34", "0x00010000", "0x00010000", "0x10000000", "0x10000000",
+        False,
+        "Byte-identical MADR/BCR/CHCR across all 25 captured frames spanning a confirmed voice line -- zero DMA activity on the CD-ROM sector-transfer channel during audible playback.",
+    ),
+    DmaChannelObservation(
+        DMA_SPU_CHANNEL, "SPU", "0x174d00", "0x174d00", "0x00010000", "0x00010000", "0x00000201", "0x00000201",
+        False,
+        "Byte-identical MADR/BCR/CHCR across all 25 captured frames spanning a confirmed voice line -- zero DMA activity on the SPU channel during audible playback.",
+    ),
+    DmaChannelObservation(
+        2, "GPU", "0x1e4000", "0xffffff", "0x00000010", "0x00000000", "0x00000201", "0x00000401",
+        True,
+        "Real, distinct transfer-completion pattern observed mid-capture (MADR hitting 0xFFFFFF, BCR exhausted, CHCR's status bit shifting) -- confirms genuine execution and DMA activity were happening throughout the window, making the CDROM/SPU channels' total silence a real negative, not a frozen-emulator artifact.",
+    ),
+)
+
+
+def dma_cdrom_or_spu_channel_active_during_confirmed_voice_line() -> bool:
+    """False: neither DMA channel 3 (CDROM) nor DMA channel 4 (SPU)
+    showed any MADR/BCR/CHCR change across a 25-frame capture spanning
+    a confirmed voice line, while DMA channel 2 (GPU) showed a real,
+    distinct transfer-completion pattern in the same window -- proving
+    the capture caught genuine execution, not a frozen emulator. This
+    directly answers the milestone's core question: whatever carries
+    the confirmed audible dialogue does not move through the system
+    DMA controller's CD-ROM or SPU channels at all."""
+    return any(o.changed_during_window for o in DMA_TRANSPORT_OBSERVATIONS if o.channel in (DMA_CDROM_CHANNEL, DMA_SPU_CHANNEL))
+
+
+class TransportPath(str, Enum):
+    """How the confirmed-audible data physically moves -- kept
+    deliberately separate from StreamFormat (what format it's encoded
+    in). Collapsing these two questions into one enum was an earlier
+    mistake this project corrected: CD_INPUT_UNKNOWN_FORMAT answered
+    "how" reasonably well while leaving "what format" open, but as a
+    single string it invited conflating the two."""
+
+    SYSTEM_DMA_CDROM_CHANNEL = "SYSTEM_DMA_CDROM_CHANNEL"
+    SYSTEM_DMA_SPU_CHANNEL = "SYSTEM_DMA_SPU_CHANNEL"
+    DIRECT_HARDWARE_AUDIO_BUS = "DIRECT_HARDWARE_AUDIO_BUS"
+    SPU_VOICE_RAM = "SPU_VOICE_RAM"
+    UNKNOWN = "UNKNOWN"
+
+
+class StreamFormat(str, Enum):
+    XA_ADPCM = "XA_ADPCM"
+    CDDA = "CDDA"
+    CUSTOM = "CUSTOM"
+    PCM = "PCM"
+    UNKNOWN = "UNKNOWN"
+
+
+def classify_transport_path() -> TransportPath:
+    """DIRECT_HARDWARE_AUDIO_BUS -- backed by the DMA observation
+    above: the confirmed audible dialogue does not move through system
+    DMA channel 3 (CDROM) or 4 (SPU), and earlier evidence already
+    ruled out any of the SPU's 24 regular voices
+    (all_spu_voices_muted_dialogue_still_audible() -> True). By
+    elimination, the leading interpretation is that CD-ROM audio
+    output connects to the SPU's CD Input as a direct hardware bus,
+    separate from the general-purpose DMA controller entirely -- this
+    project has not independently re-verified that specific PS1
+    architectural claim beyond what the DMA observation itself rules
+    out, so it is recorded as the leading interpretation of solid
+    negative evidence, not an independently proven mechanism."""
+    return TransportPath.DIRECT_HARDWARE_AUDIO_BUS
+
+
+def classify_stream_format() -> StreamFormat:
+    """UNKNOWN -- deliberately not XA_ADPCM_CONFIRMED. XA-ADPCM is the
+    only realistic candidate by elimination (CD-DA is structurally
+    impossible on this disc, see XA_PLAYBACK_PATH.md), but the actual
+    encoding was never independently observed -- the software Setmode
+    toggle this project can instrument never showed the XA-ADPCM bit
+    set (setmode_xa_adpcm_bit_ever_observed_set() -> False), and no
+    decoded-sample buffer or decoder algorithm has been located. Keep
+    this UNKNOWN until the format itself, not just the routing, is
+    directly observed."""
+    return StreamFormat.UNKNOWN

@@ -212,3 +212,27 @@ channel has `Solo` active appears to clear that channel's Solo state
 as a side effect — verify Solo is still engaged (screenshot, check the
 button is highlighted) after touching any other channel's controls,
 don't assume it survived.
+
+## 14. The native HW Registers window (DMA/timer/interrupt state)
+
+`Debug > Misc hardware > Show HW Registers` opens a window titled
+exactly `"HW Registers"` showing `I_STAT`/`I_MASK`, `DPCR`/`DICR`, all
+7 DMA channels' `MADR`/`BCR`/`CHCR` (channel 3 = CDROM, channel 4 =
+SPU), the 3 hardware timers (`count`/`mode`/`target`), and Memory
+Control — reliably, bypassing the same GDB-SPU-MMIO unreliability
+documented in section 10. It defaults to a narrow width that truncates
+`CHCR` values; resize it wider (`MoveWindow`) before screenshotting.
+Menu click sequence from the main window: `Debug` at `(left+263,
+top+42)` → `Misc hardware` row at `(left+285, top+194)` → `Show HW
+Registers` at `(left+470, top+193)` (the submenu flies out to the
+right of the hovered row, not below it).
+
+**Critical: this window shows genuinely frozen values if the emulator
+is not actually running** — an early capture this session mistook a
+completely paused emulator (no keep-running loop established) for a
+real "nothing changed" result. Always verify genuine execution during
+any capture using this window, e.g. check a timer's own `count` value
+changed between frames, or confirm at least one DMA channel shows real
+activity in the same captures (a channel with zero activity is only
+meaningful evidence if some other channel in the same window proves
+execution was genuinely happening).

@@ -2,7 +2,7 @@
 
 A single, actionable "pick up here" document for the next session of
 the SPU/XA playback investigation. Read this before re-deriving
-anything from `RUNTIME_AUDIO_TRACKER.md`'s full 17-milestone history —
+anything from `RUNTIME_AUDIO_TRACKER.md`'s full 19-milestone history —
 it exists specifically so a fresh session doesn't have to.
 
 ## Where things stand right now
@@ -49,14 +49,28 @@ it exists specifically so a fresh session doesn't have to.
   only realistic candidate by elimination (CD-DA is structurally ruled
   out on this disc, `XA_PLAYBACK_PATH.md`) but was not independently
   re-verified — `CD_INPUT_UNKNOWN_FORMAT`, not `XA_ADPCM_CONFIRMED`.
-- **Two more confirmed negatives, still no positive format
-  confirmation**: `CD_init`'s 2 position-change-gated call sites
-  (`CD_INIT_GATEKEEPER_SITES`) were live-armed across a real, confirmed
-  voice line twice — neither fired. 46 live `Setmode` captures across
-  ~150s spanning a confirmed voice line all showed the XA-ADPCM bit
-  off, 100% of the time (`setmode_xa_adpcm_bit_ever_observed_set()`
-  → `False`). The software Setmode toggle this project can observe is
-  evidently not how (or not the only way) XA-ADPCM decode gets enabled.
+- **Two more confirmed negatives on the format side**: `CD_init`'s 2
+  position-change-gated call sites (`CD_INIT_GATEKEEPER_SITES`) were
+  live-armed across a real, confirmed voice line twice — neither
+  fired. 46 live `Setmode` captures across ~150s spanning a confirmed
+  voice line all showed the XA-ADPCM bit off, 100% of the time
+  (`setmode_xa_adpcm_bit_ever_observed_set()` → `False`).
+- **RESOLVED — the transport question**: stopped chasing Setmode
+  entirely and instead found, via PCSX-Redux's native `Debug > Misc
+  hardware > Show HW Registers` window (all 7 DMA channels'
+  MADR/BCR/CHCR, reliably), that **DMA channel 3 (CD-ROM) and channel
+  4 (SPU) show zero activity across an entire confirmed voice-line
+  window**, while DMA channel 2 (GPU) shows real transfer activity in
+  the same captures (ruling out "frozen emulator" as the explanation).
+  `dma_cdrom_or_spu_channel_active_during_confirmed_voice_line()` →
+  `False`. Points to a direct hardware audio bus from CD-ROM to SPU CD
+  Input, bypassing system DMA entirely — see
+  `docs/audio/AUDIO_TRANSPORT_PATH.md`. `TransportPath` and
+  `StreamFormat` are now separate enums (no longer folded into one
+  classification): `classify_transport_path()` →
+  `DIRECT_HARDWARE_AUDIO_BUS`, `classify_stream_format()` → `UNKNOWN`
+  (still open — the format question is unaffected by the transport
+  finding).
 
 ## Environment setup (do this first, every time)
 
@@ -113,29 +127,22 @@ it exists specifically so a fresh session doesn't have to.
 
 ## The actual next task
 
-Independently verify the CD input stream's exact format.
-`CD_INPUT_UNKNOWN_FORMAT` was reached by elimination (not a normal SPU
-voice, and CD-DA is structurally impossible on this disc) rather than
-by directly observing an XA-ADPCM decode happening, and the two most
-obvious follow-ups (CD_init's real per-event candidates, the known
-Setmode dispatch site) have both come back negative. Concrete
-directions:
+Find a way to inspect the PS1 SPU's **internal 512KB RAM content**
+directly (not just its MMIO-mapped control registers) during a
+confirmed voice line, to check for a decoded-sample buffer. This is
+the one transport-adjacent question the DMA finding couldn't answer:
+SPU-internal RAM is not part of the CPU's normal address space and
+isn't reachable through either GDB's (already-unreliable) MMIO path or
+the `HW Registers` window used for the DMA finding. Check whether
+PCSX-Redux's `Debug > SPU` submenu (only `Show SPU debug` was explored
+so far) or the SPU Debug window itself exposes any RAM-content view,
+before assuming a new tool is needed.
 
-1. Investigate whether the CD-ROM controller's hardware-level
-   XA-ADPCM decode applies automatically to any Form2/Audio-flagged
-   sector once CD Audio Enable is set, independent of the software
-   Setmode toggle — this project has confirmed the disc's own sectors
-   for the resolved XAPACK files carry that flag
-   (`AUDIO_EVENT_EXTRACTION.md`), but hasn't connected that directly
-   to a live decode event.
-2. Trace the CD-ROM controller's own onboard XA-ADPCM decoder path
-   during a real triggered line — look for decoder-related register
-   activity or a decoded-sample buffer distinct from the
-   already-ruled-out SPU voice RAM.
-3. If a virtual-gamepad input path is ever solved (see below), redo
-   the PRE/DURING/POST SPU Debug snapshot comparison focused
-   specifically on the CD-input-related fields (CD Volume, SPUCNT)
-   rather than the 24 voice channels (already ruled out).
+Independently verifying the CD input stream's exact format
+(`classify_stream_format()` → `UNKNOWN`) remains the underlying goal,
+but every software-side avenue tried so far (`CD_init`'s real
+per-event candidates, the known Setmode dispatch site) has come back
+negative — this next task is transport-side, not command-side.
 
 Automated triggering remains unsolved (see the environmental
 constraint above) — assume any further live-correlation work needs a
@@ -173,3 +180,14 @@ human physically present to trigger dialogue and confirm what's heard.
   verify the calling convention actually puts a command there first —
   one site was seen sweeping `$v0` through every value `0x00`-`0x80` in
   sequence, which was a loop counter, not 129 real CD-ROM commands.
+- Don't re-capture DMA channel 3/4 state hoping for a different
+  result — a real, verified-running 25-frame capture spanning a
+  confirmed voice line found zero activity on both; that question is
+  closed. Do check SPU-internal RAM instead (see next task).
+- Before trusting *any* "nothing changed" capture as a real negative,
+  verify genuine execution happened during it — check a hardware
+  timer's own counter changed across frames, or (as this milestone
+  did) confirm an unrelated channel/register shows real activity in
+  the same captures. An early attempt this pass captured 25 frames of
+  a completely frozen emulator and nearly reported it as a negative
+  result.

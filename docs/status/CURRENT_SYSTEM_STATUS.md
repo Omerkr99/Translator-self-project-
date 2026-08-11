@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 602 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
+- **Test count**: 612 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
   84 modules in `gcrts/`, 65 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -198,10 +198,24 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   the XA-ADPCM bit off. `classify_playback_backend()` stays
   `CD_INPUT_UNKNOWN_FORMAT` (the routing finding is unaffected), but
   the software Setmode toggle this project can observe is evidently
-  not how (or not the only way) XA-ADPCM decode gets enabled — next
-  direction is checking whether the CD-ROM's hardware decode applies
-  automatically to Form2/Audio-flagged sectors once CD Audio Enable is
-  set, independent of Setmode.
+  not how (or not the only way) XA-ADPCM decode gets enabled.
+  **Follow-up (`AUDIO_TRANSPORT_PATH.md`)**: stopped chasing
+  Setmode/`ReadS` entirely and asked what actually feeds CD Input
+  instead. Found PCSX-Redux's native `Debug > Misc hardware > Show HW
+  Registers` window (all 7 DMA channels' MADR/BCR/CHCR, reliably).
+  With a save state at a confirmed voice-line moment and genuine
+  execution verified (Timer 1's counter changing every frame), **DMA
+  channel 3 (CD-ROM) and channel 4 (SPU) showed zero change across the
+  entire window**, while DMA channel 2 (GPU) showed a real transfer in
+  the same captures — ruling out "frozen emulator" and confirming a
+  genuine negative.
+  `dma_cdrom_or_spu_channel_active_during_confirmed_voice_line()` →
+  `False`. Points to a direct hardware audio bus from CD-ROM to SPU CD
+  Input, bypassing system DMA entirely. `TransportPath`/`StreamFormat`
+  are now separate enums: `classify_transport_path()` →
+  `DIRECT_HARDWARE_AUDIO_BUS`, `classify_stream_format()` → `UNKNOWN`
+  (still open). Next direction: inspect SPU-internal RAM content
+  directly during a confirmed voice line.
 
 ## Key current distinctions (do not lose these)
 
@@ -567,12 +581,17 @@ path is unreliable in this environment), and `SPU_OBSERVATION_CHANNEL.md`
 (found PCSX-Redux's own native SPU debugger; proved GDB's SPUCNT read
 was simply wrong — CD Audio Enable is genuinely, persistently set on
 real hardware, reversing the previous milestone's "write does not
-persist" finding). `SPU_AUDIO_PATH_DISCOVERY.md`'s own final follow-up
-section records the playback-backend resolution: a manual
+persist" finding). `SPU_AUDIO_PATH_DISCOVERY.md`'s own follow-up
+sections record the playback-backend resolution: a manual
 all-voices-muted experiment found dialogue audio survives every
 regular SPU voice being muted, proving it enters via the CD input
 path — `classify_playback_backend()` is `CD_INPUT_UNKNOWN_FORMAT`, the
-first non-`UNKNOWN` result this whole chain has produced.
+first non-`UNKNOWN` result this whole chain has produced. Finally,
+`AUDIO_TRANSPORT_PATH.md` found that the confirmed audible dialogue
+involves zero DMA activity on the CD-ROM or SPU channels, pointing to
+a direct hardware audio bus bypassing system DMA — `TransportPath` and
+`StreamFormat` are now modeled as separate concepts, transport
+reasonably understood, format still `UNKNOWN`.
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal
