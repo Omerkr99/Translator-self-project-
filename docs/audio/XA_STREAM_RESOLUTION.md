@@ -391,3 +391,15 @@ one track, `MODE2/2352` (standard data format). Genuine CD-DA is
 structurally impossible on this disc, ruling that fallback hypothesis
 out completely. `gcrts.xa_playback_path.OLD_READN_CYCLE_STATUS` is now
 permanently `"RULED_OUT_AS_XA_AUDIO_PATH"`. The real path remains open.
+
+### Sixth follow-up (Secondary CD-ROM Driver Discovery): more pointer sets found, but they're interrupt/DMA infrastructure
+
+`CDROM_DRIVER_DISCOVERY.md` scanned all of live RAM directly for the
+CD-ROM register address VALUES (not code patterns) and found 7
+additional complete pointer sets beyond the known one. The 3 in the
+known set's own page turned out to belong to a generic interrupt/DMA
+dispatch table (GPU, MDEC, CD-ROM, and PIO channel addresses together)
+— real, verified, but not a second command-issuing audio driver.
+Classified `HW_DISPATCH_TABLE_NOT_A_COMMAND_DRIVER`. The real XA path
+remains open; next suggested direction is scanning for SPU register
+references directly, since XA-ADPCM's actual destination is the SPU.

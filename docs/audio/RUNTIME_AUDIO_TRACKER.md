@@ -215,6 +215,23 @@ traced `ReadN`/Setmode cycle is now permanently classified
 `RULED_OUT_AS_XA_AUDIO_PATH`. Test count: **543 passed** (536 + 7 in
 `test_xa_playback_path.py`).
 
+**Twelfth follow-up milestone (Secondary CD-ROM Driver Discovery,
+`CDROM_DRIVER_DISCOVERY.md`, `gcrts.cdrom_driver_discovery`)**: switched
+search technique -- scanned the entire 2MB live RAM image for the raw
+CD-ROM register address values directly, instead of scanning code for
+the known address-construction pattern. Found 7 additional complete
+4-register pointer sets beyond the already-known one. Traced the 3 in
+the same page as the known set and found they belong to a broader,
+generic interrupt/DMA dispatch table (also holding DMA channel 1/2/3/5
+address pairs and `I_STAT`/`I_MASK`) -- real, verified data, but not a
+second CD-ROM command-issuing driver. One direct, traced link to the
+known audio system was found (a debug-log call referencing the known
+command-staging address), not a new functional path. Classified
+honestly as `HW_DISPATCH_TABLE_NOT_A_COMMAND_DRIVER`, a category
+outside the milestone's own original taxonomy, rather than forced into
+an inaccurate existing bucket. Test count: **551 passed** (543 + 8 in
+`test_cdrom_driver_discovery.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

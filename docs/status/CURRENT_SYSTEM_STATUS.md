@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 543 passed, 0 failed (`py -m pytest tests/ -q`), ~15s.
-  81 modules in `gcrts/`, 62 test files.
+- **Test count**: 551 passed, 0 failed (`py -m pytest tests/ -q`), ~16s.
+  82 modules in `gcrts/`, 63 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -120,6 +120,17 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   `RULED_OUT_AS_XA_AUDIO_PATH`. The real path remains open — most likely
   reachable only through a second, still-unfound command-register
   pointer-variable set distinct from the one 3 known sites all share.
+  **Follow-up (`CDROM_DRIVER_DISCOVERY.md`)**: found that second kind of
+  set — a full live-RAM value scan (not a code-pattern scan) found 7
+  additional complete CD-ROM register pointer sets. Traced the 3 in the
+  known set's own page and found they belong to a generic
+  interrupt/DMA dispatch table (GPU, MDEC, CD-ROM, and PIO channel
+  addresses together, plus `I_STAT`/`I_MASK`) — real, verified, but not
+  a second command-issuing audio driver
+  (`gcrts.cdrom_driver_discovery.any_new_command_driver_confirmed()` →
+  `False`). The real XA path is still open; next direction is scanning
+  for SPU register references directly, since XA-ADPCM's actual
+  destination is the SPU, not the CD-ROM controller.
 
 ## Key current distinctions (do not lose these)
 
@@ -471,9 +482,11 @@ and the "Setfilter not proven event-specific" correction), and
 `CDROM_SETFILTER_CAPTURE.md` (the ~460-second live session that found
 the filter is most likely persistent, not per-cue), and
 `AUDIO_PLAYBACK_TRUTH.md` (why `0x800A6107` is not audible-playback
-truth, and the still-open search for what is), and
+truth, and the still-open search for what is),
 `XA_PLAYBACK_PATH.md` (CD-DA structurally ruled out; the real path
-still open).
+still open), and `CDROM_DRIVER_DISCOVERY.md` (7 additional CD-ROM
+pointer sets found via a full RAM value scan, identified as
+interrupt/DMA infrastructure, not a second audio driver).
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal

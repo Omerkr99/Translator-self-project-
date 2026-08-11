@@ -26,7 +26,10 @@ not proven event-specific" correction) → `CDROM_SETFILTER_CAPTURE.md`
 → `AUDIO_PLAYBACK_TRUTH.md` (why `0x800A6107` is not audible-playback
 truth, and the still-open search for the real signal) →
 `XA_PLAYBACK_PATH.md` (CD-DA structurally ruled out via the real disc's
-own `.cue` file; the real XA path still open).
+own `.cue` file; the real XA path still open) →
+`CDROM_DRIVER_DISCOVERY.md` (a full RAM value scan found 7 additional
+CD-ROM register pointer sets, identified as interrupt/DMA
+infrastructure, not a second audio driver).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-
