@@ -102,3 +102,79 @@ choice menu layer — confirmed to use at least two genuinely different
 rendering mechanisms. Identify which visual style is on screen (via a
 verified screenshot) before trusting a "no hits" result as evidence of
 a broken breakpoint rather than a mismatched scene type.
+
+## 8. Synthetic keyboard input does NOT reach the game
+
+Confirmed via a direct A/B test: real physical key presses advance
+dialogue immediately; every synthetic-input variant tried
+(`keybd_event` with Circle/`D` or Cross/`X`, `SendInput` with a raw
+scancode, each preceded by explicit window-focus and click-to-focus
+steps) does **not** reach the emulated controller — even though the
+exact same mechanisms reliably drive PCSX-Redux's own ImGui menus
+(File/Debug menu clicks, Solo/Mute button clicks all work). This is
+consistent with the emulator's controller backend reading raw input
+state that filters out OS-injected synthetic key events. **Any
+unattended live-trigger automation needs either a human physically
+present to provide the dialogue-advance input, or a virtual
+gamepad/XInput device** — do not spend time debugging synthetic
+keyboard input further; it is a structural limitation, not a bug in
+this project's scripts.
+
+## 9. A real crash loop, and how to tell it apart from a normal halt
+
+A genuine crash (not one of the three halt states in section 2) looks
+like: every subsequent GDB stop reports the exact same PC, with the
+`cause` register decoding to exception code 10 (Reserved Instruction)
+— e.g. `pc=0xA0010000`, `cause=0x00000028`. Decode the exception code
+from register index 36 (`cause`) as `(cause >> 2) & 0x1F`; code `0`
+means a normal interrupt (healthy), anything else is a real fault.
+
+**Neither a save-state reload nor an in-emulator Hard Reset
+(`Emulation > Hard Reset`, Shift+F8) fixes this** — both leave the
+same fault recurring immediately. Before assuming a save file is
+corrupted, verify it against git (`git show HEAD:<file> | cmp - <file>`,
+or compare MD5 hashes) — a byte-identical match to a previously-good
+commit rules out save corruption and points to accumulated internal
+state in the *running process itself* (plausibly from many GDB
+attach/detach cycles across a long session). **The only fix found:
+fully close and relaunch the PCSX-Redux process** (`Stop-Process` on
+both `pcsx-redux` and `pcsx-redux.main`, then `Start-Process` again
+from the project directory so it picks up `pcsx.json`), reload the
+disc image, then reload the save state.
+
+## 10. The native SPU Debug window (non-GDB SPU observation)
+
+GDB's own memory read/write path for the SPU hardware I/O range
+(`0x1F801xxx`) is confirmed unreliable — a debug-issued write does not
+round-trip even while genuinely running (see
+`docs/audio/SPU_AUDIO_PATH_DISCOVERY.md`'s and
+`docs/audio/SPU_OBSERVATION_CHANNEL.md`'s follow-up sections for the
+full evidence). For true SPU hardware state, use PCSX-Redux's own
+built-in debugger instead: **`Debug > SPU > Show SPU debug`** opens a
+window titled exactly `"SPU Debug"` (a genuine, separately-titled OS
+window, safely automatable via `EnumWindows`/screenshot once opened).
+It shows real SPUCNT/SPUSTAT/XA parameters and all 24 voice channels
+(On/Off/Mute/Solo, live waveform plot, frequency, position) reading
+the emulator's true internal state, bypassing the unreliable GDB path
+entirely. Menu click sequence (coordinates relative to the main
+`"PCSX-Redux"` window's own rect, confirmed stable across relaunches
+at a `1200x955`-ish default window size): `Debug` menu at
+`(left+263, top+42)` → hover/click `SPU` row at `(left+260, top+153)`
+→ click the `"Show SPU debug"` leaf item at `(left+460, top+153)`.
+Use `SendInput`-based mouse clicks, not `mouse_event`/`SetCursorPos`
+— the latter was unreliable for opening ImGui menu dropdowns in this
+build.
+
+## 11. Screenshot safety: verify focus immediately before AND during capture
+
+A blind screenshot (grab whatever is at a remembered window rect
+without re-checking) can capture an unrelated window if it happened to
+come to the foreground in the gap between focusing and capturing —
+this happened twice in one session (an unrelated private window was
+nearly saved both times; both captures were deleted immediately
+without being acted on). **Always re-verify `GetForegroundWindow() ==
+target_hwnd` immediately before `GetWindowRect`, and again immediately
+before `ImageGrab.grab`/`PrintWindow`, aborting without saving if
+focus moved at either check.** Never widen a capture region beyond the
+target window's own rect "just in case" — that only increases the
+chance of picking up an unrelated overlapping window.

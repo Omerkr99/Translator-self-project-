@@ -9,6 +9,12 @@ be found by topic instead of scrolling a flat list of ~60 files.
 the single, continuously-updated "present truth" document: test counts,
 capability matrix, and what's live-verified vs. still open.
 
+**Resuming the audio/SPU investigation specifically?** Start at
+[`audio/AUDIO_INVESTIGATION_RESUME.md`](audio/AUDIO_INVESTIGATION_RESUME.md)
+instead of the full chain below — it's a single "pick up here" page
+with the current state, environment setup steps, and the exact next
+task.
+
 ## Categories
 
 ### [`audio/`](audio/) — the XA/voice audio investigation chain
@@ -36,7 +42,10 @@ Enable" SPUCNT bit, then decisively ruled it and known Key ON/OFF
 sites out via a real user-confirmed audible correlation experiment) →
 `SPU_OBSERVATION_CHANNEL.md` (found PCSX-Redux's own native SPU
 debugger, proving GDB's SPU register reads were simply wrong — CD
-Audio Enable is genuinely, persistently set on real hardware).
+Audio Enable is genuinely, persistently set on real hardware; also
+found a real crash-loop bug and confirmed synthetic keyboard input
+doesn't reach the game) → `AUDIO_INVESTIGATION_RESUME.md` (the
+actionable "pick up here" page for the next session).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-
