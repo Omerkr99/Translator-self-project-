@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 536 passed, 0 failed (`py -m pytest tests/ -q`), ~16s.
-  80 modules in `gcrts/`, 61 test files.
+- **Test count**: 543 passed, 0 failed (`py -m pytest tests/ -q`), ~15s.
+  81 modules in `gcrts/`, 62 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -109,6 +109,17 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   real audio-configuring code path remains genuinely unfound —
   `gcrts.audio_playback_truth.AudiblePlaybackState` exists with exactly
   one honest member (`UNKNOWN`), not a forced/unverified `AUDIBLE_XA`.
+  **Follow-up (`XA_PLAYBACK_PATH.md`)**: a second live session (save
+  slot 9 reloaded while armed, user-confirmed trigger) again produced
+  zero `ReadS` hits. Checked the real disc's own `.cue` file directly —
+  exactly one track, `MODE2/2352` — and found genuine CD-DA playback is
+  **structurally impossible** on this disc, ruling that fallback
+  hypothesis out completely (`gcrts.xa_playback_path.PLAYBACK_PATH_HYPOTHESES`
+  records all 6 hypotheses the milestone required checking, each with
+  real evidence). The traced `ReadN`/Setmode cycle is now permanently
+  `RULED_OUT_AS_XA_AUDIO_PATH`. The real path remains open — most likely
+  reachable only through a second, still-unfound command-register
+  pointer-variable set distinct from the one 3 known sites all share.
 
 ## Key current distinctions (do not lose these)
 
@@ -460,7 +471,9 @@ and the "Setfilter not proven event-specific" correction), and
 `CDROM_SETFILTER_CAPTURE.md` (the ~460-second live session that found
 the filter is most likely persistent, not per-cue), and
 `AUDIO_PLAYBACK_TRUTH.md` (why `0x800A6107` is not audible-playback
-truth, and the still-open search for what is).
+truth, and the still-open search for what is), and
+`XA_PLAYBACK_PATH.md` (CD-DA structurally ruled out; the real path
+still open).
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal

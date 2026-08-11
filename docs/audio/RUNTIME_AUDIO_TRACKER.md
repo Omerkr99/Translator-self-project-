@@ -199,6 +199,22 @@ replacement "audible playback" signal was found this pass -- reported
 honestly as an open question, not forced. Test count: **536 passed**
 (530 + 6 in `test_audio_playback_truth.py`).
 
+**Eleventh follow-up milestone (Locate the Real XA-ADPCM Playback Path,
+`XA_PLAYBACK_PATH.md`, `gcrts.xa_playback_path`)**: a second live
+session (~230+ real seconds, save slot 9 reloaded while armed, user
+confirmed the trigger) again produced zero `ReadS` (`0x1B`) hits.
+Checked the milestone's own required fallback hypothesis list directly
+against the real disc's `.cue` file and found decisive evidence: the
+disc has exactly ONE track (`MODE2/2352`, standard PS1 data format) --
+genuine CD-DA playback is structurally impossible for this game, ruling
+that hypothesis out completely (not just downgrading it). The other
+open hypotheses (a different command/path, an incomplete observation
+point, a BIOS-side path) remain genuinely open, each with real evidence
+attached in `gcrts.xa_playback_path.PLAYBACK_PATH_HYPOTHESES`. The old
+traced `ReadN`/Setmode cycle is now permanently classified
+`RULED_OUT_AS_XA_AUDIO_PATH`. Test count: **543 passed** (536 + 7 in
+`test_xa_playback_path.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

@@ -381,3 +381,13 @@ documented XA-audio command (`ReadS`, `0x1B`) has never been observed.
 A widened static scan for other command sites found nothing new. The
 real audio-configuring code path remains unfound — an honest, open
 question, not a claimed answer.
+
+### Fifth follow-up (Locate the Real XA-ADPCM Playback Path): CD-DA structurally ruled out
+
+`XA_PLAYBACK_PATH.md` ran a second live session, save slot 9 reloaded
+while armed, spanning a user-confirmed audio trigger — still zero
+`ReadS` hits. Checked the real disc's own `.cue` file directly: exactly
+one track, `MODE2/2352` (standard data format). Genuine CD-DA is
+structurally impossible on this disc, ruling that fallback hypothesis
+out completely. `gcrts.xa_playback_path.OLD_READN_CYCLE_STATUS` is now
+permanently `"RULED_OUT_AS_XA_AUDIO_PATH"`. The real path remains open.
