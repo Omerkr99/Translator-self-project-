@@ -2,7 +2,7 @@
 
 A single, actionable "pick up here" document for the next session of
 the SPU/XA playback investigation. Read this before re-deriving
-anything from `RUNTIME_AUDIO_TRACKER.md`'s full 16-milestone history —
+anything from `RUNTIME_AUDIO_TRACKER.md`'s full 17-milestone history —
 it exists specifically so a fresh session doesn't have to.
 
 ## Where things stand right now
@@ -22,18 +22,33 @@ it exists specifically so a fresh session doesn't have to.
   peek of that range as ground truth — use the native `"SPU Debug"`
   window instead (`Debug > SPU > Show SPU debug`,
   `docs/audio/SPU_OBSERVATION_CHANNEL.md`).
-- **Confirmed environmental constraint**: synthetic keyboard input
-  (`keybd_event`/`SendInput`) does **not** reach the emulated game
-  controller in this environment, even though it reliably drives
-  PCSX-Redux's own UI. Unattended automated dialogue-triggering is
-  therefore not currently possible — see
+- **Confirmed environmental constraint**: synthetic input does **not**
+  reach the emulated game controller in this environment. This was
+  tested twice: `keybd_event`/`SendInput` keyboard input (does not
+  work), and a real virtual XInput gamepad via `vgamepad`/ViGEmBus
+  (device creation and Windows-level button state both confirmed
+  working via `XInputGetState`, but the game itself never responded
+  regardless of whether the pad existed before or after PCSX-Redux's
+  own startup, or whether the window had focus). Unattended automated
+  dialogue-triggering is therefore not currently possible with any
+  method tried so far — see
   `docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md` section 8.
-- **Still open**: which single SPU voice channel (if any single one)
-  is responsible for dialogue audio specifically, as opposed to
-  background music/ambience (which is active in every "silent"
-  baseline captured so far).
-- Playback backend classification remains honestly `UNKNOWN`
-  (`gcrts.spu_audio_path.classify_playback_backend()`).
+- **RESOLVED — playback backend identified**: a manual all-voices-muted
+  experiment (using the native SPU Debug window's per-channel Mute
+  controls, with the user physically triggering dialogue) found that
+  muting every regular SPU voice channel does **not** silence the
+  dialogue line — reproduced independently in a second, structurally
+  different scene. `gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()`
+  → `True`. Dialogue audio bypasses the SPU's 24-voice mixing engine
+  entirely and enters via the **CD input path** — the mechanism
+  SPUCNT's CD Audio Enable bit gates.
+  `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT`,
+  not `UNKNOWN` — the first confirmed classification this whole audio
+  investigation has produced.
+- **Still open**: the CD input stream's exact format. XA-ADPCM is the
+  only realistic candidate by elimination (CD-DA is structurally ruled
+  out on this disc, `XA_PLAYBACK_PATH.md`) but was not independently
+  re-verified — `CD_INPUT_UNKNOWN_FORMAT`, not `XA_ADPCM_CONFIRMED`.
 
 ## Environment setup (do this first, every time)
 
@@ -90,26 +105,29 @@ it exists specifically so a fresh session doesn't have to.
 
 ## The actual next task
 
-Per `docs/audio/SPU_OBSERVATION_CHANNEL.md`'s own "Next milestone":
+Independently verify the CD input stream's exact format. `CD_INPUT_UNKNOWN_FORMAT`
+was reached by elimination (not a normal SPU voice, and CD-DA is
+structurally impossible on this disc) rather than by directly
+observing an XA-ADPCM decode happening. Concrete directions, roughly
+in order of promise:
 
-> Build or adopt a synthetic-input path the emulator's controller
-> backend actually accepts (e.g. a virtual XInput/DirectInput device),
-> then find or construct a scene genuinely free of background music
-> and repeat the silent-vs-audible SPU Debug comparison to isolate the
-> dialogue channel.
+1. Trace the CD-ROM controller's own onboard XA-ADPCM decoder path
+   during a real triggered line (the PS1 CD-ROM controller decodes
+   XA-ADPCM in hardware before handing PCM to the SPU's CD input) —
+   look for decoder-related register activity or a decoded-sample
+   buffer distinct from the already-ruled-out SPU voice RAM.
+2. Revisit `CD_init`'s callers (`CD_INIT_CALL_SITES` in
+   `gcrts.spu_audio_path`) now that the CD input path is confirmed
+   live-relevant — one of them may be the actual per-event dispatch
+   this project never found on the CD-ROM command side.
+3. If a virtual-gamepad input path is ever solved (see below), redo
+   the PRE/DURING/POST SPU Debug snapshot comparison focused
+   specifically on the CD-input-related fields (CD Volume, SPUCNT)
+   rather than the 24 voice channels (already ruled out).
 
-Two independent sub-problems, either one alone would be progress:
-
-1. **Input**: a virtual gamepad (e.g. via `vgamepad`/ViGEmBus on
-   Windows) that PCSX-Redux's controller backend can see, to restore
-   unattended automated triggering. Confirm with the same A/B test
-   pattern (real press vs. synthetic press) before trusting it.
-2. **Channel isolation**: without solving (1), this requires a human
-   physically present to trigger dialogue while SPU Debug is observed
-   — either live narration ("I'm pressing now") or the Solo-button
-   technique already built and proven functional this session (click
-   a channel's `S` button, trigger, ask what's audible) to directly
-   identify which channel carries the voice.
+Automated triggering remains unsolved (see the environmental
+constraint above) — assume any further live-correlation work needs a
+human physically present to trigger dialogue and confirm what's heard.
 
 ## Don't repeat these dead ends
 
@@ -122,5 +140,13 @@ Two independent sub-problems, either one alone would be progress:
 - Don't spend time debugging why `keybd_event`/`SendInput` isn't
   advancing dialogue — it's a confirmed structural limitation, not a
   script bug (section 8 above).
+- Don't spend time on a virtual XInput gamepad either without a new
+  idea first — `vgamepad`/ViGEmBus was tried, confirmed working at the
+  Windows/XInput level, and still didn't get a response from the game;
+  repeating the same approach isn't likely to change that.
+- Don't re-investigate whether any single SPU voice channel carries
+  dialogue — this is now closed: none of them do, confirmed twice.
 - Don't screenshot without the abort-on-unfocus guard — see
   `PCSX_REDUX_CAPTURE_PROTOCOL.md` section 11.
+- Solo/Mute settings in the SPU Debug window do **not** persist across
+  a save-state reload — always re-apply them after each load.

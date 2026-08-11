@@ -151,19 +151,60 @@ reads** at breakpoint hits (the command/value actually loaded into
 unaffected -- that read path (`g`, GDB's register-read command) has
 been reliable throughout this entire project.
 
-## Honest conclusion (current)
+## Honest conclusion (superseded -- see below)
 
-Per this milestone's own required taxonomy, this stays classified
+Per this milestone's own required taxonomy, this stayed classified
 `UNKNOWN` -- not `XA_ADPCM_CONFIRMED`, not `SPU_SAMPLE_PLAYBACK` --
-but the reasoning is now stronger and more precise: a real capture
+but the reasoning was stronger and more precise: a real capture
 window with a user-confirmed audible trigger WAS achieved, and it
-decisively rules out the known writer sites as the mechanism for that
-specific instance. What remains open is not "did we ever catch the
+decisively ruled out the known writer sites as the mechanism for that
+specific instance. What remained open was not "did we ever catch the
 right moment" but "what mechanism actually is responsible," compounded
 by a confirmed inability to directly verify SPU hardware register
-state through this project's GDB-based tooling. The next concrete step
-is a different observation channel, not another round of the same
-correlation experiment.
+state through this project's GDB-based tooling.
+
+## Follow-up: manual all-voices-muted experiment -- the decisive result
+
+Using PCSX-Redux's native SPU Debug window (`gcrts.pcsx_spu_observer`,
+`Debug > SPU > Show SPU debug`) and its per-voice Mute/Solo controls,
+the user manually muted every SPU voice channel that showed any
+activity at the moment of a real, triggered dialogue line, working
+directly and repeatedly rather than through this project's own
+automation (synthetic-input limitations made automated triggering
+unavailable this pass -- see `docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md`
+section 8). **With every regular SPU voice channel muted, the spoken
+dialogue line continued to play, completely unaffected.** This was
+independently reproduced a second time, in a different scene the user
+had initially suspected was a pre-rendered movie/FMV segment -- same
+result: muting all 24 regular voices did not silence or alter the
+voice line at all.
+
+This is the single most decisive finding of this entire investigation
+chain. It directly proves the dialogue audio is **not** being mixed
+through the SPU's normal 24-voice engine -- if it were, muting every
+voice would silence it. The audio must be entering through a path that
+bypasses per-voice mixing entirely, which on real PS1 hardware means
+exactly one thing: **the CD input path** -- the same mechanism gated by
+SPUCNT bit 0 (CD Audio Enable), which this project has already
+confirmed, via the trustworthy native SPU debugger, to be genuinely
+and persistently set (`gcrts.pcsx_spu_observer.cd_audio_enable_confirmed_persistent_via_native_tool()`
+-> `True`, `docs/audio/SPU_OBSERVATION_CHANNEL.md`). This does not by
+itself prove the stream format is XA-ADPCM specifically (CD-DA is
+structurally ruled out on this disc, per `XA_PLAYBACK_PATH.md` --
+XA-ADPCM is the only real remaining candidate for what the CD input
+path could be carrying, but that inference is architectural, not
+independently re-verified this pass) -- so the classification below
+uses the taxonomy's own `CD_INPUT_UNKNOWN_FORMAT` value rather than
+overclaiming `XA_ADPCM_CONFIRMED`.
+
+## Honest conclusion (current)
+
+`classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT`,
+backed by direct, repeated, hands-on evidence (not architectural
+inference): the dialogue-carrying audio survives every regular SPU
+voice being muted, in two independently tested scenes. This is the
+strongest, most direct evidence this whole investigation chain has
+produced, and finally moves the classification off `UNKNOWN`.
 """
 from __future__ import annotations
 
@@ -388,18 +429,57 @@ def key_on_real_voice_trigger_confirmed_live() -> bool:
     return False
 
 
+@dataclass(frozen=True)
+class ManualMuteExperiment:
+    experiment_id: str
+    scene_description: str
+    voices_muted: str
+    dialogue_still_audible: bool
+    reproduced: bool
+    evidence: str
+
+
+MANUAL_MUTE_EXPERIMENTS: tuple[ManualMuteExperiment, ...] = (
+    ManualMuteExperiment(
+        "manual_mute_1", "Normal dialogue scene (save-state slot 6, a real voiced line)",
+        "all SPU voice channels showing any activity at the moment of the triggered line",
+        True, False,
+        "User manually muted every active-looking SPU voice channel via the native SPU Debug window's per-channel Mute controls during a real, self-triggered dialogue line. The voice line continued playing, completely unaffected.",
+    ),
+    ManualMuteExperiment(
+        "manual_mute_2", "A second scene the user initially suspected was a pre-rendered movie/FMV segment",
+        "all 24 regular SPU voice channels",
+        True, True,
+        "Independent repeat in a different scene. Same result: muting all 24 regular voices did not silence or alter the dialogue line at all -- reproducing manual_mute_1's finding in a structurally different context.",
+    ),
+)
+
+
+def all_spu_voices_muted_dialogue_still_audible() -> bool:
+    """True: confirmed directly and repeatedly by the user, via
+    PCSX-Redux's native SPU Debug per-channel Mute controls, across two
+    independently tested scenes (MANUAL_MUTE_EXPERIMENTS). Dialogue
+    audio survives every regular SPU voice being muted -- it is not
+    mixed through the SPU's normal 24-voice engine. This is the
+    decisive evidence behind classify_playback_backend()'s current
+    CD_INPUT_UNKNOWN_FORMAT result."""
+    return all(e.dialogue_still_audible for e in MANUAL_MUTE_EXPERIMENTS)
+
+
 def classify_playback_backend() -> PlaybackBackendClassification:
-    """UNKNOWN -- but for a stronger, more precise reason than the
-    original pass. A real capture window WAS achieved this follow-up:
-    armed breakpoints on every known SPU writer site, a real automated
-    trigger, and explicit user confirmation of audible dialogue in that
-    exact window (see LIVE_CORRELATION_RUNS). None of the known sites
-    fired -- CD_init and both Key ON/OFF site families are decisively
-    ruled out as the mechanism for that instance. What actually IS
-    responsible remains unknown, compounded by a confirmed inability to
-    directly verify true SPU hardware register state through this
-    project's GDB-based read channel (spu_mmio_read_write_roundtrip_reliable()
-    -> False). Per this milestone's own instruction, evidence outranks
-    architectural expectation; guessing past what was actually caught
-    live would violate that."""
-    return PlaybackBackendClassification.UNKNOWN
+    """CD_INPUT_UNKNOWN_FORMAT -- backed by direct, repeated, hands-on
+    evidence: muting every regular SPU voice channel does not silence
+    or alter the dialogue audio, confirmed in two independently tested
+    scenes (all_spu_voices_muted_dialogue_still_audible() -> True).
+    Combined with SPUCNT's CD Audio Enable bit being confirmed
+    genuinely and persistently set via the trustworthy native SPU
+    debugger (gcrts.pcsx_spu_observer), this decisively points to the
+    CD input path bypassing per-voice mixing entirely -- not an
+    architectural guess, but what was actually heard. Not upgraded to
+    XA_ADPCM_CONFIRMED: CD-DA is structurally ruled out on this disc
+    (XA_PLAYBACK_PATH.md), making XA-ADPCM the only realistic remaining
+    candidate for the CD input stream's format, but that specific
+    format was not independently re-verified this pass -- the
+    taxonomy's own CD_INPUT_UNKNOWN_FORMAT value exists precisely for
+    this evidence level."""
+    return PlaybackBackendClassification.CD_INPUT_UNKNOWN_FORMAT

@@ -455,3 +455,19 @@ channel as the dialogue source, since background-music channels were
 already active in the "silent" baseline too. The real path remains
 open; next direction is a scene genuinely free of background music, to
 retry the same comparison cleanly.
+
+### Tenth follow-up (Manual All-Voices-Muted Experiment): the real path found
+
+Not a specific channel — **no SPU voice at all**. Using the native SPU
+Debug window's per-channel Mute controls, the user manually muted
+every active SPU voice during a real dialogue line; the voice kept
+playing unaffected, reproduced in a second, independent scene. Dialogue
+audio bypasses the SPU's 24-voice mixing engine entirely and enters
+through the CD input path — the same mechanism SPUCNT's CD Audio
+Enable bit gates, already confirmed persistently set. Playback backend
+is now `CD_INPUT_UNKNOWN_FORMAT`
+(`gcrts.spu_audio_path.classify_playback_backend()`), closing the
+"what is the real path" question this whole document's chain opened.
+Remaining: independently verify the CD input stream's exact format
+(XA-ADPCM is the only realistic candidate by elimination, not yet
+re-confirmed directly).

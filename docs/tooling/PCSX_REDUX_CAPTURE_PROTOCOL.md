@@ -178,3 +178,37 @@ before `ImageGrab.grab`/`PrintWindow`, aborting without saving if
 focus moved at either check.** Never widen a capture region beyond the
 target window's own rect "just in case" — that only increases the
 chance of picking up an unrelated overlapping window.
+
+## 12. A virtual XInput gamepad was tried and did not solve input either
+
+`pip install vgamepad` (wraps ViGEmBus, which was already installed on
+this machine — check via
+`Get-PnpDevice | Where-Object { $_.FriendlyName -like '*Vigem*' }`,
+look for `"Nefarius Virtual Gamepad Emulation Bus"` with `Status: OK`)
+successfully creates a virtual XInput device, and Windows' own
+`XInputGetState` correctly reports real button-state changes from it
+(confirmed: `wButtons` bit set, `dwPacketNumber` incrementing on each
+press). **This still did not get PCSX-Redux's emulated game to
+respond** — tried with the pad created after PCSX-Redux's own startup,
+before its startup (so it would be enumerated fresh), and with/without
+explicit window focus on the main PCSX-Redux window first. Section 8's
+conclusion stands regardless of input method: something about this
+specific PCSX-Redux build's controller-reading path does not react to
+programmatically-driven input, synthetic keyboard or virtual gamepad
+alike. Don't re-attempt either approach without a genuinely new idea
+(e.g. inspecting PCSX-Redux's own SDL/controller-selection
+configuration for an explicit device-binding step neither approach
+tried).
+
+## 13. SPU Debug Solo/Mute state does not persist across a save-state reload
+
+Toggling a channel's `Solo`/`Mute` button in the native SPU Debug
+window is a debugger-UI setting, not part of the emulated console
+state — but it still gets reset to default (nothing soloed/muted) every
+time a save state is loaded, even though the window itself stays open.
+**Always re-apply Solo/Mute after every `state/load` call**, not just
+once per session. Also note: clicking a `Mute` button while a different
+channel has `Solo` active appears to clear that channel's Solo state
+as a side effect — verify Solo is still engaged (screenshot, check the
+button is highlighted) after touching any other channel's controls,
+don't assume it survived.

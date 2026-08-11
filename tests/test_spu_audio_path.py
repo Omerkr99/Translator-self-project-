@@ -5,14 +5,17 @@ from gcrts.spu_audio_path import (
     KEY_PADCIRCLE_VK,
     KEY_WRITER_SITES,
     LIVE_CORRELATION_RUNS,
+    MANUAL_MUTE_EXPERIMENTS,
     SPU_BASE_POINTER_HOLDERS,
     SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE,
     SPUCNT_CD_AUDIO_ENABLE_BIT,
     SPUCNT_WRITER_SITES,
     LiveCorrelationRun,
+    ManualMuteExperiment,
     PlaybackBackendClassification,
     SpuWriterFamily,
     SpuWriterSite,
+    all_spu_voices_muted_dialogue_still_audible,
     cd_init_confirmed_live,
     cd_init_sets_documented_cd_audio_enable_bit,
     cd_init_write_confirmed_persistent,
@@ -98,11 +101,14 @@ def test_playback_backend_classification_taxonomy_matches_milestone_requirement(
     }
 
 
-def test_playback_backend_classified_unknown_not_guessed():
-    """The central honest result of this milestone: no confirmed
-    backend, despite a strong structural lead. Must not silently
-    upgrade to a *_CONFIRMED value without new live evidence."""
-    assert classify_playback_backend() == PlaybackBackendClassification.UNKNOWN
+def test_playback_backend_classified_cd_input_unknown_format():
+    """The central result of the manual all-voices-muted follow-up:
+    dialogue audio survives every SPU voice being muted, confirmed
+    directly and repeatedly by the user -- decisive evidence for the CD
+    input path, not architectural guessing. Must not silently regress
+    back to UNKNOWN, nor jump all the way to XA_ADPCM_CONFIRMED without
+    an independently re-verified stream format."""
+    assert classify_playback_backend() == PlaybackBackendClassification.CD_INPUT_UNKNOWN_FORMAT
 
 
 def test_writer_site_round_trips_as_dataclass_equality():
@@ -171,3 +177,38 @@ def test_cd_init_persistence_docstring_does_not_overclaim_non_persistence():
     confirmed either way from this project's own tooling."""
     assert cd_init_write_confirmed_persistent() is False
     assert spu_mmio_read_write_roundtrip_reliable() is False
+
+
+def test_manual_mute_experiments_has_at_least_two_independent_runs():
+    assert len(MANUAL_MUTE_EXPERIMENTS) >= 2
+    assert all(isinstance(e, ManualMuteExperiment) for e in MANUAL_MUTE_EXPERIMENTS)
+
+
+def test_manual_mute_experiments_all_confirm_dialogue_survives_muting():
+    """The decisive evidence itself: every recorded experiment found
+    dialogue audio unaffected by muting all regular SPU voices."""
+    for e in MANUAL_MUTE_EXPERIMENTS:
+        assert e.dialogue_still_audible is True
+
+
+def test_manual_mute_experiments_include_an_independently_reproduced_run():
+    """Regression: at least one experiment must be a reproduction in a
+    structurally different scene, not just a single observation."""
+    assert any(e.reproduced for e in MANUAL_MUTE_EXPERIMENTS)
+
+
+def test_manual_mute_experiments_have_real_evidence_strings():
+    for e in MANUAL_MUTE_EXPERIMENTS:
+        assert e.evidence.strip() != ""
+        assert e.scene_description.strip() != ""
+        assert e.voices_muted.strip() != ""
+
+
+def test_all_spu_voices_muted_dialogue_still_audible():
+    assert all_spu_voices_muted_dialogue_still_audible() is True
+
+
+def test_manual_mute_experiment_round_trips_as_dataclass_equality():
+    a = ManualMuteExperiment("x", "scene", "all voices", True, False, "evidence")
+    b = ManualMuteExperiment("x", "scene", "all voices", True, False, "evidence")
+    assert a == b

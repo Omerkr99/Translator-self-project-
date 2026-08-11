@@ -6,9 +6,9 @@ traced `ReadN`/Setmode cycle ruled out, and a second full-RAM
 pointer-value scan on the CD-ROM side found only interrupt/DMA
 infrastructure). Pivot direction: `audible event -> SPU state/register
 activity -> writer -> audio subsystem -> upstream source`. New module:
-`gcrts/spu_audio_path.py`, `tests/test_spu_audio_path.py` (23 tests
-after the follow-up Live Audible Trigger Correlation experiment,
-below).
+`gcrts/spu_audio_path.py`, `tests/test_spu_audio_path.py` (29 tests
+after the manual all-voices-muted follow-up that finally resolved the
+playback backend classification, below).
 
 ## SPU pointer scan
 
@@ -169,19 +169,28 @@ reliable throughout this entire project, unaffected by this finding.
 
 ## Actual playback backend
 
-Per the milestone's required taxonomy (`gcrts.spu_audio_path.PlaybackBackendClassification`):
-**`UNKNOWN`** (`classify_playback_backend()`) — but now for a stronger,
-more precise reason. A real capture window WAS achieved this
-follow-up: armed breakpoints on every known SPU writer site, a real
-automated trigger, and explicit user confirmation of audible dialogue
-in that exact window. None of the known sites fired — `CD_init` and
-both Key ON/OFF site families are decisively ruled out as the
-mechanism for that instance. What actually IS responsible remains
-unknown, compounded by the confirmed inability to directly verify true
-SPU hardware register state through this project's GDB-based read
-channel. Per this milestone's own explicit instruction, evidence
-outranks architectural expectation — this stays `UNKNOWN` rather than
-guessed past what was actually caught live.
+**Resolved.** Per the milestone's required taxonomy
+(`gcrts.spu_audio_path.PlaybackBackendClassification`):
+**`CD_INPUT_UNKNOWN_FORMAT`** (`classify_playback_backend()`).
+
+The final follow-up (manual all-voices-muted experiment, see
+`docs/audio/RUNTIME_AUDIO_TRACKER.md`'s seventeenth milestone entry)
+produced the decisive result this whole chain had been searching for:
+using PCSX-Redux's native SPU Debug window's per-channel Mute controls,
+the user manually muted every regular SPU voice channel during a real,
+self-triggered dialogue line — **the voice line continued playing,
+completely unaffected**. Independently reproduced in a second,
+structurally different scene (one initially suspected to be a
+pre-rendered movie/FMV segment), same result.
+`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()` →
+`True`. This directly proves the dialogue audio bypasses the SPU's
+24-voice mixing engine entirely, pointing decisively to the CD input
+path — the same mechanism gated by SPUCNT bit 0 (CD Audio Enable),
+already confirmed genuinely and persistently set via the native SPU
+debugger. Not upgraded to `XA_ADPCM_CONFIRMED`: CD-DA is structurally
+ruled out on this disc, making XA-ADPCM the only realistic remaining
+candidate for the CD input stream's format, but that specific format
+was not independently re-verified this pass.
 
 ## XAPACK correlation
 
@@ -189,10 +198,10 @@ Not newly re-established this pass; the prior chain
 (`script_parameter -> ScriptUnit fingerprint -> selector table ->
 XAPACK file/LBA`, `AUDIO_CONTEXT_RESOLUTION.md`/`XA_STREAM_RESOLUTION.md`)
 is unaffected by this milestone's findings and remains the
-project's confirmed source-resolution path. This milestone did not
-trace forward from a specific XAPACK-resolved event into a live
-`CD_init` firing in the same window — a natural next step, not yet
-done.
+project's confirmed source-resolution path. With the playback backend
+now identified as the CD input path, the natural next step is tracing
+forward from a specific XAPACK-resolved event into a live, observed
+CD-input-to-SPU-mix transition — not yet done.
 
 ## Runtime integration
 
@@ -203,8 +212,8 @@ exists yet to add.
 
 ## Tests
 
-**574 passed** (566 baseline + 8 new in `test_spu_audio_path.py`, now
-23 total in that file), no regressions. Full suite run via
+**598 passed** (592 baseline + 6 new in `test_spu_audio_path.py`, now
+29 total in that file), no regressions. Full suite run via
 `pytest tests/` (the repo root also contains several unrelated,
 pre-existing scratch/temp directories from prior sessions that
 pytest's default collection cannot access on this Windows environment
@@ -212,27 +221,22 @@ pytest's default collection cannot access on this Windows environment
 milestone; scoping collection to `tests/` avoids it the same way prior
 sessions have).
 
-## Remaining blocker (superseded)
+## Remaining blocker (superseded twice)
 
 This section originally read: "This project has no working channel to
 directly verify true SPU hardware register state." **Resolved** by the
-follow-up `SPU_OBSERVATION_CHANNEL.md` milestone: PCSX-Redux ships a
-native, built-in SPU debugger (`Debug > SPU > Show SPU debug`) that
-reads the emulator's own true internal state, bypassing GDB entirely.
-Cross-checked at the same live instant: it showed `CTRL=0xC081` (CD
-Audio Enable bit set) while GDB's own read of the same register showed
-`0x0000` — confirming GDB specifically fails on SPUCNT, and reversing
-this document's own "the write does not persist" finding above:
-`CD_init`'s effect genuinely IS live on real hardware; only GDB's read
-of it was wrong. See `SPU_OBSERVATION_CHANNEL.md` for the full
-methodology, validation, and the honest limits of what this new
-channel could and couldn't establish (background-music channels being
-active in every "silent" baseline prevented isolating one specific
-dialogue-voice channel this pass).
+`SPU_OBSERVATION_CHANNEL.md` milestone (native SPU debugger found and
+validated). It then read "no single SPU voice channel has been
+isolated as the dialogue source." **Also resolved**, by the manual
+all-voices-muted experiment above: the answer turned out to be that
+*no* regular SPU voice channel carries the dialogue at all — it
+bypasses per-voice mixing entirely via the CD input path. Playback
+backend is `CD_INPUT_UNKNOWN_FORMAT`, no longer `UNKNOWN`.
 
 ## Next milestone
 
-Find or construct a scene/state with genuinely no background
-music/ambience active, then repeat the silent-vs-audible SPU Debug
-comparison (`SPU_OBSERVATION_CHANNEL.md`) to isolate the one channel
-(if any single channel) responsible for dialogue playback.
+Independently re-verify the CD input stream's format (confirm it is
+genuinely XA-ADPCM rather than assumed by elimination) — e.g. by
+tracing the CD-ROM controller's own onboard XA-ADPCM decode path
+during a real triggered line, or by locating and inspecting the actual
+decoded sample buffer the CD input mixes from.

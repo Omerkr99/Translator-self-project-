@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 592 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
+- **Test count**: 598 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
   84 modules in `gcrts/`, 65 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -168,6 +168,27 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   dialogue source, since background-music channels were already active
   in the "silent" baseline. Next direction: a scene genuinely free of
   background music, to retry the comparison cleanly.
+  **Follow-up (Manual All-Voices-Muted Experiment) — playback backend
+  resolved**: a virtual XInput gamepad (`vgamepad`/ViGEmBus) was tried
+  first for reliable automated triggering — confirmed working at the
+  Windows/XInput level, but the game itself never responded, so per
+  this milestone's own time-boxing instruction the investigation
+  switched to a manual fallback. Using the native SPU Debug window's
+  per-channel Mute controls, the user manually muted every active SPU
+  voice during a real, self-triggered dialogue line — the voice line
+  kept playing, completely unaffected, reproduced independently in a
+  second, structurally different scene.
+  `gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()`
+  returns `True`. Dialogue audio does not go through the SPU's 24-voice
+  mixing engine at all — it enters via the CD input path, the
+  mechanism SPUCNT's CD Audio Enable bit gates.
+  **`classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT`,
+  not `UNKNOWN`** — the first confirmed (non-`UNKNOWN`) playback-backend
+  classification this entire audio investigation has produced. Not
+  `XA_ADPCM_CONFIRMED`: XA-ADPCM is the only realistic remaining
+  candidate by elimination (CD-DA is structurally ruled out on this
+  disc) but its exact format was not independently re-verified this
+  pass. Next direction: confirm the CD input stream's format directly.
 
 ## Key current distinctions (do not lose these)
 
@@ -533,7 +554,12 @@ path is unreliable in this environment), and `SPU_OBSERVATION_CHANNEL.md`
 (found PCSX-Redux's own native SPU debugger; proved GDB's SPUCNT read
 was simply wrong — CD Audio Enable is genuinely, persistently set on
 real hardware, reversing the previous milestone's "write does not
-persist" finding).
+persist" finding). `SPU_AUDIO_PATH_DISCOVERY.md`'s own final follow-up
+section records the playback-backend resolution: a manual
+all-voices-muted experiment found dialogue audio survives every
+regular SPU voice being muted, proving it enters via the CD input
+path — `classify_playback_backend()` is `CD_INPUT_UNKNOWN_FORMAT`, the
+first non-`UNKNOWN` result this whole chain has produced.
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal
@@ -776,6 +802,6 @@ instructions, not as a sign of partial implementation.
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
 | Movies / `.STR` | PARTIAL | No | Runtime trigger unidentified; wrong overlay assumed so far |
-| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is confirmed unreliable, but PCSX-Redux's own native SPU debugger (`gcrts.pcsx_spu_observer`) is validated as a working replacement channel and shows CD Audio Enable genuinely, persistently set on real hardware (reversing the earlier "write does not persist" finding); no single SPU voice channel has yet been isolated as the dialogue source, since background-music channels are already active in every "silent" baseline captured so far, and unattended automated dialogue-triggering is confirmed unreliable in this environment (synthetic keyboard input does not reach the emulated controller, `gcrts.pcsx_spu_observer.synthetic_input_reaches_game_controller()` → `False`) — any further live-correlation work needs a human trigger or a virtual gamepad; `classify_playback_backend()` is honestly `UNKNOWN` |
+| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is confirmed unreliable, but PCSX-Redux's own native SPU debugger (`gcrts.pcsx_spu_observer`) is validated as a working replacement channel and shows CD Audio Enable genuinely, persistently set on real hardware (reversing the earlier "write does not persist" finding); a manual all-voices-muted experiment (native SPU Debug's per-channel Mute controls) found dialogue audio survives every regular SPU voice being muted, reproduced in two independent scenes (`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()` → `True`) — the audio bypasses the SPU's 24-voice mixing engine entirely and enters via the CD input path; `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT` (not `XA_ADPCM_CONFIRMED` — that specific stream format was not independently re-verified); a virtual XInput gamepad (vgamepad/ViGEmBus) was validated at the Windows/XInput level but never got the game itself to respond, so automated dialogue-triggering remains unreliable and further live-correlation work still needs a human trigger |
 | Subtitles | UNSUPPORTED | No | Not started; blocked on Movies + Audio |
 | Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |

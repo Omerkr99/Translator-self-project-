@@ -337,6 +337,36 @@ constraint on unattended live-capture automation, not a code
 regression. Test count: **592 passed** (588 + 4 in
 `test_pcsx_spu_observer.py`).
 
+**Seventeenth follow-up milestone (Manual All-Voices-Muted Experiment
+-- Playback Backend Resolved, `SPU_AUDIO_PATH_DISCOVERY.md`'s own
+follow-up section, `gcrts.spu_audio_path`)**: attempted first to solve
+reliable automated triggering via a virtual XInput gamepad
+(`vgamepad`/ViGEmBus, already installed on this machine). Confirmed
+Level 1 (device creation) and Level 2 (Windows' own `XInputGetState`
+correctly reports real button-state changes, even with the pad created
+before PCSX-Redux's own startup) -- but Level 3 (the actual game
+responding) never succeeded across every configuration tried. Per this
+milestone's own explicit time-boxing instruction, switched to the
+manual fallback rather than continuing to debug generic Windows input.
+Using PCSX-Redux's native SPU Debug window's per-channel Mute controls
+(`Debug > SPU > Show SPU debug`), the user manually muted every SPU
+voice channel showing activity during a real, self-triggered dialogue
+line -- **the voice line kept playing, completely unaffected**,
+reproduced independently in a second, structurally different scene
+(one initially suspected to be a pre-rendered movie/FMV segment).
+`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()`
+-> `True`. This is the decisive result the whole sixteen-milestone
+audio chain had been building toward: dialogue audio does not go
+through the SPU's normal 24-voice mixing engine at all, pointing
+directly to the CD input path (the mechanism gated by SPUCNT's CD
+Audio Enable bit, already confirmed genuinely and persistently set via
+the native SPU debugger). `classify_playback_backend()` now returns
+`CD_INPUT_UNKNOWN_FORMAT` -- not `XA_ADPCM_CONFIRMED`, since CD-DA
+being structurally ruled out on this disc makes XA-ADPCM the only
+realistic remaining candidate by elimination, not something
+independently re-verified this pass. Test count: **598 passed** (592 +
+6 in `test_spu_audio_path.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one
