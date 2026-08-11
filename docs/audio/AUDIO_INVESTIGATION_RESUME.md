@@ -49,6 +49,14 @@ it exists specifically so a fresh session doesn't have to.
   only realistic candidate by elimination (CD-DA is structurally ruled
   out on this disc, `XA_PLAYBACK_PATH.md`) but was not independently
   re-verified — `CD_INPUT_UNKNOWN_FORMAT`, not `XA_ADPCM_CONFIRMED`.
+- **Two more confirmed negatives, still no positive format
+  confirmation**: `CD_init`'s 2 position-change-gated call sites
+  (`CD_INIT_GATEKEEPER_SITES`) were live-armed across a real, confirmed
+  voice line twice — neither fired. 46 live `Setmode` captures across
+  ~150s spanning a confirmed voice line all showed the XA-ADPCM bit
+  off, 100% of the time (`setmode_xa_adpcm_bit_ever_observed_set()`
+  → `False`). The software Setmode toggle this project can observe is
+  evidently not how (or not the only way) XA-ADPCM decode gets enabled.
 
 ## Environment setup (do this first, every time)
 
@@ -105,21 +113,25 @@ it exists specifically so a fresh session doesn't have to.
 
 ## The actual next task
 
-Independently verify the CD input stream's exact format. `CD_INPUT_UNKNOWN_FORMAT`
-was reached by elimination (not a normal SPU voice, and CD-DA is
-structurally impossible on this disc) rather than by directly
-observing an XA-ADPCM decode happening. Concrete directions, roughly
-in order of promise:
+Independently verify the CD input stream's exact format.
+`CD_INPUT_UNKNOWN_FORMAT` was reached by elimination (not a normal SPU
+voice, and CD-DA is structurally impossible on this disc) rather than
+by directly observing an XA-ADPCM decode happening, and the two most
+obvious follow-ups (CD_init's real per-event candidates, the known
+Setmode dispatch site) have both come back negative. Concrete
+directions:
 
-1. Trace the CD-ROM controller's own onboard XA-ADPCM decoder path
-   during a real triggered line (the PS1 CD-ROM controller decodes
-   XA-ADPCM in hardware before handing PCM to the SPU's CD input) —
-   look for decoder-related register activity or a decoded-sample
-   buffer distinct from the already-ruled-out SPU voice RAM.
-2. Revisit `CD_init`'s callers (`CD_INIT_CALL_SITES` in
-   `gcrts.spu_audio_path`) now that the CD input path is confirmed
-   live-relevant — one of them may be the actual per-event dispatch
-   this project never found on the CD-ROM command side.
+1. Investigate whether the CD-ROM controller's hardware-level
+   XA-ADPCM decode applies automatically to any Form2/Audio-flagged
+   sector once CD Audio Enable is set, independent of the software
+   Setmode toggle — this project has confirmed the disc's own sectors
+   for the resolved XAPACK files carry that flag
+   (`AUDIO_EVENT_EXTRACTION.md`), but hasn't connected that directly
+   to a live decode event.
+2. Trace the CD-ROM controller's own onboard XA-ADPCM decoder path
+   during a real triggered line — look for decoder-related register
+   activity or a decoded-sample buffer distinct from the
+   already-ruled-out SPU voice RAM.
 3. If a virtual-gamepad input path is ever solved (see below), redo
    the PRE/DURING/POST SPU Debug snapshot comparison focused
    specifically on the CD-input-related fields (CD Volume, SPUCNT)
@@ -150,3 +162,14 @@ human physically present to trigger dialogue and confirm what's heard.
   `PCSX_REDUX_CAPTURE_PROTOCOL.md` section 11.
 - Solo/Mute settings in the SPU Debug window do **not** persist across
   a save-state reload — always re-apply them after each load.
+- Don't re-arm `CD_init`'s position-change-gated call sites
+  (`CD_INIT_GATEKEEPER_SITES`) hoping for a different result — tried
+  twice with a real confirmed trigger, zero hits both times.
+- Don't re-capture `Setmode` values at the 3 known command-write sites
+  hoping to eventually catch the XA-ADPCM bit set — 46 real captures
+  spanning a confirmed voice line never showed it set once; that
+  specific software toggle is not the answer.
+- When reading a shared breakpoint site's `$v0` as "the command byte,"
+  verify the calling convention actually puts a command there first —
+  one site was seen sweeping `$v0` through every value `0x00`-`0x80` in
+  sequence, which was a loop counter, not 129 real CD-ROM commands.

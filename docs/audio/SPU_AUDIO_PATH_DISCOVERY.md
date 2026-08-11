@@ -6,9 +6,10 @@ traced `ReadN`/Setmode cycle ruled out, and a second full-RAM
 pointer-value scan on the CD-ROM side found only interrupt/DMA
 infrastructure). Pivot direction: `audible event -> SPU state/register
 activity -> writer -> audio subsystem -> upstream source`. New module:
-`gcrts/spu_audio_path.py`, `tests/test_spu_audio_path.py` (29 tests
+`gcrts/spu_audio_path.py`, `tests/test_spu_audio_path.py` (33 tests
 after the manual all-voices-muted follow-up that finally resolved the
-playback backend classification, below).
+playback backend classification, and a further follow-up chasing the
+exact CD input stream format, below).
 
 ## SPU pointer scan
 
@@ -212,8 +213,8 @@ exists yet to add.
 
 ## Tests
 
-**598 passed** (592 baseline + 6 new in `test_spu_audio_path.py`, now
-29 total in that file), no regressions. Full suite run via
+**602 passed** (598 baseline + 4 new in `test_spu_audio_path.py`, now
+33 total in that file), no regressions. Full suite run via
 `pytest tests/` (the repo root also contains several unrelated,
 pre-existing scratch/temp directories from prior sessions that
 pytest's default collection cannot access on this Windows environment
@@ -221,7 +222,7 @@ pytest's default collection cannot access on this Windows environment
 milestone; scoping collection to `tests/` avoids it the same way prior
 sessions have).
 
-## Remaining blocker (superseded twice)
+## Remaining blocker (superseded three times)
 
 This section originally read: "This project has no working channel to
 directly verify true SPU hardware register state." **Resolved** by the
@@ -231,12 +232,20 @@ isolated as the dialogue source." **Also resolved**, by the manual
 all-voices-muted experiment above: the answer turned out to be that
 *no* regular SPU voice channel carries the dialogue at all — it
 bypasses per-voice mixing entirely via the CD input path. Playback
-backend is `CD_INPUT_UNKNOWN_FORMAT`, no longer `UNKNOWN`.
+backend is `CD_INPUT_UNKNOWN_FORMAT`, no longer `UNKNOWN`. A further
+follow-up chasing the exact stream format found two more negatives
+(the position-change-gated `CD_init` call sites never fire during a
+confirmed trigger; 46 live Setmode captures across ~150s spanning a
+confirmed voice line all show the XA-ADPCM bit off) without
+confirming the format positively — the blocker is now specifically
+"the software Setmode toggle this project can observe is evidently not
+how (or not the only way) XA-ADPCM decode gets enabled."
 
 ## Next milestone
 
-Independently re-verify the CD input stream's format (confirm it is
-genuinely XA-ADPCM rather than assumed by elimination) — e.g. by
-tracing the CD-ROM controller's own onboard XA-ADPCM decode path
-during a real triggered line, or by locating and inspecting the actual
-decoded sample buffer the CD input mixes from.
+Investigate whether the CD-ROM controller's hardware-level XA-ADPCM
+decode applies automatically to any Form2/Audio-flagged sector once
+SPUCNT's CD Audio Enable bit is set, independent of the software
+Setmode toggle — this project has confirmed the disc's own sectors for
+the resolved XAPACK files carry that flag (`AUDIO_EVENT_EXTRACTION.md`),
+but has not yet connected that directly to a live decode event.

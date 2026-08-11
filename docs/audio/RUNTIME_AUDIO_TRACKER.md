@@ -367,6 +367,36 @@ realistic remaining candidate by elimination, not something
 independently re-verified this pass. Test count: **598 passed** (592 +
 6 in `test_spu_audio_path.py`).
 
+**Eighteenth follow-up milestone (Chasing the Exact CD Input Stream
+Format, `SPU_AUDIO_PATH_DISCOVERY.md`'s own follow-up section,
+`gcrts.spu_audio_path`)**: with the CD input routing confirmed, tried
+to independently verify the stream format is genuinely XA-ADPCM.
+Static analysis of `CD_init`'s 9 call sites found real structure: 2 of
+them (`CD_INIT_GATEKEEPER_SITES`) are gated by a genuine CD-position
+change-detection check (`0x800A2E18` cached vs. `0x800A3120` live
+target), unlike the other 7's generic retry-after-error pattern.
+Live-armed across a real, user-confirmed voice line (two separate
+trigger attempts): neither fired --
+`cd_init_gatekeeper_sites_fired_during_confirmed_trigger()` -> `False`,
+reinforcing from a second angle that `CD_init` is not the per-line
+trigger. Separately, re-armed the original 3 known CD-ROM
+command-write sites and logged every `Setmode` value (not just the
+first sample, as in the original `AUDIO_PLAYBACK_TRUTH.md` finding)
+across ~150 real seconds spanning a confirmed voice line: 46 captures,
+100% showing `mode_byte=0x01` -- XA-ADPCM and XA-Filter both off,
+every single time. A methodological note from the same capture: the
+second breakpoint site showed `$v0` sweeping through every value
+`0x00`-`0x80` in sequence during one interval -- a loop counter
+incidentally reusing that register, not real command traffic;
+recorded so a future pass doesn't mistake register noise for commands
+again. Playback backend classification is unaffected
+(`CD_INPUT_UNKNOWN_FORMAT` stands, the routing finding remains the
+strongest evidence), but the specific software Setmode toggle this
+project has instrumented is now decisively shown not to be how (or not
+the only way) XA-ADPCM decode gets enabled, if it is toggled
+explicitly at all. Test count: **602 passed** (598 + 4 in
+`test_spu_audio_path.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

@@ -1,11 +1,14 @@
 from gcrts.spu_audio_path import (
     CD_INIT_CALL_SITES,
     CD_INIT_FUNC_ADDR,
+    CD_INIT_GATEKEEPER_SITES,
     CD_INIT_SPUCNT_WRITE_VALUE,
     KEY_PADCIRCLE_VK,
     KEY_WRITER_SITES,
     LIVE_CORRELATION_RUNS,
     MANUAL_MUTE_EXPERIMENTS,
+    SETMODE_CAPTURE_ALL_MODE_BYTE,
+    SETMODE_CAPTURE_SAMPLE_COUNT,
     SPU_BASE_POINTER_HOLDERS,
     SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE,
     SPUCNT_CD_AUDIO_ENABLE_BIT,
@@ -17,11 +20,13 @@ from gcrts.spu_audio_path import (
     SpuWriterSite,
     all_spu_voices_muted_dialogue_still_audible,
     cd_init_confirmed_live,
+    cd_init_gatekeeper_sites_fired_during_confirmed_trigger,
     cd_init_sets_documented_cd_audio_enable_bit,
     cd_init_write_confirmed_persistent,
     classify_playback_backend,
     key_on_real_voice_trigger_confirmed_live,
     live_correlation_confirmed_audible_with_zero_known_hits,
+    setmode_xa_adpcm_bit_ever_observed_set,
     spu_mmio_read_write_roundtrip_reliable,
 )
 
@@ -212,3 +217,30 @@ def test_manual_mute_experiment_round_trips_as_dataclass_equality():
     a = ManualMuteExperiment("x", "scene", "all voices", True, False, "evidence")
     b = ManualMuteExperiment("x", "scene", "all voices", True, False, "evidence")
     assert a == b
+
+
+def test_cd_init_gatekeeper_sites_are_two_of_the_nine_call_sites():
+    assert len(CD_INIT_GATEKEEPER_SITES) == 2
+    for addr in CD_INIT_GATEKEEPER_SITES:
+        assert addr in CD_INIT_CALL_SITES
+
+
+def test_cd_init_gatekeeper_sites_did_not_fire_during_confirmed_trigger():
+    """Honest negative from a second, more targeted angle than the
+    original Live Audible Trigger Correlation experiment: even the
+    position-change-gated call sites never fired during a real,
+    user-confirmed voice line."""
+    assert cd_init_gatekeeper_sites_fired_during_confirmed_trigger() is False
+
+
+def test_setmode_capture_sample_count_and_uniform_value():
+    """Regression: this must reflect the real, live-captured sample
+    count and the single value seen in every one of them -- if a future
+    capture ever finds a different mode_byte, this test should be the
+    first thing that breaks."""
+    assert SETMODE_CAPTURE_SAMPLE_COUNT == 46
+    assert SETMODE_CAPTURE_ALL_MODE_BYTE == 0x01
+
+
+def test_setmode_xa_adpcm_bit_never_observed_set():
+    assert setmode_xa_adpcm_bit_ever_observed_set() is False

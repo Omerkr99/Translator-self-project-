@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 598 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
+- **Test count**: 602 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
   84 modules in `gcrts/`, 65 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -189,6 +189,19 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   candidate by elimination (CD-DA is structurally ruled out on this
   disc) but its exact format was not independently re-verified this
   pass. Next direction: confirm the CD input stream's format directly.
+  **Follow-up**: chased that exact direction and found two more
+  negatives without a positive confirmation. Of `CD_init`'s 9 call
+  sites, 2 are gated by a genuine CD-position change-detection check —
+  live-armed across a real, confirmed voice line (twice), neither
+  fired. Separately, logged every `Setmode` value across ~150 real
+  seconds spanning a confirmed voice line: 46 captures, 100% showing
+  the XA-ADPCM bit off. `classify_playback_backend()` stays
+  `CD_INPUT_UNKNOWN_FORMAT` (the routing finding is unaffected), but
+  the software Setmode toggle this project can observe is evidently
+  not how (or not the only way) XA-ADPCM decode gets enabled — next
+  direction is checking whether the CD-ROM's hardware decode applies
+  automatically to Form2/Audio-flagged sectors once CD Audio Enable is
+  set, independent of Setmode.
 
 ## Key current distinctions (do not lose these)
 

@@ -197,14 +197,68 @@ independently re-verified this pass) -- so the classification below
 uses the taxonomy's own `CD_INPUT_UNKNOWN_FORMAT` value rather than
 overclaiming `XA_ADPCM_CONFIRMED`.
 
-## Honest conclusion (current)
+## Honest conclusion (superseded -- see below)
 
-`classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT`,
+`classify_playback_backend()` returned `CD_INPUT_UNKNOWN_FORMAT`,
 backed by direct, repeated, hands-on evidence (not architectural
 inference): the dialogue-carrying audio survives every regular SPU
-voice being muted, in two independently tested scenes. This is the
-strongest, most direct evidence this whole investigation chain has
-produced, and finally moves the classification off `UNKNOWN`.
+voice being muted, in two independently tested scenes.
+
+## Follow-up: chasing the exact CD input stream format -- two more negatives, no format confirmation yet
+
+With the routing mechanism (CD input, bypassing SPU voices) established,
+this pass tried to independently confirm the stream format is
+XA-ADPCM by tracing forward from `CD_init`'s own callers.
+
+**Static analysis found real structure**: of `CD_init`'s 9 call sites,
+7 share an identical "log + call + check return code" pattern
+consistent with generic retry-after-error logic. Two
+(`0x80081D28`, `0x80082064`) are different -- they poll a CD-ROM
+"not busy" flag (`0x800A2E14` bit 4), then compare a cached position
+(`0x800A2E18`) against a live target (`0x800A3120`), calling `CD_init`
+**only when that target changed**. This looked like the real
+per-event trigger this project had been missing.
+
+**Live-armed across a real, user-triggered voice line: zero hits.**
+Neither gatekeeper call site fired despite the user confirming the
+line played, reproduced across two separate trigger attempts. This is
+consistent with (not contradicting) the already-established finding
+that CD Audio Enable is a persistent, scene-level state, not something
+re-armed per dialogue line -- `CD_init` genuinely is not the per-line
+trigger, confirmed from a second angle.
+
+**Re-armed the original 3 known CD-ROM command-write sites, logging
+every single `Setmode` value (not just the first one found in an
+earlier milestone) across ~150 real seconds spanning a confirmed voice
+line: 46 Setmode captures, every single one `mode_byte=0x01` -- XA-ADPCM
+and XA-Filter bits both off, 100% of the time.** This is a far more
+statistically decisive version of the same negative result
+`AUDIO_PLAYBACK_TRUTH.md` first found from a single sample. A
+methodological note from this same capture: the second breakpoint site
+(`0x80081AC8`) showed `$v0` sweeping through every value from `0x00` to
+`0x80` in strict sequence during one interval -- clearly a loop
+counter incidentally passing through that PC's register, not 129 real
+CD-ROM commands. Reading a shared breakpoint site's register as "the
+command" is only valid when the calling convention is actually known
+to put a command there; this is recorded so a future pass doesn't
+mistake register noise for command traffic again.
+
+## Honest conclusion (current)
+
+`classify_playback_backend()` stays `CD_INPUT_UNKNOWN_FORMAT` -- the
+routing finding (CD input bypasses SPU voices) remains this project's
+strongest, most direct evidence, unaffected by this follow-up. What
+this pass added is two further negatives on the *format*-confirmation
+side: neither `CD_init`'s real per-event trigger candidates nor the
+already-known Setmode dispatch site ever show XA-ADPCM being enabled,
+even during confirmed real playback. XA-ADPCM remains the only
+realistic candidate by elimination (CD-DA is structurally impossible on
+this disc), but the software-side Setmode toggle this project has
+instrumented is evidently not how it gets enabled, if it is enabled
+explicitly at all -- the CD-ROM controller's hardware-level XA-ADPCM
+decode may simply apply automatically to any Form2/Audio-flagged
+sector once CD Audio Enable is set, independent of Setmode's own XA
+bit. That specific mechanism was not directly tested this pass.
 """
 from __future__ import annotations
 
@@ -483,3 +537,38 @@ def classify_playback_backend() -> PlaybackBackendClassification:
     taxonomy's own CD_INPUT_UNKNOWN_FORMAT value exists precisely for
     this evidence level."""
     return PlaybackBackendClassification.CD_INPUT_UNKNOWN_FORMAT
+
+
+CD_INIT_GATEKEEPER_SITES = (0x80081D28, 0x80082064)  # the 2 of 9 call sites gated by a real position-change check
+CD_INIT_POSITION_CACHE_ADDR = 0x800A2E18
+CD_INIT_POSITION_TARGET_ADDR = 0x800A3120
+CD_INIT_BUSY_FLAG_ADDR = 0x800A2E14
+CD_INIT_BUSY_FLAG_BIT = 0x0010
+
+SETMODE_CAPTURE_SAMPLE_COUNT = 46  # real, live-captured Setmode calls across ~150s spanning a confirmed voice line
+SETMODE_CAPTURE_ALL_MODE_BYTE = 0x01  # every single one of the 46 captures carried this exact value
+
+
+def cd_init_gatekeeper_sites_fired_during_confirmed_trigger() -> bool:
+    """False: both position-change-gated CD_init call sites
+    (CD_INIT_GATEKEEPER_SITES) were live-armed across a real,
+    user-confirmed voice line (two separate trigger attempts) and
+    neither fired. Consistent with CD Audio Enable being a persistent,
+    scene-level state rather than something re-armed per line --
+    CD_init genuinely is not the per-line trigger, confirmed from a
+    second, more targeted angle than the original Live Audible Trigger
+    Correlation experiment."""
+    return False
+
+
+def setmode_xa_adpcm_bit_ever_observed_set() -> bool:
+    """False: 46 live Setmode captures across ~150 real seconds
+    spanning a confirmed voice line, every single one carrying
+    mode_byte=0x01 (SETMODE_CAPTURE_ALL_MODE_BYTE) -- XA-ADPCM and
+    XA-Filter both off, 100% of the time. A far more statistically
+    decisive version of the single-sample finding in
+    gcrts.audio_playback_truth. Does not contradict the CD input
+    routing finding -- it means the CD-ROM controller's hardware-level
+    XA-ADPCM decode, if that is what is happening, is not gated by this
+    specific software Setmode toggle at this specific dispatch site."""
+    return False
