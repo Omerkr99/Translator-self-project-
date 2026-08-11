@@ -212,18 +212,27 @@ pytest's default collection cannot access on this Windows environment
 milestone; scoping collection to `tests/` avoids it the same way prior
 sessions have).
 
-## Remaining blocker
+## Remaining blocker (superseded)
 
-This project has no working channel to directly verify true SPU
-hardware register state — GDB's own memory read/write path for
-`0x1F801xxx` does not round-trip even a debug-issued write while
-genuinely running, so the real playback mechanism (now confirmed to be
-none of the known writer sites) cannot be found by reading SPU
-registers directly; a different observation channel is needed.
+This section originally read: "This project has no working channel to
+directly verify true SPU hardware register state." **Resolved** by the
+follow-up `SPU_OBSERVATION_CHANNEL.md` milestone: PCSX-Redux ships a
+native, built-in SPU debugger (`Debug > SPU > Show SPU debug`) that
+reads the emulator's own true internal state, bypassing GDB entirely.
+Cross-checked at the same live instant: it showed `CTRL=0xC081` (CD
+Audio Enable bit set) while GDB's own read of the same register showed
+`0x0000` — confirming GDB specifically fails on SPUCNT, and reversing
+this document's own "the write does not persist" finding above:
+`CD_init`'s effect genuinely IS live on real hardware; only GDB's read
+of it was wrong. See `SPU_OBSERVATION_CHANNEL.md` for the full
+methodology, validation, and the honest limits of what this new
+channel could and couldn't establish (background-music channels being
+active in every "silent" baseline prevented isolating one specific
+dialogue-voice channel this pass).
 
 ## Next milestone
 
-Find or build a reliable way to observe true SPU hardware state (e.g.
-a PCSX-Redux-side inspector/watchpoint mechanism instead of raw GDB
-memory peeks of `0x1F801xxx`), then repeat the voice/DMA-activity scan
-(Phases 9-11) that this pass could not trust the results of.
+Find or construct a scene/state with genuinely no background
+music/ambience active, then repeat the silent-vs-audible SPU Debug
+comparison (`SPU_OBSERVATION_CHANNEL.md`) to isolate the one channel
+(if any single channel) responsible for dialogue playback.

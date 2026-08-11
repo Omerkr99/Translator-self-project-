@@ -439,3 +439,19 @@ tooling-limited rather than a real behavioral fact.
 `False`. The real path remains open; the blocker has shifted from "no
 capture window" to "no reliable channel to observe true SPU hardware
 state" — the next direction is finding one.
+
+### Ninth follow-up (PCSX-Redux SPU Observation Channel): found one, and it changes the picture
+
+`SPU_OBSERVATION_CHANNEL.md` found PCSX-Redux's own native SPU
+debugger (`Debug > SPU > Show SPU debug`), validated it against a real
+state change, and used it to directly cross-check GDB: at the same
+live instant, GDB read SPUCNT as `0x0000` while the native tool showed
+`CTRL=0xC081` (CD Audio Enable set) — proving GDB was simply wrong
+about that one register, not that the game never enables it. A
+silent-vs-audible comparison found CD Audio Enable identically set in
+both a post-load baseline and a user-confirmed-audible capture — a
+persistent, always-on state. Could not isolate one specific SPU voice
+channel as the dialogue source, since background-music channels were
+already active in the "silent" baseline too. The real path remains
+open; next direction is a scene genuinely free of background music, to
+retry the same comparison cleanly.

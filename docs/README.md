@@ -32,8 +32,11 @@ CD-ROM register pointer sets, identified as interrupt/DMA
 infrastructure, not a second audio driver) →
 `SPU_AUDIO_PATH_DISCOVERY.md` (pivoted to the SPU side; found a real,
 live-firing `CD_init` function that sets the documented "CD Audio
-Enable" SPUCNT bit, the strongest anchor so far, but not yet confirmed
-live against a real audible moment).
+Enable" SPUCNT bit, then decisively ruled it and known Key ON/OFF
+sites out via a real user-confirmed audible correlation experiment) →
+`SPU_OBSERVATION_CHANNEL.md` (found PCSX-Redux's own native SPU
+debugger, proving GDB's SPU register reads were simply wrong — CD
+Audio Enable is genuinely, persistently set on real hardware).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

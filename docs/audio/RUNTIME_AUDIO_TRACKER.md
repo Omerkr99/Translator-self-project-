@@ -286,6 +286,33 @@ capture window was achieved and decisively rules out the known sites,
 rather than never having been achieved at all. Test count: **574
 passed** (566 + 8 in `test_spu_audio_path.py`).
 
+**Fifteenth follow-up milestone (PCSX-Redux SPU Observation Channel,
+`SPU_OBSERVATION_CHANNEL.md`, `gcrts.pcsx_spu_observer`)**: tooling-
+first pivot after the fourteenth milestone confirmed GDB's own memory
+read/write path for the SPU hardware I/O range is unreliable. Found
+that PCSX-Redux ships a native, built-in SPU debugger (`Debug > SPU >
+Show SPU debug`), validated it as a genuine, safely-automatable window
+showing real, live-changing hardware state (proven against an
+independently-verified state change over ~3 real seconds). A direct
+cross-check at the same live instant found GDB reading SPUCNT as
+`0x0000` while the native tool showed `CTRL=0xC081` (CD Audio Enable
+bit set) — reversing the fourteenth milestone's "the write does not
+persist" finding: `CD_init`'s effect genuinely IS live on real
+hardware; only GDB's read of it was wrong. A silent-baseline vs.
+user-confirmed-audible comparison found CD Audio Enable identically
+set in both captures (a persistent, always-on state, not a per-line
+toggle) — but could not isolate one specific SPU voice channel as "the
+dialogue channel," since background-music/ambience channels were
+already active in the silent baseline too. Along the way, recovered
+from a real operational mishap (an accidental `--help` CLI invocation
+killed the original running emulator instance via PCSX-Redux's
+single-instance behavior; recovered cleanly since save-state files are
+plain files on disk, unaffected by the process restart) and caught
+and immediately deleted two accidental screenshots of an unrelated,
+private window before adding a permanent abort-on-unfocus guard to all
+further screenshot automation. Test count: **588 passed** (574 + 14 in
+`test_pcsx_spu_observer.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one
