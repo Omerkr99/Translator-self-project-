@@ -1,6 +1,8 @@
 from gcrts.pcsx_spu_observer import (
     BACKEND_CAPABILITIES,
+    CRASH_LOOP_STUCK_PC,
     KNOWN_SNAPSHOTS,
+    RESERVED_INSTRUCTION_EXCEPTION_CODE,
     SPU_DEBUG_MENU_PATH,
     SPU_DEBUG_WINDOW_TITLE,
     SPUCNT_ADDR,
@@ -11,9 +13,11 @@ from gcrts.pcsx_spu_observer import (
     SpuChannelObservation,
     SpuHardwareSnapshot,
     cd_audio_enable_confirmed_persistent_via_native_tool,
+    crash_loop_requires_full_process_restart,
     gdb_spucnt_read_confirmed_wrong,
     single_voice_channel_isolated_for_dialogue,
     spu_mmio_reliable_backend,
+    synthetic_input_reaches_game_controller,
 )
 
 
@@ -100,3 +104,27 @@ def test_backend_capability_round_trips_as_dataclass_equality():
     a = BackendCapability(ObservationBackend.MOCK, True, True, "x")
     b = BackendCapability(ObservationBackend.MOCK, True, True, "x")
     assert a == b
+
+
+def test_reserved_instruction_exception_code_matches_mips_r3000():
+    assert RESERVED_INSTRUCTION_EXCEPTION_CODE == 10
+
+
+def test_crash_loop_stuck_pc_documented():
+    assert CRASH_LOOP_STUCK_PC == 0xA0010000
+
+
+def test_crash_loop_requires_full_process_restart():
+    """Regression: an in-process Hard Reset was confirmed NOT
+    sufficient -- only a full process restart resolved the crash loop.
+    Must not silently downgrade to a less drastic claim."""
+    assert crash_loop_requires_full_process_restart() is True
+
+
+def test_synthetic_input_reaches_game_controller_is_false():
+    """The decisive environmental-limitation finding: synthetic
+    keyboard input does not reach the emulated game's controller,
+    confirmed via a real physical-vs-synthetic A/B test. Must stay
+    False until a genuinely different input path (e.g. a virtual
+    gamepad) is built and proven."""
+    assert synthetic_input_reaches_game_controller() is False

@@ -81,6 +81,46 @@ not yet a structured, machine-readable data source. No single-voice
 isolation of the dialogue-specific channel. No DMA/transfer-activity
 inspection (not exposed in this debug window; a further avenue, not
 pursued this pass).
+
+## Follow-up: a real crash-loop bug, and a hard synthetic-input limit
+
+While attempting the channel-isolation follow-up (comparing SPU state
+across successive dialogue lines within a single save state), the
+target process entered a genuine, reproducible crash loop: `cause`
+register decoded to exception code 10 (Reserved Instruction), PC stuck
+at `0xA0010000` (the low-RAM exception-vector area) on every
+subsequent stop, regardless of reloading the save state or issuing a
+Soft/Hard Reset from the emulator's own menu -- both left the same
+fault recurring. The save file itself was checked and confirmed
+byte-identical (matching MD5) to the version in this project's initial
+git commit -- **not** corrupted by anything written this session. The
+fault lived in the running process's own internal state (plausibly
+accumulated across the many GDB attach/detach cycles this whole
+project's live-capture sessions perform), and was only resolved by a
+full process restart (`gcrts.pcsx_spu_observer.crash_loop_requires_full_process_restart()`
+-> `True`) -- an in-process Soft/Hard Reset is not sufficient.
+
+Separately, and decisively for further automated correlation work:
+**synthetic keyboard input (Win32 `keybd_event`/`SendInput`) does not
+reach the emulated game's controller input**, confirmed by a direct
+A/B check -- the user's real physical key presses advanced dialogue
+immediately, while every synthetic-input variant tried (`keybd_event`
+with Circle, with Cross; `SendInput` with a raw scancode; each
+preceded by explicit window-focus and click-to-focus steps) did not,
+even though the exact same synthetic-input mechanism reliably drives
+PCSX-Redux's own ImGui menus (confirmed repeatedly this session:
+opening the Debug/File menus, clicking Solo/Mute buttons, all worked).
+This is consistent with the emulator's controller backend reading raw
+input state rather than window messages, a common pattern that
+filters out OS-injected synthetic key events by design.
+`gcrts.pcsx_spu_observer.synthetic_input_reaches_game_controller()`
+-> `False`. This is why the earlier "Live Audible Trigger Correlation"
+milestone's automated triggers worked in that session but could not be
+reproduced later in this one -- not a regression in this project's own
+code, but a real environmental constraint on unattended automation
+that any future live-capture work needs to route around (e.g. a
+virtual gamepad/XInput device, or a human physically present to
+provide the trigger).
 """
 from __future__ import annotations
 
@@ -220,4 +260,33 @@ def single_voice_channel_isolated_for_dialogue() -> bool:
     silent-baseline snapshot (persistent BGM/ambience), so this pass
     could not attribute any one specific channel to the dialogue line
     itself from a single before/after comparison."""
+    return False
+
+
+RESERVED_INSTRUCTION_EXCEPTION_CODE = 10  # MIPS R3000 cause-register exc_code field
+CRASH_LOOP_STUCK_PC = 0xA0010000
+
+
+def crash_loop_requires_full_process_restart() -> bool:
+    """True: a real crash loop (cause register decoding to exception
+    code 10 / Reserved Instruction, PC stuck at 0xA0010000 on every
+    subsequent stop) was confirmed to survive both a save-state reload
+    AND an in-emulator Hard Reset. Only closing and relaunching the
+    PCSX-Redux process itself resolved it. The save file was verified
+    byte-identical (MD5) to this project's initial git commit -- the
+    fault lived in the process's own accumulated internal state, not
+    in corrupted saved data."""
+    return True
+
+
+def synthetic_input_reaches_game_controller() -> bool:
+    """False: confirmed via direct A/B test -- real physical key
+    presses advanced dialogue immediately; every synthetic-input
+    variant tried (keybd_event, SendInput with a raw scancode, each
+    with explicit window/click focus first) did not, despite the same
+    mechanisms reliably driving PCSX-Redux's own ImGui menus. Any
+    future unattended live-trigger automation needs a different input
+    path (e.g. a virtual gamepad/XInput device) or a human physically
+    providing the trigger -- this is a real environmental constraint,
+    not a bug in this project's own code."""
     return False

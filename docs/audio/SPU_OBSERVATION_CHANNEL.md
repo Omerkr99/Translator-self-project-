@@ -7,8 +7,8 @@ debug-issued write while genuinely running -- meaning no conclusion
 about real SPU register state drawn from raw GDB peeks can be trusted.
 Before returning to voice-capture research, build a reliable,
 non-GDB way to observe true SPU hardware state. New module:
-`gcrts/pcsx_spu_observer.py`, `tests/test_pcsx_spu_observer.py` (14
-tests).
+`gcrts/pcsx_spu_observer.py`, `tests/test_pcsx_spu_observer.py` (18
+tests after the crash-loop/synthetic-input follow-up, below).
 
 ## PCSX-Redux observation capability
 
@@ -140,19 +140,61 @@ field or Visual Inspector panel was built this pass.
 
 ## Tests
 
-**588 passed** (574 baseline + 14 new in `test_pcsx_spu_observer.py`),
-no regressions.
+**592 passed** (588 baseline + 4 new in `test_pcsx_spu_observer.py`,
+now 18 total in that file), no regressions.
+
+## Follow-up: a real crash-loop bug, and a hard synthetic-input limit
+
+Attempting the channel-isolation next step (comparing SPU state across
+successive dialogue lines) surfaced two genuine, separate findings.
+
+**A reproducible crash loop.** The process began faulting on every
+resume: `cause` register decoded to exception code 10 (Reserved
+Instruction), PC stuck at `0xA0010000` (the low-RAM exception-vector
+area) on every subsequent stop. Neither reloading the save state nor
+an in-emulator Hard Reset fixed it — the same fault recurred
+immediately both times. The save file itself was checked and
+confirmed byte-identical (matching MD5) to the version in this
+project's very first git commit, ruling out a corrupted save. The
+fault lived in the running process's own accumulated internal state
+(plausibly from the many GDB attach/detach cycles this whole
+project's live-capture sessions perform) and was only resolved by
+fully closing and relaunching the PCSX-Redux process.
+`gcrts.pcsx_spu_observer.crash_loop_requires_full_process_restart()`
+→ `True`.
+
+**Synthetic keyboard input does not reach the game.** After the fresh
+restart, emulation was confirmed genuinely healthy (real FPS/audio-
+buffer stats, frames verifiably changing frame-to-frame) but no
+synthetic key press (`keybd_event` with Circle or Cross; `SendInput`
+with a raw scancode; each preceded by explicit window/click focus)
+advanced dialogue — while the user's own real physical key press did,
+immediately. The same synthetic-input mechanisms reliably drive
+PCSX-Redux's own ImGui menus (menu clicks, Solo/Mute buttons all
+worked throughout this investigation), so this is specific to the
+emulated controller's input path, most likely reading raw/low-level
+input state that filters out OS-injected synthetic events by design.
+`gcrts.pcsx_spu_observer.synthetic_input_reaches_game_controller()`
+→ `False`. This explains why the earlier "Live Audible Trigger
+Correlation" milestone's automated triggers worked in that session but
+could not be reproduced later in this one — a real environmental
+constraint, not a regression in this project's own code.
 
 ## Remaining blocker before Audio Inspector
 
 No single SPU voice channel has been isolated as specifically
 responsible for dialogue audio, since background music/ambience
 channels are already active in every "silent" baseline this project
-has captured so far.
+has captured so far. Compounding this, unattended automated dialogue
+triggering is no longer reliable in this environment (synthetic input
+does not reach the game), so any further live-correlation work needs
+either a human physically providing the trigger or a different input
+path (e.g. a virtual gamepad/XInput device).
 
 ## Next milestone
 
-Find or construct a scene/state with genuinely no background
-music/ambience active, then repeat this same silent-vs-audible SPU
-Debug comparison to isolate the one channel (if any single channel)
-responsible for dialogue playback.
+Build or adopt a synthetic-input path the emulator's controller
+backend actually accepts (e.g. a virtual XInput/DirectInput device),
+then find or construct a scene genuinely free of background music and
+repeat the silent-vs-audible SPU Debug comparison to isolate the
+dialogue channel.

@@ -313,6 +313,30 @@ private window before adding a permanent abort-on-unfocus guard to all
 further screenshot automation. Test count: **588 passed** (574 + 14 in
 `test_pcsx_spu_observer.py`).
 
+**Sixteenth follow-up milestone (Crash-Loop Fix + Synthetic-Input
+Limitation, `SPU_OBSERVATION_CHANNEL.md`'s own follow-up section,
+`gcrts.pcsx_spu_observer`)**: attempting to isolate a dialogue-specific
+SPU channel (the fifteenth milestone's own suggested next step)
+surfaced two genuine findings instead. First, a reproducible crash
+loop (MIPS cause register decoding to exception code 10 / Reserved
+Instruction, PC stuck at `0xA0010000` on every subsequent stop) that
+survived both a save-state reload and an in-emulator Hard Reset --
+resolved only by fully closing and relaunching the PCSX-Redux process;
+the save file itself was verified byte-identical (MD5) to this
+project's initial git commit, ruling out a corrupted save.
+`crash_loop_requires_full_process_restart()` -> `True`. Second, and
+more consequential for future automation: a direct A/B test confirmed
+**synthetic keyboard input does not reach the emulated game's
+controller** -- real physical key presses advanced dialogue
+immediately, while every synthetic-input variant tried did not, even
+though the same mechanisms reliably drive PCSX-Redux's own ImGui
+menus. `synthetic_input_reaches_game_controller()` -> `False`. This
+explains why the fourteenth milestone's automated triggers worked in
+that session but could not be reproduced here -- a real environmental
+constraint on unattended live-capture automation, not a code
+regression. Test count: **592 passed** (588 + 4 in
+`test_pcsx_spu_observer.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one
