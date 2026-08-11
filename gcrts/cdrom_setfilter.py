@@ -87,6 +87,35 @@ defaults `xa_file_number`/`xa_channel` to this observation's values --
 a caller must supply values independently confirmed for the specific
 event being extracted.
 
+## Second follow-up: the "one cue -> one Setfilter" model is wrong; this looks like a PERSISTENT filter instead
+
+A later milestone (Per-Event XA Channel Capture) armed the same
+lifecycle + command monitoring on the CURRENT live game state (not a
+static save reload) for ~460 real seconds while the user actually
+played through and confirmed hearing real audio. Two things came out
+of this, both important:
+
+1. **`params=(2, 1)` never varied across 8 separate Setfilter hits**,
+   even though the position counter visited 5 different values in that
+   same window (`158842`, `181469`, `178857`, `0`, `161793`) -- the
+   disc-seek target clearly changed while the filter parameters did
+   not. `filter_appears_persistent()` records this: not proof the
+   filter can never change, but real, positive evidence that ONE
+   filter setting stays valid across many housekeeping cycles and (per
+   the confirmed real audio) at least one genuine playback. This is the
+   more useful reframing the milestone itself suggested: not "which cue
+   selects this filter" (a question three separate live-capture designs
+   have now failed to answer) but "how long does one filter setting
+   last" -- a question this evidence actually supports.
+2. **The audio lifecycle state byte (`0x800A6107`) never once left
+   `STOPPED` (`0x02`) across the entire ~460-second window**, despite
+   confirmed real audio playing during it. See
+   `gcrts.runtime_audio`'s own module docstring for the corresponding
+   honest caveat this added to the STARTING/PLAYING/STOPPED lifecycle
+   model -- that byte's earlier-confirmed transitions are real, but
+   this session shows it does not reliably transition for every real,
+   audible playback event.
+
 ## Why this isn't a live-pollable function
 
 Every other resolver in this package (`runtime_audio.capture_audio_event`,
@@ -258,6 +287,24 @@ KNOWN_SETFILTER_CONTEXT_CHECKS: tuple[SetfilterContextCheck, ...] = (
         state_at_hit=0x02,
         last_req_params_at_hit=0x0000007F,
     ),
+    # Per-Event XA Channel Capture milestone: armed lifecycle + command
+    # monitoring on the CURRENT live game state (not a static reload)
+    # for ~460 real seconds while the user actually played through and
+    # confirmed hearing real audio. Every one of 8 Setfilter hits in
+    # this window: params=(2, 1), state=STOPPED (0x02) -- despite the
+    # position counter visiting five DIFFERENT values across the window
+    # (158842, 181469, 178857, 0, 161793), including one that isn't a
+    # valid XA position at all (0). Setfilter never varied even though
+    # the disc-seek target clearly did -- decisive evidence this call's
+    # parameters are NOT selected per playback target. See
+    # CDROM_SETFILTER_CAPTURE.md for the full transcript and the
+    # "filter lifetime, not filter selection" reframing this motivated.
+    SetfilterContextCheck(t_seconds_after_resume=275.84, params=(2, 1), position_counter_at_hit=158842, state_at_hit=0x02, last_req_params_at_hit=0x0000007F),
+    SetfilterContextCheck(t_seconds_after_resume=279.14, params=(2, 1), position_counter_at_hit=181469, state_at_hit=0x02, last_req_params_at_hit=0x0000007F),
+    SetfilterContextCheck(t_seconds_after_resume=394.72, params=(2, 1), position_counter_at_hit=0, state_at_hit=0x02, last_req_params_at_hit=0x0000007F),
+    SetfilterContextCheck(t_seconds_after_resume=403.65, params=(2, 1), position_counter_at_hit=158842, state_at_hit=0x02, last_req_params_at_hit=0x0000007F),
+    SetfilterContextCheck(t_seconds_after_resume=420.83, params=(2, 1), position_counter_at_hit=181469, state_at_hit=0x02, last_req_params_at_hit=0x0000007F),
+    SetfilterContextCheck(t_seconds_after_resume=457.80, params=(2, 1), position_counter_at_hit=0, state_at_hit=0x02, last_req_params_at_hit=0x0000007F),
 )
 
 
@@ -270,6 +317,21 @@ def is_proven_event_specific() -> bool:
     `KNOWN_SETFILTER_OBSERVATIONS` as "the channel for the current
     event" based on this evidence alone."""
     return False
+
+
+def filter_appears_persistent() -> bool:
+    """True: across all 8 real-session observations
+    (`KNOWN_SETFILTER_CONTEXT_CHECKS`), `params=(2, 1)` never changed
+    even as the position counter visited 5 different values -- the
+    disc-seek target clearly changed while the filter did not. This is
+    the milestone's own suggested reframing: not "which cue selects
+    this filter" (a question this project's evidence keeps failing to
+    answer) but "how long does one filter setting stay valid" (a
+    question this same evidence directly supports: at least across an
+    entire ~460-second real play session including confirmed audible
+    playback). Not proof the filter NEVER changes -- only that it did
+    not change within this one observed window."""
+    return True
 
 
 def cross_validate_file_number(file_number: int) -> str | None:

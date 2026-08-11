@@ -356,3 +356,16 @@ with the evidence attached). The raw register/memory evidence
 (`file=2, channel=1`, the real command protocol, the real hardware
 register map) remains real and reproduced — only the "this is what a
 specific playing event selects" interpretation is retracted.
+
+### Third follow-up (Per-Event XA Channel Capture): the "one cue, one Setfilter" model is wrong — it looks persistent instead
+
+A ~460-second live capture on the CURRENT (not reloaded) game state,
+spanning a real, user-confirmed audible playback, found the same
+`params=(2, 1)` on all 8 Setfilter hits observed, while the position
+counter visited 5 different disc-seek targets in that same window. The
+filter never tracked the seek target. See `CDROM_SETFILTER_CAPTURE.md`
+for the full transcript and `gcrts.cdrom_setfilter.filter_appears_persistent()`
+(`True`). Separately, and just as importantly: the audio state byte
+(`0x800A6107`) never transitioned to PLAYING during this entire window
+despite confirmed real audio — an honest caveat now recorded in
+`gcrts.runtime_audio`'s own module docstring.

@@ -55,6 +55,22 @@ What is explicitly NOT confirmed, and must not be overclaimed:
   - `source_file` resolution for an arbitrary cue purely from its raw
     script parameter. See below -- this was actively disproven this
     session, not just unconfirmed.
+  - That `0x800A6107` reliably transitions to `0x01` (PLAYING) for
+    EVERY real, audible playback event. A much later milestone (Per-Event
+    XA Channel Capture, see `gcrts.cdrom_setfilter`'s own module
+    docstring and `CDROM_SETFILTER_CAPTURE.md`) polled this byte
+    continuously for ~460 real seconds on the live, currently-running
+    game state -- spanning a stretch the user directly confirmed
+    included real, audible playback -- and it never once left `0x02`
+    (STOPPED). This does not invalidate the earlier-confirmed
+    transitions above (those were real, directly observed in a
+    different session); it means this byte's transition to PLAYING is
+    NOT a reliable signal for every real audio event, for reasons this
+    project has not yet identified (possibilities include: the
+    transition is much shorter-lived than this polling cadence can
+    catch, or this specific byte tracks a narrower/different condition
+    than "audio is currently audible"). Reported honestly rather than
+    silently reconciled with the earlier finding.
 
 ## Audio Cue Resolution Generalization milestone (follow-up session)
 

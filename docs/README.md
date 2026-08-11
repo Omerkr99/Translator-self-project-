@@ -21,7 +21,8 @@ backend. Read in this order for the full story: `RUNTIME_AUDIO_TRACKER.md`
 `XA_STREAM_RESOLUTION.md` (file-open, CD-ROM driver, and the real
 Setfilter capture) → `AUDIO_CAPTIONS.md` (what is being heard) →
 `AUDIO_EVENT_EXTRACTION.md` (the extraction backend, and the "Setfilter
-not proven event-specific" correction).
+not proven event-specific" correction) → `CDROM_SETFILTER_CAPTURE.md`
+(the live session that found the filter looks persistent, not per-cue).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

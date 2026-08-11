@@ -8,6 +8,7 @@ from gcrts.cdrom_setfilter import (
     SetfilterContextCheck,
     SetfilterEvidenceConfidence,
     cross_validate_file_number,
+    filter_appears_persistent,
     is_proven_event_specific,
 )
 
@@ -87,11 +88,27 @@ def test_is_proven_event_specific_is_honestly_false():
 
 
 def test_known_context_checks_all_show_stopped_state_with_stale_params():
-    assert len(KNOWN_SETFILTER_CONTEXT_CHECKS) == 2
+    """8 total: 2 from the Audio Event Isolation milestone's simultaneous
+    cross-check, 6 from the Per-Event XA Channel Capture milestone's
+    ~460-second real live-session capture -- every single one agrees."""
+    assert len(KNOWN_SETFILTER_CONTEXT_CHECKS) == 8
     for check in KNOWN_SETFILTER_CONTEXT_CHECKS:
         assert check.params == (2, 1)
         assert check.state_at_hit == 0x02  # STOPPED, not STARTING/PLAYING
         assert check.last_req_params_at_hit == 0x7F  # a stale, already-finished cue
+
+
+def test_known_context_checks_span_multiple_distinct_positions():
+    """The decisive evidence for filter_appears_persistent(): the
+    position counter (disc-seek target) visited several different
+    values while params never varied -- the filter did not track the
+    seek target."""
+    positions = {check.position_counter_at_hit for check in KNOWN_SETFILTER_CONTEXT_CHECKS}
+    assert len(positions) >= 4
+
+
+def test_filter_appears_persistent_is_true():
+    assert filter_appears_persistent() is True
 
 
 def test_context_check_round_trips_through_dict():

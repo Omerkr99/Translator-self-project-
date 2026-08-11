@@ -167,6 +167,22 @@ was observed live this pass either. Test count: **528 passed**
 `test_runtime_snapshot.py`, 6 in `test_cdrom_setfilter.py`
 [correction + regression coverage]).
 
+**Ninth follow-up milestone (Per-Event XA Channel Capture,
+`CDROM_SETFILTER_CAPTURE.md`)**: armed lifecycle + command monitoring
+on the CURRENT live game state (not a reload) for ~460 real seconds
+while the user played through and confirmed real, audible playback.
+Result: the audio state byte never once transitioned to PLAYING despite
+that confirmed playback (a new, honest caveat added to this module's
+own lifecycle model, above), and all 8 Setfilter hits observed carried
+identical `params=(2, 1)` even as the position counter visited 5
+different disc-seek targets. Per the milestone's own explicit failure
+handling: this is not a failed search, it's evidence the "one cue, one
+Setfilter" model is wrong -- `gcrts.cdrom_setfilter.filter_appears_persistent()`
+now records the better-supported alternative: one filter setting
+persists across many cycles. Test count: **530 passed** (528 + 2 in
+`test_cdrom_setfilter.py`, extending the context-check evidence and
+covering the new persistence finding).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

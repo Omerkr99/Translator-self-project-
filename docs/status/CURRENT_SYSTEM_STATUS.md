@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 528 passed, 0 failed (`py -m pytest tests/ -q`), ~15s.
+- **Test count**: 530 passed, 0 failed (`py -m pytest tests/ -q`), ~15s.
   79 modules in `gcrts/`, 60 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -87,6 +87,18 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   systematic code searches, zero consumers of the constructed path
   string) is unchanged. `event_end_lba` also remains unresolved — no
   `PLAYING → STOPPED` transition was observed live this pass.
+  **Follow-up (`CDROM_SETFILTER_CAPTURE.md`)**: a ~460-second live
+  capture on the running game state, spanning real user-confirmed
+  audible playback, found the "one cue, one Setfilter" model is simply
+  wrong — 8 Setfilter hits, all identical `params=(2, 1)`, while the
+  disc-seek target changed 5 times. The better-supported model is now
+  **filter persistence**: one setting valid across many cycles
+  (`gcrts.cdrom_setfilter.filter_appears_persistent()` → `True`).
+  Separately, and importantly: the audio lifecycle state byte never
+  transitioned to PLAYING during this entire confirmed-audible window —
+  an honest caveat now recorded directly in `gcrts.runtime_audio`'s own
+  module docstring, since this project's earlier PLAYING/STOPPED
+  evidence, while real, is not shown to generalize to every real event.
 
 ## Key current distinctions (do not lose these)
 
@@ -432,9 +444,11 @@ Full detail, evidence, and reproduction steps: `RUNTIME_AUDIO_TRACKER.md`
 event), `AUDIO_CONTEXT_RESOLUTION.md` (why that occurrence picks its
 source), `XA_STREAM_RESOLUTION.md` (the constructed file path, a real
 event-boundary structure, the honest file-open blocker, and the real
-Setfilter capture), `AUDIO_CAPTIONS.md` (what is being heard), and
+Setfilter capture), `AUDIO_CAPTIONS.md` (what is being heard),
 `AUDIO_EVENT_EXTRACTION.md` (the read-only sector-extraction backend,
-and the "Setfilter not proven event-specific" correction).
+and the "Setfilter not proven event-specific" correction), and
+`CDROM_SETFILTER_CAPTURE.md` (the ~460-second live session that found
+the filter is most likely persistent, not per-cue).
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal
