@@ -154,11 +154,22 @@ FINGERPRINT_BYTES = bytes.fromhex("e0ffbd27211080002118a0002140c0000a80013c17612
 
 
 class AudioLifecycleState(str, Enum):
+    """CAVEAT (Real Audio Playback Truth milestone -- see module
+    docstring's newest section and gcrts.audio_playback_truth): PLAYING
+    and STOPPED here describe the raw 0x800A6107 byte's own values,
+    live-confirmed to correlate with SOME real playback session in an
+    earlier, separate observation -- they are NOT confirmed to mean
+    "audio is audibly playing right now" in general. A later ~460-second
+    session with confirmed real, audible playback throughout never once
+    saw this byte leave STOPPED. Treat PLAYING/STOPPED as the engine
+    byte's own raw state, not as audible-playback ground truth, until a
+    real replacement signal is found."""
+
     REQUESTED = "REQUESTED"  # command byte written, not yet observed live as its own distinct raw value
     STARTING = "STARTING"  # raw state 0x0000 -- observed only transiently, at the instant of a fresh dispatch
-    PLAYING = "PLAYING"  # raw state 0x0001 -- LIVE-CONFIRMED: sustained, position counter advancing
+    PLAYING = "PLAYING"  # raw state 0x0001 -- LIVE-CONFIRMED to correlate with SOME real playback session; NOT confirmed general (see class docstring)
     PAUSED = "PAUSED"  # not observed live this session -- reserved for future evidence
-    STOPPED = "STOPPED"  # raw state 0x0002 -- LIVE-CONFIRMED: sustained, position frozen, params cleared
+    STOPPED = "STOPPED"  # raw state 0x0002 -- LIVE-CONFIRMED to correlate with SOME real playback session; NOT confirmed general -- also observed throughout a real, audible ~460s session (see class docstring)
     UNKNOWN = "UNKNOWN"  # raw state byte seen that doesn't match any confirmed value
 
 

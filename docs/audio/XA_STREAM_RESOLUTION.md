@@ -369,3 +369,15 @@ for the full transcript and `gcrts.cdrom_setfilter.filter_appears_persistent()`
 (`0x800A6107`) never transitioned to PLAYING during this entire window
 despite confirmed real audio — an honest caveat now recorded in
 `gcrts.runtime_audio`'s own module docstring.
+
+### Fourth follow-up (Real Audio Playback Truth): the traced cycle was never the audio path
+
+`AUDIO_PLAYBACK_TRUTH.md` decoded the real Setmode value from the
+traced `Setloc/Setmode/ReadN/Setfilter` cycle (`0x01`) against public
+PS1 documentation: XA-ADPCM and XA-Filter are both OFF. The entire
+cycle this project has traced across three milestones was never
+configured for XA audio at all — it's a plain data-read loop. The
+documented XA-audio command (`ReadS`, `0x1B`) has never been observed.
+A widened static scan for other command sites found nothing new. The
+real audio-configuring code path remains unfound — an honest, open
+question, not a claimed answer.

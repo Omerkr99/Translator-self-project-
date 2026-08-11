@@ -22,7 +22,9 @@ backend. Read in this order for the full story: `RUNTIME_AUDIO_TRACKER.md`
 Setfilter capture) → `AUDIO_CAPTIONS.md` (what is being heard) →
 `AUDIO_EVENT_EXTRACTION.md` (the extraction backend, and the "Setfilter
 not proven event-specific" correction) → `CDROM_SETFILTER_CAPTURE.md`
-(the live session that found the filter looks persistent, not per-cue).
+(the live session that found the filter looks persistent, not per-cue)
+→ `AUDIO_PLAYBACK_TRUTH.md` (why `0x800A6107` is not audible-playback
+truth, and the still-open search for the real signal).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

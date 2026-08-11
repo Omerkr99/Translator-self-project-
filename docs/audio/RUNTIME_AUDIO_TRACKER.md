@@ -183,6 +183,22 @@ persists across many cycles. Test count: **530 passed** (528 + 2 in
 `test_cdrom_setfilter.py`, extending the context-check evidence and
 covering the new persistence finding).
 
+**Tenth follow-up milestone (Real Audio Playback Truth,
+`AUDIO_PLAYBACK_TRUTH.md`, `gcrts.audio_playback_truth`)**: decoded the
+real, previously-captured Setmode value (`0x01`) against public PS1
+documentation and found XA-ADPCM and XA-Filter both OFF -- decisive
+proof the entire traced `Setloc/Setmode/ReadN/Setfilter` cycle was
+never the audio path at all (a plain data-read loop). The documented
+XA-audio command, `ReadS` (`0x1B`), has never appeared in any capture
+this project has taken. A widened static scan (60 vs. the original 12
+instructions) for other command-issuing sites found only false
+positives and already-known writes -- no new site. `0x800A6107` is now
+formally reclassified in `AudioLifecycleState`'s own docstrings: real
+correlation with *some* past session, not confirmed general. No working
+replacement "audible playback" signal was found this pass -- reported
+honestly as an open question, not forced. Test count: **536 passed**
+(530 + 6 in `test_audio_playback_truth.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

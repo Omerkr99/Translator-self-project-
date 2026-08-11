@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 530 passed, 0 failed (`py -m pytest tests/ -q`), ~15s.
-  79 modules in `gcrts/`, 60 test files.
+- **Test count**: 536 passed, 0 failed (`py -m pytest tests/ -q`), ~16s.
+  80 modules in `gcrts/`, 61 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -99,6 +99,16 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   an honest caveat now recorded directly in `gcrts.runtime_audio`'s own
   module docstring, since this project's earlier PLAYING/STOPPED
   evidence, while real, is not shown to generalize to every real event.
+  **Follow-up (`AUDIO_PLAYBACK_TRUTH.md`)**: decoded the real Setmode
+  value from that traced command cycle (`0x01`) against public PS1
+  documentation — XA-ADPCM and XA-Filter are both OFF. The entire
+  `Setloc/Setmode/ReadN/Setfilter` cycle traced across three milestones
+  was **never the audio path**, just a data-read loop. The documented
+  XA-audio command (`ReadS`, `0x1B`) has never been observed in any
+  capture. A widened static scan found no new command-issuing site. The
+  real audio-configuring code path remains genuinely unfound —
+  `gcrts.audio_playback_truth.AudiblePlaybackState` exists with exactly
+  one honest member (`UNKNOWN`), not a forced/unverified `AUDIBLE_XA`.
 
 ## Key current distinctions (do not lose these)
 
@@ -448,7 +458,9 @@ Setfilter capture), `AUDIO_CAPTIONS.md` (what is being heard),
 `AUDIO_EVENT_EXTRACTION.md` (the read-only sector-extraction backend,
 and the "Setfilter not proven event-specific" correction), and
 `CDROM_SETFILTER_CAPTURE.md` (the ~460-second live session that found
-the filter is most likely persistent, not per-cue).
+the filter is most likely persistent, not per-cue), and
+`AUDIO_PLAYBACK_TRUTH.md` (why `0x800A6107` is not audible-playback
+truth, and the still-open search for what is).
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal
