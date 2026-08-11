@@ -403,3 +403,21 @@ dispatch table (GPU, MDEC, CD-ROM, and PIO channel addresses together)
 Classified `HW_DISPATCH_TABLE_NOT_A_COMMAND_DRIVER`. The real XA path
 remains open; next suggested direction is scanning for SPU register
 references directly, since XA-ADPCM's actual destination is the SPU.
+
+### Seventh follow-up (SPU-Side XA Playback Discovery): a real CD-audio-enable anchor, still unconfirmed live
+
+`SPU_AUDIO_PATH_DISCOVERY.md` took that suggestion: a full-RAM value
+scan for the SPU base address found 7 pointer holders, one adjacent to
+the known CD-ROM block. Tracing it led to a live-firing, debug-string-
+named `CD_init` function (`0x80081B04`) that sets SPUCNT to `0xC001` —
+bit 0 is psx-spx's documented "CD Audio Enable" bit for both CD-DA and
+XA-ADPCM. Confirmed live (6 firings across two sessions, 9 static call
+sites) — the strongest concrete anchor this whole investigation chain
+has produced. Not yet a full answer: the write never persisted on a
+later read, and a 300-second combined watch (also covering the two
+real SPU Key ON/OFF writer sites found the same pass) caught neither
+`CD_init` re-firing nor a real (non-empty) Key ON bitmask alongside a
+confirmed audible trigger. `gcrts.spu_audio_path.classify_playback_backend()`
+honestly returns `UNKNOWN`. The real path remains open; next suggested
+direction is a session with the user live-confirming an audible moment
+at the exact instant these specific breakpoints are armed.

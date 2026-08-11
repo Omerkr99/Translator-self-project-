@@ -232,6 +232,29 @@ outside the milestone's own original taxonomy, rather than forced into
 an inaccurate existing bucket. Test count: **551 passed** (543 + 8 in
 `test_cdrom_driver_discovery.py`).
 
+**Thirteenth follow-up milestone (SPU-Side XA Playback Discovery,
+`SPU_AUDIO_PATH_DISCOVERY.md`, `gcrts.spu_audio_path`)**: pivoted from
+the exhausted CD-ROM command-side search to the SPU side. A full-RAM
+value scan for the SPU base address (`0x1F801C00`) found 7
+pointer-holder addresses; tracing from the one adjacent to the known
+CD-ROM register block led to a real, live-firing, debug-string-named
+function (`"CD_init:addr=%08x\n"`, `0x80081B04`) that sets SPUCNT to
+`0xC001` -- psx-spx documents bit 0 as "CD Audio Enable," gating both
+CD-DA and XA-ADPCM streaming into the SPU. Confirmed live across two
+sessions (6 total firings from 9 known call sites), the strongest
+concrete anchor found across all thirteen audio milestones so far.
+Two real complications keep this from being a confirmed answer: the
+write never once persisted on a later read (reads back `0x0000` every
+time), and a combined 300-second live watch (armed alongside the two
+real SPU Key ON/OFF writer sites found the same pass) caught `CD_init`
+not firing at all in that window while Key ON fired constantly but
+almost always with an empty (no-op) voice bitmask. Honest result:
+`gcrts.spu_audio_path.classify_playback_backend()` returns `UNKNOWN`,
+not a guessed `XA_ADPCM_CONFIRMED` -- no single capture window yet
+combined an armed breakpoint with a genuinely confirmed audible
+trigger. Test count: **566 passed** (551 + 15 in
+`test_spu_audio_path.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

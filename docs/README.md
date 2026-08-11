@@ -29,7 +29,11 @@ truth, and the still-open search for the real signal) →
 own `.cue` file; the real XA path still open) →
 `CDROM_DRIVER_DISCOVERY.md` (a full RAM value scan found 7 additional
 CD-ROM register pointer sets, identified as interrupt/DMA
-infrastructure, not a second audio driver).
+infrastructure, not a second audio driver) →
+`SPU_AUDIO_PATH_DISCOVERY.md` (pivoted to the SPU side; found a real,
+live-firing `CD_init` function that sets the documented "CD Audio
+Enable" SPUCNT bit, the strongest anchor so far, but not yet confirmed
+live against a real audible moment).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

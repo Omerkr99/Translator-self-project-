@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 551 passed, 0 failed (`py -m pytest tests/ -q`), ~16s.
-  82 modules in `gcrts/`, 63 test files.
+- **Test count**: 566 passed, 0 failed (`py -m pytest tests/ -q`), ~17s.
+  83 modules in `gcrts/`, 64 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -128,9 +128,23 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   addresses together, plus `I_STAT`/`I_MASK`) — real, verified, but not
   a second command-issuing audio driver
   (`gcrts.cdrom_driver_discovery.any_new_command_driver_confirmed()` →
-  `False`). The real XA path is still open; next direction is scanning
-  for SPU register references directly, since XA-ADPCM's actual
-  destination is the SPU, not the CD-ROM controller.
+  `False`). **Follow-up (`SPU_AUDIO_PATH_DISCOVERY.md`)**: pivoted to
+  the SPU side as suggested. A full-RAM value scan for the SPU base
+  address found 7 pointer holders; the one adjacent to the known
+  CD-ROM block led to a real, live-firing, debug-string-named `CD_init`
+  function (`0x80081B04`, `"CD_init:addr=%08x\n"`) that sets SPUCNT to
+  `0xC001` — psx-spx documents bit 0 as "CD Audio Enable" for both
+  CD-DA and XA-ADPCM. Confirmed live across two sessions (6 firings, 9
+  static call sites) — the strongest concrete anchor this whole
+  investigation has produced. Not yet a full answer: the write never
+  persisted on a later read, and a 300s combined watch (also covering
+  the 2 real SPU Key ON writer sites found the same pass) caught
+  neither `CD_init` re-firing nor a real non-empty Key ON bitmask
+  alongside a confirmed audible trigger.
+  `gcrts.spu_audio_path.classify_playback_backend()` honestly returns
+  `UNKNOWN`. The real path is still open; next direction is a session
+  where these exact breakpoints are armed first, then the user triggers
+  and immediately confirms a real audible line.
 
 ## Key current distinctions (do not lose these)
 
@@ -484,9 +498,13 @@ the filter is most likely persistent, not per-cue), and
 `AUDIO_PLAYBACK_TRUTH.md` (why `0x800A6107` is not audible-playback
 truth, and the still-open search for what is),
 `XA_PLAYBACK_PATH.md` (CD-DA structurally ruled out; the real path
-still open), and `CDROM_DRIVER_DISCOVERY.md` (7 additional CD-ROM
+still open), `CDROM_DRIVER_DISCOVERY.md` (7 additional CD-ROM
 pointer sets found via a full RAM value scan, identified as
-interrupt/DMA infrastructure, not a second audio driver).
+interrupt/DMA infrastructure, not a second audio driver), and
+`SPU_AUDIO_PATH_DISCOVERY.md` (pivoted to the SPU side; found a
+real, live-firing `CD_init` function that sets the documented "CD
+Audio Enable" SPUCNT bit — the strongest anchor so far, still not
+confirmed live against a real audible moment).
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal
@@ -729,6 +747,6 @@ instructions, not as a sign of partial implementation.
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
 | Movies / `.STR` | PARTIAL | No | Runtime trigger unidentified; wrong overlay assumed so far |
-| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only |
+| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) is the strongest playback-backend anchor found so far but is NOT yet confirmed live against a real audible moment — `classify_playback_backend()` is honestly `UNKNOWN` |
 | Subtitles | UNSUPPORTED | No | Not started; blocked on Movies + Audio |
 | Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |
