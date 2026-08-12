@@ -252,36 +252,88 @@ def test_extract_channel_raw_excludes_other_channels_content():
 
 
 # --- ADPCM decode ---------------------------------------------------------------
+#
+# This layout (header byte positions, nibble/channel assignment) was
+# reverse-engineered against FFmpeg's independent, open-source
+# adpcm_xa decoder and verified sample-for-sample identical (100.0000%,
+# zero mismatches) against real disc audio across 5 real assets
+# (stereo and mono) -- see docs/audio/XA_DECODER_VERIFICATION.md. These
+# fixtures reproduce the real header layout: 4 bytes unused (redundant
+# copy), then 8 bytes as 4 (low-header, high-header) pairs, then 4
+# more unused bytes, then 112 data bytes.
 
 
-def _constant_nibble_group(nibble: int, shift: int = 0, filt: int = 0) -> bytes:
-    """A 128-byte sound group where every nibble for every unit is the
-    same value, filter=0 (no history feedback) -- fully hand-computable
-    expected output."""
-    header_byte = (filt << 4) | shift
-    headers = bytes([header_byte] * 4) + bytes(12)  # bytes 4-15 unused by this decoder
-    nibble_byte = (nibble << 4) | nibble
+def _group_with_headers(low_range: int, low_filt: int, high_range: int, high_filt: int, low_nibble: int, high_nibble: int) -> bytes:
+    low_header = (low_filt << 4) | low_range
+    high_header = (high_filt << 4) | high_range
+    leading = bytes(4)
+    header_pairs = bytes([low_header, high_header] * 4)  # 4 iterations, same pair each
+    trailing = bytes(4)
+    nibble_byte = (high_nibble << 4) | low_nibble
     data = bytes([nibble_byte] * 112)
-    return headers + data
+    return leading + header_pairs + trailing + data
 
 
 def test_decode_xa_sector_payload_deterministic_filter_zero():
-    # nibble=1, shift=0, filter=0 -> raw = (1<<12)>>0 = 4096, pred=0 -> every sample == 4096
-    payload = _constant_nibble_group(1) * 18
+    # range=12 -> shift=12-12=0; nibble=1 -> t=1; filter=0 -> pred=0 -> sample=1*(1<<0)=1
+    payload = _group_with_headers(12, 0, 12, 0, 1, 1) * 18
     state = XaDecoderState()
     left, right = decode_xa_sector_payload(payload, state)
     assert len(left) == SAMPLES_PER_CHANNEL_PER_SECTOR
     assert len(right) == SAMPLES_PER_CHANNEL_PER_SECTOR
-    assert set(left) == {4096}
-    assert set(right) == {4096}
+    assert set(left) == {1}
+    assert set(right) == {1}
 
 
-def test_decode_xa_sector_payload_negative_nibble():
-    # nibble=0b1000=8 -> signed -8, shift=0, filter=0 -> raw=(-8<<12)>>0=-32768, clamped to -32768
-    payload = _constant_nibble_group(8) * 18
+def test_decode_xa_sector_payload_negative_nibble_clamped():
+    # range=0 -> shift=12; nibble=0b1000=8 -> signed -8; filter=0 -> pred=0
+    # raw = -8*(1<<12) = -32768, exactly the int16 clamp boundary.
+    payload = _group_with_headers(0, 0, 0, 0, 8, 8) * 18
     state = XaDecoderState()
     left, right = decode_xa_sector_payload(payload, state)
     assert set(left) == {-32768}
+    assert set(right) == {-32768}
+
+
+def test_decode_xa_sector_payload_left_right_independent_history():
+    """Regression for a real bug this milestone found and fixed: Left
+    and Right must decode from the SAME data byte's low/high nibble
+    with INDEPENDENT history chains, not shared or cross-contaminated.
+    Different nibble values with filter>0 (real history feedback) must
+    diverge the two channels' output over successive samples."""
+    payload = _group_with_headers(12, 1, 12, 1, 1, 7) * 18  # low_nibble=1, high_nibble=7, filter=1 (k0=60,k1=0)
+    state = XaDecoderState()
+    left, right = decode_xa_sector_payload(payload, state)
+    assert left[0] != right[0]  # different nibble values -> different first sample
+    assert left[:5] != right[:5]  # history evolves differently per channel
+
+
+def test_decode_xa_sector_payload_mono_continues_single_history_chain():
+    """Mono has no L/R split: both nibble-halves of each iteration
+    continue the SAME history chain into one output stream (per
+    FFmpeg's own xa_decode -- verified against the real mono exception
+    on this disc, XAPACK42.BIN channel 6)."""
+    payload = _group_with_headers(12, 1, 12, 1, 1, 1) * 18
+    state = XaDecoderState()
+    mono, empty = decode_xa_sector_payload(payload, state, stereo=False)
+    assert empty == []
+    assert len(mono) == SAMPLES_PER_CHANNEL_PER_SECTOR * 2  # 4032: no L/R split
+
+
+def test_decode_xa_sector_payload_history_persists_across_sectors():
+    """ADPCM is stateful -- a fresh XaDecoderState vs. a state carried
+    over from a prior sector must produce different output once
+    filter feedback is active, proving history genuinely threads
+    across sector boundaries (not reset each call)."""
+    payload = _group_with_headers(12, 1, 12, 1, 3, 3) * 18
+    fresh_state = XaDecoderState()
+    left_fresh, _ = decode_xa_sector_payload(payload, fresh_state)
+
+    warmed_state = XaDecoderState()
+    decode_xa_sector_payload(_group_with_headers(12, 1, 12, 1, 5, 5) * 18, warmed_state)  # prime history
+    left_warmed, _ = decode_xa_sector_payload(payload, warmed_state)
+
+    assert left_fresh[0] != left_warmed[0]
 
 
 def test_decode_xa_sector_payload_rejects_short_payload():

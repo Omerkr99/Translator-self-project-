@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 666 passed, 0 failed (`py -m pytest tests/ -q`), ~16s.
-  87 modules in `gcrts/`, 68 test files.
+- **Test count**: 686 passed, 0 failed (`py -m pytest tests/ -q`), ~19s.
+  88 modules in `gcrts/`, 69 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -251,6 +251,27 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   but the exact nibble-interleave layout has not been perceptually
   verified (no audio playback in this environment), an explicitly
   flagged, honest gap.
+  **Follow-up (`XA_DECODER_VERIFICATION.md`) — that gap closed against
+  an independent reference decoder**: got FFmpeg locally (via the
+  `imageio-ffmpeg` PyPI package, an independent binary), fed it the
+  exact real disc bytes for `XAPACK08.BIN` via its `psxstr` demuxer
+  (which auto-detected the same 8-channel/stereo/37800Hz structure this
+  project found by hand), and diffed its `adpcm_xa` decoder's output
+  against this project's own sample-for-sample. First result: only
+  1.44% agreement — a real failure, not "close enough." Reading
+  FFmpeg's own open-source decoder directly (not a paraphrased summary)
+  found two real bugs: wrong header byte offsets (4-11, not 0-3) and
+  wrong nibble-to-channel assignment (low/high nibble = Left/Right at
+  the same time position, not two sequential samples of one unit). A
+  third bug (mono streams unhandled) was found via multi-asset testing
+  and fixed too. After all three fixes: **100.0000% exact sample
+  match, zero mismatches**, across 5 real assets (3 packs, stereo and
+  mono). `decoder_verification_status()` → `REFERENCE_VERIFIED`.
+  `AudioAsset` now exposes `decode_confidence`/`decode_supported`/
+  `pcm_sample_count`, and a safe playback/export backend exists
+  (`decode_audio_asset`/`export_audio_asset_wav`). Only perceptual
+  (by-ear) confirmation remains open — no audio playback available in
+  this environment.
 
 ## Key current distinctions (do not lose these)
 
@@ -641,11 +662,16 @@ submode with `coding_info=0x01` (stereo, 37800 Hz, 4-bit ADPCM) —
 against two real live LBA anchors. The same milestone built a stable
 `AudioAsset` identity model (`gcrts.xapack`), a runtime resolver from
 `ScriptAudioAssociation` to `AudioAsset` (`gcrts.audio_asset_resolver`),
-and a working raw+decoded-WAV extraction pipeline — the ADPCM decode
-math is high-confidence but its exact nibble layout is not yet
-perceptually verified (no audio playback available in this
-environment), an honestly flagged remaining gap. See
-`AUDIO_ASSET_MODEL.md` for the data-model reference.
+and a working raw+decoded-WAV extraction pipeline. `XA_DECODER_
+VERIFICATION.md` then closed the remaining decode-correctness gap:
+diffed against FFmpeg's independent `adpcm_xa` decoder, found and fixed
+two real layout bugs (header byte offsets, nibble-to-channel
+assignment) plus a mono-handling bug found via multi-asset testing,
+and reached **100.0000% exact sample match, zero mismatches** across 5
+real assets. `decoder_verification_status()` → `REFERENCE_VERIFIED`;
+only perceptual (by-ear) confirmation remains open. See
+`AUDIO_ASSET_MODEL.md` for the data-model reference and
+`XA_DECODER_VERIFICATION.md` for the full verification account.
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal

@@ -61,6 +61,10 @@ format()` to `XA_ADPCM`; also found a real per-channel EOF marker
 solving event segmentation, and built a raw+decoded-WAV extraction
 pipeline) → `AUDIO_ASSET_MODEL.md` (the resulting `AudioAsset` identity
 model and `ScriptAudioAssociation → AudioAsset` runtime bridge) →
+`XA_DECODER_VERIFICATION.md` (diffed the decoder against FFmpeg's
+independent `adpcm_xa` decoder, found and fixed two real layout bugs
+plus a mono-handling bug, reached 100.0000% exact sample match on 5
+real assets — `REFERENCE_VERIFIED`) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

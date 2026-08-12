@@ -506,6 +506,46 @@ passed** (619 + 47: `test_xapack_catalog.py`, `test_xapack.py`,
 `test_spu_audio_path.py`'s stream-format tests updated from UNKNOWN to
 XA_ADPCM).
 
+**Twenty-second follow-up milestone (XA-ADPCM Decoder Verification /
+Golden Audio Validation, `XA_DECODER_VERIFICATION.md`,
+`gcrts.xa_decoder_verify`)**: closed the honest gap the prior milestone
+left open. Got a real, independent reference decoder locally -- FFmpeg
+via the `imageio-ffmpeg` PyPI package (a bundled, independent binary,
+no code from this project). Fed it the *exact real disc bytes* for
+`XAPACK08.BIN` via its `psxstr` demuxer, which auto-detected exactly 8
+streams, all `adpcm_xa, 37800 Hz, stereo` -- independently confirming
+the prior milestone's structural findings before any PCM comparison
+even started. First sample-for-sample comparison against the golden
+asset (`XAPACK08:7`, the known dialogue cue): **only 1.44% exact
+match** -- a real, decisive failure, investigated rather than
+explained away. Reading FFmpeg's own open-source `adpcm_xa` decoder
+directly (`libavcodec/adpcm.c`, fetched and read literally, not via a
+paraphrased summary which on a first pass produced ambiguous indexing)
+found two real bugs: header bytes are actually at group offset `4-11`
+(not `0-3` as assumed), and a data byte's low/high nibble feed
+Left/Right at the *same* time position (not two sequential samples of
+one "sound unit" as assumed). After fixing both: **100.0000% exact
+match, zero mismatches** on the golden asset. Multi-asset verification
+across 4 more real assets (different packs, sizes) found a third bug --
+mono streams (`XAPACK42.BIN` channel 6, a real, legitimate format
+variant on this disc) weren't handled at all, silently producing
+garbage rather than an error. Fixed by implementing FFmpeg's own mono
+handling (both nibble-halves continue one history chain into one
+stream, no L/R split). Final result: **100.0000% exact match, zero
+mismatches, on all 5 real assets tested** (3 packs, stereo and mono) --
+`gcrts.xa_decoder_verify.decoder_verification_status()` ->
+`REFERENCE_VERIFIED`. `AudioAsset` now exposes `decode_confidence`/
+`decode_supported`/`pcm_sample_count`; a safe playback/export backend
+exists (`gcrts.audio_asset_resolver.decode_audio_asset`/
+`export_audio_asset_wav`); a hashes-only `GoldenAudioFixture` (no raw
+game audio committed) lets anyone re-derive and verify the same bytes
+from the real disc at any time. Only perceptual (by-ear) confirmation
+remains open -- no audio playback available in this environment. Final
+decoder status: **CORRECTED_AND_VERIFIED**. Test count: **686 passed**
+(666 + 20: `test_xa_decoder_verify.py` (14), `test_audio_asset_
+resolver.py` (+3), `test_xapack.py` (net +3, replacing 2 stale decode
+tests with 5 corrected/new ones)).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

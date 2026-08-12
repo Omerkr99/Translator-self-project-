@@ -28,11 +28,13 @@ from gcrts.xapack import (
     AudioAsset,
     XaChannelStream,
     audio_asset_from_channel_stream,
+    decode_channel_to_pcm,
     lba_falls_within_stream,
     mark_live_cross_validated,
     parse_pack_channel_streams,
+    write_wav,
 )
-from gcrts.xapack_catalog import build_catalog, catalog_entry_for_lba
+from gcrts.xapack_catalog import build_catalog, catalog_entry_for_lba, catalog_entry_for_path
 
 
 class ResolutionConfidence(str, Enum):
@@ -148,6 +150,42 @@ def resolve_from_script_audio_association(disc_bytes: bytes, association) -> Aud
             live_lba=None,
         )
     return resolve_audio_asset(disc_bytes, start_lba)
+
+
+def _stream_for_asset(disc_bytes: bytes, asset: AudioAsset) -> XaChannelStream | None:
+    """AudioAsset itself doesn't carry `xa_file_number` (only what's
+    needed for identity/display) -- re-derive the full physical
+    stream from its own pack_path/channel_number via a fresh, cheap
+    pack parse (a single pack's worth of sector metadata, not the
+    whole disc)."""
+    pack = catalog_entry_for_path(asset.pack_path)
+    if pack is None:
+        return None
+    for stream in parse_pack_channel_streams(disc_bytes, pack):
+        if stream.channel_number == asset.channel_number:
+            return stream
+    return None
+
+
+def decode_audio_asset(disc_bytes: bytes, asset: AudioAsset) -> tuple[int, int, bytes]:
+    """Phase 21 safe playback backend: `AudioAsset -> (sample_rate,
+    channels, pcm_bytes)`. Read-only -- never modifies the disc image
+    or any extracted/decoded data it didn't just create. Raises
+    ValueError if the asset's own pack/channel can no longer be found
+    on the real disc (should not happen for an asset this project
+    itself produced, but never silently returns garbage)."""
+    stream = _stream_for_asset(disc_bytes, asset)
+    if stream is None:
+        raise ValueError(f"Could not re-derive a physical stream for asset {asset.asset_id!r}")
+    return decode_channel_to_pcm(disc_bytes, stream)
+
+
+def export_audio_asset_wav(disc_bytes: bytes, asset: AudioAsset, path: str) -> None:
+    """Phase 21: `AudioAsset -> a real, playable .wav file on disk`.
+    Read-only with respect to the disc/source data -- only ever writes
+    the new, independent output file at `path`."""
+    sample_rate, channels, pcm = decode_audio_asset(disc_bytes, asset)
+    write_wav(path, sample_rate, channels, pcm)
 
 
 def build_full_disc_asset_index(disc_bytes: bytes) -> list[AudioAsset]:

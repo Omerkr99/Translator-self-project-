@@ -176,30 +176,17 @@ bytes.
 
 ## Playability
 
-**Yes, structurally** -- a full channel (real channel 7 of
-`XAPACK08.BIN`, the known dialogue cue's own confirmed stream) was
-decoded end-to-end to a playable 16-bit stereo WAV file. Two honest
-caveats:
-
-1. **The core ADPCM math is high-confidence**: the standard 5-filter-pair
-   PSX ADPCM sample formula (identical to SPU voice ADPCM), implemented
-   and cross-validated by an exact sample-count match (2016
-   samples/channel/sector, independently derived from both the decode
-   math and the SPU Debug window's own earlier static reading).
-2. **The exact sound-group nibble/byte interleave layout is NOT
-   independently verified** against a reference decoder or by
-   listening (no audio playback was possible in this environment). The
-   implementation uses the most commonly cited public CD-XA layout and
-   passed every structural self-test run against it: correct output
-   sample count, no clipping/saturation after fixing the alignment bug
-   above (min/max moved from a saturated ±32768 to a believable
-   ±16000-19000 range), non-degenerate variance, and a real,
-   speech-plausible energy envelope (a 20-second decode of the known
-   dialogue channel showed a natural rise-sustain-decay shape, ending
-   in near-silence exactly at the stream's own EOF marker -- see
-   `gcrts.xapack`'s module docstring for the full self-test numbers).
-   This is real, honest corroborating evidence, not proof of
-   perceptual correctness.
+**Yes, and now verified, not just structural.** A follow-up milestone
+(`XA_DECODER_VERIFICATION.md`) diffed this decoder's output
+sample-for-sample against FFmpeg's independent `adpcm_xa` decoder on
+real disc bytes. The first comparison found only 1.44% agreement,
+exposing two real bugs in the original nibble/header layout (fixed);
+after the fix, **100.0000% exact match, zero mismatches**, across 5
+real assets spanning 3 packs and both stereo and mono. See
+`XA_DECODER_VERIFICATION.md` for the full account -- the "exact
+interleave layout not independently verified" caveat below is now
+resolved. What remains open is purely perceptual (by-ear) confirmation,
+which no audio playback in this environment can provide.
 
 ## Duration
 
@@ -239,34 +226,22 @@ loop the milestone's own desired workflow needed:
 
 ## Tests
 
-**666 passed** (619 baseline + 47 new: `test_xapack_catalog.py` (8),
-`test_xapack.py` (28), `test_audio_asset_resolver.py` (11), 2 new in
-`test_xa_disc_index.py`, plus `test_spu_audio_path.py`'s
-`classify_stream_format` tests updated from UNKNOWN to XA_ADPCM). No
-regressions.
+**666 passed** at the time this milestone concluded (619 baseline + 47
+new). See `XA_DECODER_VERIFICATION.md` for the follow-up milestone's
+own updated count (686).
 
 ## Remaining blocker before Audio Inspector
 
-None structural -- the data model, extraction, and resolver are all
-real and tested; a UI would need only to call `resolve_audio_asset`
-and `decode_channel_to_pcm`/`write_wav`, which this milestone
-deliberately did not build (out of scope: "do not build the full
-polished UI yet").
+None -- resolved by the follow-up verification milestone; see
+`XA_DECODER_VERIFICATION.md`.
 
 ## Remaining blocker before Fandub replacement
 
-The decoded audio's exact nibble-interleave layout has not been
-perceptually (by-ear) verified, so decoded WAV output should be treated
-as "structurally sound, not yet confirmed correct-sounding" until a
-listening or reference-decoder cross-check is done.
+Resolved for reference-decoder correctness; only perceptual (by-ear)
+confirmation remains open -- see `XA_DECODER_VERIFICATION.md`.
 
 ## Next milestone
 
-Get a real listening/reference-decoder verification of
-`decode_channel_to_pcm`'s output (e.g. play the extracted
-`XAPACK08.BIN` channel 7 WAV against the same, already-confirmed
-audible dialogue line, or diff against an established open-source XA
-decoder like the one in `vgmstream`/`ffmpeg` if available) -- this is
-the one gap between "structurally proven" and "known correct" left by
-this pass, and resolving it would upgrade every decoded asset's
-confidence at once rather than requiring a re-check per asset.
+Superseded -- see `XA_DECODER_VERIFICATION.md`, which did exactly
+this (reference-decoder verification against FFmpeg's independent
+`adpcm_xa` decoder) and found/fixed two real bugs.

@@ -36,6 +36,39 @@ disc bytes
   -> gcrts.xapack.write_wav()                       # -> a playable .wav file
 ```
 
+Or, once an `AudioAsset` is already in hand (from a resolver or the
+full-disc index), the same result via the safe playback backend
+(`gcrts.audio_asset_resolver`, Phase 21): `decode_audio_asset(disc_bytes,
+asset) -> (sample_rate, channels, pcm_bytes)` or
+`export_audio_asset_wav(disc_bytes, asset, path)` for a file directly.
+Both re-derive the full physical stream from the asset's own
+`pack_path`/`channel_number` internally -- `AudioAsset` itself doesn't
+carry the `xa_file_number` needed for sector filtering, by design (it's
+an identity/metadata record, not a decode-ready handle).
+
+## Decoder verification
+
+`decode_channel_to_pcm`'s output is **reference-verified**, not just
+structurally plausible: diffed sample-for-sample against FFmpeg's
+independent `adpcm_xa` decoder on real disc bytes and found
+byte-for-byte identical (100.0000%, zero mismatches) across 5 real
+assets, both stereo and mono -- see `XA_DECODER_VERIFICATION.md` for
+the full account, including two real decoder bugs found and fixed by
+that comparison. Every `AudioAsset` exposes this as
+`decode_confidence` (`gcrts.xa_decoder_verify.DecoderConfidence`:
+`UNVERIFIED` < `STRUCTURALLY_VALID` < `REFERENCE_VERIFIED` <
+`PERCEPTUALLY_VERIFIED` < `REFERENCE_AND_PERCEPTUALLY_VERIFIED`) and
+`decode_supported` (currently always `True` -- every real coding_info
+variant found on this disc, stereo and mono alike, is handled), plus a
+structurally-computed `pcm_sample_count` (no decode needed to know it
+in advance).
+
+The project's first **Golden Audio Asset** is `XAPACK08:7`
+(`gcrts.xa_decoder_verify.GOLDEN_AUDIO_FIXTURE`) -- a hashes-only
+fixture (no raw game audio committed to the repository) that lets
+anyone re-derive and verify the exact same bytes from the real disc
+image at any time via `verify_golden_fixture()`.
+
 ## The runtime bridge
 
 ```
@@ -74,10 +107,11 @@ check on an already-identified channel, never a channel finder.
 
 ## Confidence, at every level
 
-Two confidence enums, deliberately kept separate:
+Three confidence enums, deliberately kept separate -- each answers a
+different question:
 
 - `gcrts.xapack.StreamConfidence` -- how sure this project is that a
-  parsed `XaChannelStream`'s own boundaries are correct: `CANDIDATE` <
+  parsed `XaChannelStream`'s own *boundaries* are correct: `CANDIDATE` <
   `STATICALLY_CONFIRMED` (audio found, no EOF marker seen -- open-ended)
   < `STRUCTURALLY_CONFIRMED` (a real EOF marker bounds it) <
   `LIVE_CROSS_VALIDATED` (a real, independently-obtained live LBA was
@@ -86,6 +120,12 @@ Two confidence enums, deliberately kept separate:
   *lookup* went: `UNRESOLVED` (LBA not in any known pack) <
   `PACK_ONLY` (in a pack, but not inside any parsed channel's own
   bounds -- e.g. a silence/terminator sector) < `LIVE_LBA_MATCHED`.
+- `gcrts.xa_decoder_verify.DecoderConfidence` -- how sure this project
+  is that the *decoded audio content* is correct: `UNVERIFIED` <
+  `STRUCTURALLY_VALID` < `REFERENCE_VERIFIED` (matches an independent
+  decoder exactly -- the current state, see `XA_DECODER_VERIFICATION.md`)
+  < `PERCEPTUALLY_VERIFIED` < `REFERENCE_AND_PERCEPTUALLY_VERIFIED`.
+  Exposed on every `AudioAsset` as `decode_confidence`.
 
 Every `AudioAsset`/`AudioAssetResolution` carries its own confidence and
 a human-readable `evidence` string -- never presented as a bare boolean.
@@ -120,6 +160,9 @@ Per its own explicit scope: no injection/replacement, no time
 stretching, no recording UI, no subtitle rendering, no bulk
 `Extract All Audio` workflow, no full Audio Inspector UI. The data
 model above is built so those can be added later without re-deriving
-the physical format -- see `XAPACK_FORMAT.md`'s "Next milestone"
-section for the one recommended next step (perceptual/reference-decoder
-verification of the ADPCM decode itself).
+the physical format. A follow-up milestone
+(`XA_DECODER_VERIFICATION.md`) has since closed the one remaining
+correctness gap this doc originally pointed to (reference-decoder
+verification of the ADPCM decode) -- the decoder is now
+`REFERENCE_VERIFIED`; only perceptual (by-ear) confirmation remains
+open.

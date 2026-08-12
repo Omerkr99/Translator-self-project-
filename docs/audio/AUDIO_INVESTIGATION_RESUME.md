@@ -118,6 +118,23 @@ it exists specifically so a fresh session doesn't have to.
   itself is high-confidence, but its exact nibble-interleave layout is
   NOT perceptually verified (no audio playback in this environment) --
   see "The actual next task" below.
+- **RESOLVED — the ADPCM decode itself, against an independent
+  reference** (`XA_DECODER_VERIFICATION.md`, `gcrts.xa_decoder_verify`):
+  got a real reference decoder locally (FFmpeg via the `imageio-ffmpeg`
+  PyPI package -- an independent binary, no code from this project).
+  First comparison: only 1.44% of samples matched, exposing two real
+  bugs (wrong header byte offsets, wrong nibble-to-channel assignment)
+  found by reading FFmpeg's own open-source `adpcm_xa` decoder
+  directly. After fixing both (plus a third bug found via multi-asset
+  testing: mono streams weren't handled at all), re-comparison produced
+  **100.0000% exact sample match, zero mismatches**, across 5 real
+  assets spanning 3 packs, both stereo and mono.
+  `decoder_verification_status()` → `REFERENCE_VERIFIED`. Every
+  `AudioAsset` now exposes `decode_confidence`/`decode_supported`, and
+  a safe playback/export backend exists
+  (`gcrts.audio_asset_resolver.decode_audio_asset`/
+  `export_audio_asset_wav`). Only perceptual (by-ear) confirmation
+  remains open — no audio playback is available in this environment.
 
 ## Environment setup (do this first, every time)
 
@@ -174,30 +191,18 @@ it exists specifically so a fresh session doesn't have to.
 
 ## The actual next task
 
-The stream-format question itself is now resolved
-(`classify_stream_format()` → `XA_ADPCM`, see `XAPACK_FORMAT.md`) via
-static/offline disc analysis, exactly the direction this doc previously
-recommended. What's left is narrower and concrete: **get a real
-listening or reference-decoder verification of
-`gcrts.xapack.decode_channel_to_pcm`'s output.**
-
-The decode's core sample math (5-filter-pair PSX ADPCM, identical to
-SPU voice ADPCM) is high-confidence, and the implementation passed a
-strong structural self-test (correct sample count matching the SPU
-Debug window's own independently-observed `Samples: 2016` constant, no
-clipping/saturation, non-degenerate variance, a speech-plausible
-rise/sustain/decay energy envelope ending in near-silence exactly at
-the stream's own EOF marker). But the exact sound-group nibble/byte
-interleave layout was implemented from the most commonly cited public
-CD-XA documentation, not independently verified against a reference
-decoder or by ear — no audio playback was possible in this environment.
-Concretely: extract and decode a known channel (e.g.
-`XAPACK08.BIN` channel 7, the confirmed dialogue cue) to WAV, and either
-play it back for a human listener or diff it against an established
-open-source XA-ADPCM decoder (e.g. `vgmstream`/`ffmpeg`, if available)
-to confirm the interleave choice was correct. Resolving this once
-upgrades confidence for every asset at once, rather than needing a
-per-asset re-check.
+Both the stream-format question (`classify_stream_format()` →
+`XA_ADPCM`) and the decoder-correctness question
+(`decoder_verification_status()` → `REFERENCE_VERIFIED`, see
+`XA_DECODER_VERIFICATION.md`) are now resolved via static/offline disc
+analysis and independent reference-decoder comparison. What's left is
+narrower: **get a human to actually listen to the exported golden WAV**
+(`XAPACK08:7`, export via
+`gcrts.audio_asset_resolver.export_audio_asset_wav`) and confirm it
+sounds like correct, intelligible dialogue. This is the one remaining
+step to `DecoderConfidence.REFERENCE_AND_PERCEPTUALLY_VERIFIED` — no
+audio playback capability exists in this environment, so this needs a
+human with speakers/headphones, not another automated pass.
 
 A secondary, smaller follow-up: this pass's Phase 9-11 (static code
 search for the game's own XAPACK-consuming functions, to
@@ -265,3 +270,17 @@ human physically present to trigger dialogue and confirm what's heard.
   better-timed capture will show a change — two independent 60-frame
   captures, one with a trigger pinned to a precise 9-10s mark, both
   showed zero correlation. That specific live signal is closed too.
+- Don't re-guess the XA-ADPCM sound-group nibble/header layout from
+  public documentation summaries again — it was tried once, produced
+  only 1.44% agreement with a real reference decoder, and the actual
+  correct layout (header bytes at offset 4-11, not 0-3; low/high
+  nibble = Left/Right at the same time position, not two sequential
+  samples of one unit) is now known and verified 100.0000% exact
+  against FFmpeg's independent `adpcm_xa` decoder. If a decoder bug is
+  ever suspected again, start from `gcrts.xa_decoder_verify` and a
+  fresh FFmpeg comparison, not from re-reading the public spec.
+- Don't skip mono when testing decoder changes — it's a real, confirmed
+  format variant on this disc (`XAPACK42.BIN` channel 6), not a
+  hypothetical edge case, and it broke silently (returned garbage, not
+  an error) until a multi-asset verification pass specifically
+  included it.

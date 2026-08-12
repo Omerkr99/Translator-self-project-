@@ -1,6 +1,8 @@
 from gcrts.audio_asset_resolver import (
     ResolutionConfidence,
     build_full_disc_asset_index,
+    decode_audio_asset,
+    export_audio_asset_wav,
     find_asset_by_id,
     find_duplicate_assets,
     load_asset_index,
@@ -8,7 +10,15 @@ from gcrts.audio_asset_resolver import (
     resolve_from_script_audio_association,
     save_asset_index,
 )
-from gcrts.xapack import AUDIO_EOF_SUBMODE, AUDIO_SUBMODE, AudioAsset, StreamConfidence, format_from_coding_info
+from gcrts.xa_decoder_verify import DecoderConfidence
+from gcrts.xapack import (
+    AUDIO_EOF_SUBMODE,
+    AUDIO_SUBMODE,
+    SAMPLES_PER_CHANNEL_PER_SECTOR,
+    AudioAsset,
+    StreamConfidence,
+    format_from_coding_info,
+)
 
 SYNC = b"\x00" + b"\xff" * 10 + b"\x00"
 SECTOR_SIZE = 2352
@@ -175,3 +185,44 @@ def test_build_full_disc_asset_index_smoke_test_on_undersized_disc():
     pack_bytes = _build_synthetic_pack({ch: 5 for ch in range(8)})
     index = build_full_disc_asset_index(pack_bytes)
     assert index == []
+
+
+# --- decode_audio_asset / export_audio_asset_wav (Phase 21 playback backend) ---
+
+
+def test_decode_audio_asset_matches_structural_sample_count():
+    disc, pack_start = _disc_with_synthetic_pack_at_real_lba("DAT/XA1/XAPACK00.BIN", {ch: 6 for ch in range(8)})
+    resolution = resolve_audio_asset(disc, pack_start + 3)
+    asset = resolution.asset
+    assert asset is not None
+    assert asset.decode_confidence == DecoderConfidence.REFERENCE_VERIFIED
+    assert asset.decode_supported is True
+
+    sr, channels, pcm = decode_audio_asset(disc, asset)
+    assert sr == 37800
+    assert channels == 2
+    assert len(pcm) // 2 == asset.pcm_sample_count  # 2 bytes/sample (16-bit)
+
+
+def test_decode_audio_asset_raises_for_asset_with_no_real_pack():
+    fmt = format_from_coding_info(1)
+    fake_asset = AudioAsset("DAT/XA1/NOPE.BIN", 0, 10, 20, 5, fmt, 1.0, StreamConfidence.CANDIDATE)
+    import pytest
+
+    with pytest.raises(ValueError):
+        decode_audio_asset(b"", fake_asset)
+
+
+def test_export_audio_asset_wav_writes_a_valid_wav(tmp_path):
+    disc, pack_start = _disc_with_synthetic_pack_at_real_lba("DAT/XA1/XAPACK00.BIN", {ch: 6 for ch in range(8)})
+    resolution = resolve_audio_asset(disc, pack_start + 3)
+    asset = resolution.asset
+
+    out_path = str(tmp_path / "asset.wav")
+    export_audio_asset_wav(disc, asset, out_path)
+
+    import wave
+    with wave.open(out_path, "rb") as w:
+        assert w.getframerate() == 37800
+        assert w.getnchannels() == 2
+        assert w.getnframes() == asset.pcm_sample_count // 2

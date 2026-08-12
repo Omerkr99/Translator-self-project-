@@ -81,35 +81,29 @@ holds -- see `classify_pack_format()`. This is a physical-sector-level
 finding, independent of (and now explaining) the SPU Debug window's
 static XA panel reading from the prior milestone.
 
-## The ADPCM decoder: an honest confidence breakdown
+## The ADPCM decoder: reference-verified
 
-`decode_channel_to_pcm()` implements the standard, extremely
-well-documented PSX ADPCM sample formula (5 filter coefficient pairs,
-4-bit signed nibble + adaptive shift/range, running 2-sample history per
-sound unit) -- this part is implemented with high confidence; it is the
-same core math used for SPU voice ADPCM and is consistent across every
-public reference this project's author is aware of.
+`decode_channel_to_pcm()` implements the standard PSX ADPCM sample
+formula (5 filter coefficient pairs, 4-bit signed nibble + adaptive
+shift/range) -- the same core math used for SPU voice ADPCM. The
+nibble/header layout was reverse-engineered against FFmpeg's
+independent, open-source `adpcm_xa` decoder
+(`libavcodec/adpcm.c`'s `xa_decode`) and verified sample-for-sample
+identical (100.0000%, zero mismatches) across 5 real assets spanning 3
+packs, both stereo and mono -- see
+`docs/audio/XA_DECODER_VERIFICATION.md` for the full account,
+including two real layout bugs an earlier version of this module had
+(wrong header byte offsets, wrong nibble-to-channel assignment) and a
+mono-handling bug found via multi-asset testing, all now fixed.
+`gcrts.xa_decoder_verify.decoder_verification_status()` ->
+`REFERENCE_VERIFIED`.
 
-The one genuinely **unverified** piece is the exact byte/nibble layout
-used to pack 4 interleaved "sound units" into each 128-byte sound group
-(which of two structurally-plausible orderings the real encoder uses).
-This implementation uses the ordering described in the most commonly
-cited public CD-XA documentation (4 header bytes then 112 data bytes
-arranged as 28 rows of 4 bytes, one byte per sound unit per row, low/high
-nibble = two consecutive samples for that unit) and cross-checks
-correctly against an independent constant: decoding one whole sector
-this way produces exactly **2016 samples per channel** -- the same
-number the SPU Debug window's own `Samples` field reported (see
-`AUDIO_TRANSPORT_PATH.md`), an independent structural agreement this
-implementation was not fitted to on purpose.
-
-**What is NOT verified**: whether this is genuinely audible, correct
-speech when played back. No audio playback or listening verification was
-possible in this environment. Treat decoded WAV output as
-"structurally self-consistent, sample-count-correct, not yet
-perceptually verified" -- a real, honestly-flagged gap, not a silent
-assumption. See `docs/audio/XAPACK_FORMAT.md`'s "Remaining blocker
-before Fandub replacement" section.
+**What is NOT verified**: perceptual (by-ear) correctness -- no audio
+playback capability exists in this environment. Reference-decoder
+agreement is standard, accepted practice for validating a decoder
+implementation, but it is a different claim than a human confirming
+the audio sounds correct; see `XA_DECODER_VERIFICATION.md`'s own
+"Perceptual verification" section.
 """
 from __future__ import annotations
 
@@ -119,6 +113,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from gcrts.audio_event_extraction import extract_runtime_audio_event
+from gcrts.xa_decoder_verify import DecoderConfidence
+from gcrts.xa_decoder_verify import decoder_verification_status as _decoder_verification_status
 from gcrts.xa_disc_index import read_sector_meta
 from gcrts.xapack_catalog import XaPackCatalogEntry
 
@@ -414,6 +410,8 @@ class AudioAsset:
     duration_seconds: float
     confidence: StreamConfidence
     content_sha256: str | None = None  # filled in only once the raw bytes have actually been read, see fingerprint_stream
+    decode_supported: bool = True
+    decode_confidence: DecoderConfidence = field(default_factory=_decoder_verification_status)
 
     @property
     def asset_id(self) -> str:
@@ -422,6 +420,15 @@ class AudioAsset:
         structure (see module docstring)."""
         filename = self.pack_path.rsplit("/", 1)[1].split(".")[0]
         return f"{filename}:{self.channel_number}"
+
+    @property
+    def pcm_sample_count(self) -> int:
+        """Total decoded sample VALUES (all channels combined) --
+        computed structurally from sector_count, no decode needed.
+        4032/sector either way: stereo is 2016/channel x 2 channels;
+        mono has no L/R split but doubles per-channel capacity to the
+        same total (see gcrts.xapack's decode_xa_sector_payload)."""
+        return self.sector_count * SAMPLES_PER_CHANNEL_PER_SECTOR * 2
 
     def to_dict(self) -> dict:
         return {
@@ -437,6 +444,9 @@ class AudioAsset:
             "duration_seconds": self.duration_seconds,
             "confidence": self.confidence.value,
             "content_sha256": self.content_sha256,
+            "decode_supported": self.decode_supported,
+            "decode_confidence": self.decode_confidence.value,
+            "pcm_sample_count": self.pcm_sample_count,
         }
 
 
@@ -515,75 +525,119 @@ def _clamp16(value: int) -> int:
     return max(-32768, min(32767, value))
 
 
-def _decode_unit_nibbles(nibbles: list[int], shift: int, filt: int, hist1: int, hist2: int) -> tuple[list[int], int, int]:
-    eff_shift = shift if shift <= 12 else 9  # documented quirk: reserved range values 13-15 behave like 9
-    k0 = _FILTER_K0[filt] if filt < len(_FILTER_K0) else 0
-    k1 = _FILTER_K1[filt] if filt < len(_FILTER_K1) else 0
+def _sign_extend_nibble(nibble: int) -> int:
+    return nibble if nibble < 8 else nibble - 16
+
+
+def _decode_half_block(data: bytes, unit_index: int, high_nibble: bool, shift: int, filt: int, hist1: int, hist2: int) -> tuple[list[int], int, int]:
+    """28 sequential samples for one (iteration, nibble-half) block --
+    the low-nibble half and high-nibble half are each fully sequential
+    within themselves (per FFmpeg's own `xa_decode`), never
+    interleaved sample-by-sample with each other."""
+    f0 = _FILTER_K0[filt] if filt < len(_FILTER_K0) else 0
+    f1 = _FILTER_K1[filt] if filt < len(_FILTER_K1) else 0
     out: list[int] = []
-    for nibble in nibbles:
-        signed = nibble if nibble < 8 else nibble - 16
-        raw = (signed << 12) >> eff_shift
-        pred = (hist1 * k0 + hist2 * k1 + 32) >> 6
-        sample = _clamp16(raw + pred)
+    for row in range(28):
+        d = data[unit_index + row * 4]
+        nibble = (d >> 4) & 0x0F if high_nibble else d & 0x0F
+        t = _sign_extend_nibble(nibble)
+        s = t * (1 << shift) + ((hist1 * f0 + hist2 * f1 + 32) >> 6)
+        s = _clamp16(s)
         hist2 = hist1
-        hist1 = sample
-        out.append(sample)
+        hist1 = s
+        out.append(s)
     return out, hist1, hist2
 
 
-def decode_xa_sector_payload(payload: bytes, state: XaDecoderState) -> tuple[list[int], list[int]]:
-    """Decode one Form2/XA sector's 2304-byte payload into (left,
-    right) 16-bit PCM sample lists, `SAMPLES_PER_CHANNEL_PER_SECTOR`
-    (2016) samples each. Mutates `state` in place (the running ADPCM
-    history), matching a real streaming decode -- see module docstring
-    for the confidence breakdown on the exact nibble layout used."""
+def decode_xa_sector_payload(payload: bytes, state: XaDecoderState, stereo: bool = True) -> tuple[list[int], list[int]]:
+    """Decode one Form2/XA sector's 2304-byte payload. For stereo,
+    returns (left, right) 16-bit PCM sample lists,
+    `SAMPLES_PER_CHANNEL_PER_SECTOR` (2016) samples each. For mono,
+    returns (mono_samples, []) with 4032 samples (mono has no L/R
+    split, so all 4 iterations' both nibble-halves feed one continuous
+    stream). Mutates `state` in place (the running ADPCM history),
+    matching a real streaming decode.
+
+    This layout was reverse-engineered against FFmpeg's independent,
+    open-source `adpcm_xa` decoder (`libavcodec/adpcm.c`'s `xa_decode`)
+    -- not guessed. Two things this project's own earlier attempt got
+    wrong, found by that comparison:
+
+    1. The 4 header-pair bytes actually used are at group offset
+       `4-11` (8 bytes: 4 `(low-nibble-header, high-nibble-header)`
+       pairs, one pair per iteration), NOT offset `0-3` -- offset
+       `0-3` and `12-15` hold redundant copies real hardware doesn't
+       need to read.
+    2. Each iteration's 28 data bytes (`data[i + row*4]` for
+       row=0..27) are decoded in **two separate sequential passes**,
+       not interleaved nibble-by-nibble: all 28 low nibbles first
+       (one history chain), then all 28 high nibbles (for stereo, a
+       SEPARATE history chain -- Left and Right; for mono, the SAME
+       chain, continuing where the low-nibble pass left off, appended
+       to the same output stream). Originally assumed to be one
+       "sound unit" producing 56 sequential same-channel samples;
+       actually two independent 28-sample blocks feeding potentially
+       different channels/chains.
+
+    Verified sample-for-sample identical (100.0000%) against FFmpeg's
+    decode of the same real disc bytes across multiple real assets,
+    both stereo and mono -- see `docs/audio/XA_DECODER_VERIFICATION.md`.
+    """
     if len(payload) < XA_ADPCM_PAYLOAD_SIZE:
         raise ValueError(f"XA payload too short: {len(payload)} < {XA_ADPCM_PAYLOAD_SIZE}")
 
     left: list[int] = []
     right: list[int] = []
+    l_hist1, l_hist2 = state.hist1[0], state.hist2[0]
+    r_hist1, r_hist2 = state.hist1[1], state.hist2[1]
+
     for g in range(GROUPS_PER_SECTOR):
         group = payload[g * GROUP_SIZE:(g + 1) * GROUP_SIZE]
-        headers = group[0:4]
         data = group[16:128]
 
-        unit_samples: list[list[int]] = [[] for _ in range(UNITS_PER_GROUP)]
-        for unit in range(UNITS_PER_GROUP):
-            header = headers[unit]
-            shift = header & 0x0F
-            filt = (header >> 4) & 0x0F
-            nibbles: list[int] = []
-            for row in range(28):
-                b = data[row * 4 + unit]
-                nibbles.append(b & 0x0F)
-                nibbles.append((b >> 4) & 0x0F)
-            samples, h1, h2 = _decode_unit_nibbles(nibbles, shift, filt, state.hist1[unit], state.hist2[unit])
-            state.hist1[unit] = h1
-            state.hist2[unit] = h2
-            unit_samples[unit] = samples
+        for i in range(4):
+            header_a = group[4 + i * 2]
+            header_b = group[5 + i * 2]
+            shift_a = max(0, 12 - (header_a & 0x0F))
+            filter_a = header_a >> 4
+            shift_b = max(0, 12 - (header_b & 0x0F))
+            filter_b = header_b >> 4
 
-        # units {0,2} -> Left, units {1,3} -> Right, each pair concatenated
-        # in unit order (see module docstring's honesty note on this choice)
-        left.extend(unit_samples[0])
-        left.extend(unit_samples[2])
-        right.extend(unit_samples[1])
-        right.extend(unit_samples[3])
+            block_a, l_hist1, l_hist2 = _decode_half_block(data, i, False, shift_a, filter_a, l_hist1, l_hist2)
+            left.extend(block_a)
 
+            if stereo:
+                block_b, r_hist1, r_hist2 = _decode_half_block(data, i, True, shift_b, filter_b, r_hist1, r_hist2)
+                right.extend(block_b)
+            else:
+                block_b, l_hist1, l_hist2 = _decode_half_block(data, i, True, shift_b, filter_b, l_hist1, l_hist2)
+                left.extend(block_b)
+
+    state.hist1[0], state.hist2[0] = l_hist1, l_hist2
+    state.hist1[1], state.hist2[1] = r_hist1, r_hist2
     return left, right
 
 
 def decode_channel_to_pcm(disc_bytes: bytes, stream: XaChannelStream) -> tuple[int, int, bytes]:
-    """Decode a whole channel stream to interleaved 16-bit PCM.
-    Returns (sample_rate_hz, channel_count, pcm_bytes). Channel count
-    is always 2 on this disc (every real sector found is stereo)."""
+    """Decode a whole channel stream to 16-bit PCM (interleaved L/R
+    for stereo, one sample per frame for mono). Returns
+    (sample_rate_hz, channel_count, pcm_bytes). Almost every real
+    stream on this disc is stereo; a real, confirmed mono exception
+    exists (`XAPACK42.BIN` channel 6, a short SFX clip) -- both are
+    handled correctly, per `stream.format.stereo`."""
     raw = extract_channel_raw(disc_bytes, stream)
+    stereo = stream.format.stereo
     state = XaDecoderState()
     pcm = bytearray()
     for offset in range(0, len(raw) - XA_ADPCM_PAYLOAD_SIZE + 1, XA_ADPCM_PAYLOAD_SIZE):
         payload = raw[offset:offset + XA_ADPCM_PAYLOAD_SIZE]
-        left, right = decode_xa_sector_payload(payload, state)
-        for l_sample, r_sample in zip(left, right):
-            pcm += struct.pack("<hh", l_sample, r_sample)
+        left, right = decode_xa_sector_payload(payload, state, stereo=stereo)
+        if stereo:
+            for l_sample, r_sample in zip(left, right):
+                pcm += struct.pack("<hh", l_sample, r_sample)
+        else:
+            for sample in left:
+                pcm += struct.pack("<h", sample)
     return stream.format.sample_rate_hz, stream.format.channel_count, bytes(pcm)
 
 
