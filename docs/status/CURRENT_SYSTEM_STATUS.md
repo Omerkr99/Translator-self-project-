@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 612 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
+- **Test count**: 619 passed, 0 failed (`py -m pytest tests/ -q`), ~18s.
   84 modules in `gcrts/`, 65 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -214,8 +214,24 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   Input, bypassing system DMA entirely. `TransportPath`/`StreamFormat`
   are now separate enums: `classify_transport_path()` →
   `DIRECT_HARDWARE_AUDIO_BUS`, `classify_stream_format()` → `UNKNOWN`
-  (still open). Next direction: inspect SPU-internal RAM content
-  directly during a confirmed voice line.
+  (still open).
+  **Follow-up**: tried to inspect SPU-internal RAM directly per the
+  above's own next direction. Four avenues checked and closed — GUI
+  Memory Editor windows (no memory-space selector), the native SPU
+  Debug window (exactly 3 sections, no raw memory view), PCSX-Redux's
+  documented Lua API (`getMemPtr`/`getParPtr`/`getRomPtr`/
+  `getScratchPtr`/`getRegisters`/`getReadLUT` — none reach SPU RAM),
+  and GDB's own SPU MMIO path (already unreliable on both address
+  segments, closing the real-hardware-protocol fallback too).
+  `spu_internal_ram_directly_inspectable()` → `False` — a confirmed
+  tooling limitation. As a substitute, watched the SPU Debug window's
+  own live `XA` panel (Frequency/Stereo/Samples/Volume L/R) across two
+  60-frame captures, one with a trigger pinned to a precise 9-10s
+  mark — every frame showed byte-identical values, zero correlation.
+  `spu_debug_xa_panel_changed_during_confirmed_voice_line()` →
+  `False`. Next direction: static/offline analysis (disassemble the
+  actual decode routine, or inspect raw XAPACK sector bytes) rather
+  than further live capture.
 
 ## Key current distinctions (do not lose these)
 
@@ -591,7 +607,14 @@ first non-`UNKNOWN` result this whole chain has produced. Finally,
 involves zero DMA activity on the CD-ROM or SPU channels, pointing to
 a direct hardware audio bus bypassing system DMA — `TransportPath` and
 `StreamFormat` are now modeled as separate concepts, transport
-reasonably understood, format still `UNKNOWN`.
+reasonably understood, format still `UNKNOWN`. Its own follow-up
+section then closed the SPU-internal-RAM-inspection question as a
+confirmed tooling limitation (GUI, Lua API, and GDB all checked and
+exhausted) and separately ruled out the SPU Debug window's own live
+`XA` panel as a dialogue-correlated signal via two precisely-timed
+live captures — format remains `UNKNOWN`, with the recommended next
+direction now static/offline analysis rather than further live
+capture.
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal

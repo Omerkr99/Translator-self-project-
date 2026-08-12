@@ -309,6 +309,102 @@ enum, per this milestone's own instruction -- the transport question
 (how does the data physically move) is now reasonably well-understood;
 the format question (is it really XA-ADPCM, and if so how is it
 decoded) remains genuinely open.
+
+## Follow-up: SPU-internal RAM inspection -- a confirmed tooling blocker
+
+The previous milestone's own "next task" was to find a way to inspect
+the PS1 SPU's internal 512KB sound RAM directly (distinct from its
+MMIO-mapped control registers, already covered above). Every avenue
+this project has access to was checked and closed:
+
+- **PCSX-Redux's GUI Memory Editor windows** (the 8 generic "Memory
+  Editor #1"-"#8" slots, plus the named presets for Parallel Port,
+  Scratch Pad, Hardware Registers, BIOS, and VRAM): none offer a
+  memory-space/buffer selector. The "Options" dropdown on a Memory
+  Editor window is display formatting only (column count, hex casing,
+  ASCII panel toggle, zero-greying) -- confirmed live via screenshot.
+  There is no SPU RAM preset among the named editors.
+- **The native "SPU Debug" window itself**: its full layout is exactly
+  three collapsible sections -- `SPU` (IRQ/CTRL/STAT/MEM),
+  `XA` (Frequency/Stereo/Samples/Volume L/R), and `Channels` (per-voice
+  On/Off/Mute/Solo/waveform/frequency/position) -- confirmed via a
+  full-window screenshot. No raw memory/hex byte view exists anywhere
+  in it.
+- **PCSX-Redux's documented Lua scripting API**
+  (`pcsx-redux.consoledev.net/Lua/{memory-and-registers,redux-basics,
+  introduction,case-studies,libraries}`, fetched and checked directly):
+  the documented memory accessors are `PCSX.getMemPtr()` (up to 8MB
+  main RAM), `PCSX.getParPtr()` (EXP1/parallel port), `PCSX.getRomPtr()`
+  (BIOS), `PCSX.getScratchPtr()` (1kB scratchpad), `PCSX.getRegisters()`
+  (CPU registers), and `PCSX.getReadLUT()` (the CPU's read
+  lookup table) -- none of these reach SPU RAM. The only SPU-adjacent
+  Lua functions found (`Adpcm:processSPUBlock()`/`:finishSPU()`) are an
+  **offline ADPCM encoder utility** for authoring sample data, unrelated
+  to reading live emulator state.
+- **GDB's own SPU MMIO read/write path**: already independently
+  confirmed unreliable (stuck-zero readback on a debug-issued write)
+  on *both* the direct KUSEG address (`0x1F801D80`) and the KSEG1
+  uncached mirror (`0xBF801D80`) -- see the SPU MMIO section above.
+  This closes the one remaining theoretical route too: manually driving
+  the real-hardware Sound RAM Data Transfer Address/FIFO protocol
+  (`0x1F801DA6`/`0x1F801DA8`) to read SPU RAM the way real hardware
+  does would itself require a working SPU register write path, which
+  this project's GDB channel does not have.
+
+**Conclusion: SPU-internal RAM content is not inspectable through any
+tool available to this project** (GUI, Lua scripting, or GDB). This is
+recorded as a genuine tooling limitation, not a game-behavior fact --
+see `spu_internal_ram_directly_inspectable()` below.
+
+## Follow-up: the SPU Debug window's own XA panel does not correlate with dialogue either
+
+While confirming the RAM-inspection dead end, the SPU Debug window's
+`XA` section (Frequency/Stereo/Samples/Volume L/R) stood out as a
+field this project had not previously captured in detail -- a
+screenshot taken during active gameplay showed `Frequency: 37800`, one
+of the PS1's two standard XA-ADPCM sample rates, alongside `Stereo: 1`
+and non-zero `Samples`/`Volume` fields. This looked like a promising
+direct format signal, worth testing before concluding.
+
+Two independent live burst captures were run (60 frames at ~1fps each,
+screenshotting the "SPU Debug" window, with a self-resuming GDB
+continue loop keeping the emulator genuinely running throughout --
+verified via per-channel `Position/Current` values actively changing
+across frames in both captures):
+
+- **First capture**: save slot 6 loaded (positioned just before a
+  confirmed voice line), 60 frames captured. A user-triggered line was
+  reported to have occurred during this window, but without a specific
+  timestamp. `XA` panel values were byte-identical across all sampled
+  frames (0, 10, 20, 30, 45, 59): `Frequency 37800 / Stereo 1 /
+  Samples 2016 / Volume L 32767 / Volume R 32767`. The `SPU` panel's
+  `MEM` field was likewise static the entire capture at `494288`.
+- **Second capture**: save slot 6 reloaded fresh for a cleanly timed
+  attempt. The user confirmed triggering the voice line **9-10 seconds**
+  into this capture. Frames spanning the full window before, at, and
+  well after that trigger (0, 8, 10, 13, 17, 20, 40-42, 45, 50) were
+  inspected: the `XA` panel values were **again byte-identical across
+  every single frame** in the entire 60-second capture --
+  `Frequency 37800 / Stereo 1 / Samples 2016 / Volume L 32767 /
+  Volume R 32767`, unchanged through the trigger moment and the
+  several seconds after it where the line would have been playing. The
+  `SPU` panel's `MEM` field did change once, from `482580` (frames
+  0-40) to `494288` (frames 42 onward) -- but that transition lands
+  ~30 seconds after the reported 9-10s trigger, and `494288` is the
+  same value the *entire first capture* sat at regardless of any
+  trigger, making a generic post-load settling artifact the more
+  plausible explanation than a dialogue-driven event.
+
+**Conclusion**: the SPU Debug window's live `XA` panel and `MEM`
+field -- despite showing a real, non-zero, standard-XA-ADPCM-rate
+`Frequency` value at all times -- do not visibly react to a confirmed,
+precisely-timed voice-line trigger. This is consistent with (not
+contradicting) the standing finding that dialogue bypasses the
+instrumented parts of the SPU pipeline entirely: whatever plays it
+does not move the needle on any field this debugger window exposes,
+reinforcing rather than resolving the "format still unknown"
+conclusion. See `spu_debug_xa_panel_changed_during_confirmed_voice_line()`
+below.
 """
 from __future__ import annotations
 
@@ -735,3 +831,127 @@ def classify_stream_format() -> StreamFormat:
     this UNKNOWN until the format itself, not just the routing, is
     directly observed."""
     return StreamFormat.UNKNOWN
+
+
+# The avenues checked (and closed) while looking for a way to inspect
+# the SPU's internal 512KB sound RAM content, distinct from its MMIO
+# control registers. Each is a real, confirmed dead end -- see the
+# module docstring's "SPU-internal RAM inspection" section for detail.
+SPU_RAM_INSPECTION_AVENUES_CHECKED = (
+    "PCSX-Redux GUI Memory Editors (#1-8 generic slots + Parallel Port/"
+    "Scratch Pad/Hardware Registers/BIOS/VRAM presets): no memory-space "
+    "selector; 'Options' menu is display formatting only.",
+    "Native 'SPU Debug' window: exactly 3 sections (SPU/XA/Channels), "
+    "no raw memory/hex view.",
+    "PCSX-Redux documented Lua API (getMemPtr/getParPtr/getRomPtr/"
+    "getScratchPtr/getRegisters/getReadLUT): none reach SPU RAM; the "
+    "only SPU-adjacent Lua functions are an offline ADPCM encoder "
+    "utility (Adpcm:processSPUBlock/:finishSPU), unrelated to reading "
+    "live emulator state.",
+    "GDB SPU MMIO read/write path (both KUSEG 0x1F801xxx and KSEG1 "
+    "0xBF801xxx): already confirmed stuck-zero/unreliable, which also "
+    "closes simulating the real-hardware Sound RAM Data Transfer "
+    "Address/FIFO protocol (0x1F801DA6/0x1F801DA8) as a fallback.",
+)
+
+
+def spu_internal_ram_directly_inspectable() -> bool:
+    """False: every avenue this project has access to (GUI Memory
+    Editors, the native SPU Debug window, PCSX-Redux's documented Lua
+    scripting API, and GDB's own SPU-register read/write path) was
+    checked and found not to expose the SPU's internal 512KB sound RAM
+    content. This is a genuine, confirmed tooling limitation -- see
+    SPU_RAM_INSPECTION_AVENUES_CHECKED for the specific dead ends."""
+    return False
+
+
+@dataclass(frozen=True)
+class XaPanelSample:
+    capture_id: str
+    frame_index: int
+    seconds_offset: float
+    mem: str
+    frequency: int
+    stereo: int
+    samples: int
+    volume_l: int
+    volume_r: int
+    note: str
+
+
+# Real values transcribed from two independent 60-frame (~1fps) live
+# captures of PCSX-Redux's native "SPU Debug" window, each with a
+# self-resuming GDB continue loop keeping the emulator genuinely
+# running throughout (verified via per-channel Position/Current values
+# actively changing across frames in both captures).
+XA_PANEL_OBSERVATIONS: tuple[XaPanelSample, ...] = (
+    XaPanelSample(
+        "m37", 0, 0.0, "494288", 37800, 1, 2016, 32767, 32767,
+        "Baseline frame; save slot 6 just loaded. A user-triggered voice "
+        "line was reported during this capture, but without a specific timestamp.",
+    ),
+    XaPanelSample(
+        "m37", 30, 30.0, "494288", 37800, 1, 2016, 32767, 32767,
+        "Mid-capture; byte-identical to frame 0 despite real channel "
+        "activity (genuine execution confirmed via changing Position/Current values).",
+    ),
+    XaPanelSample(
+        "m37", 59, 59.0, "494288", 37800, 1, 2016, 32767, 32767,
+        "Final frame; still byte-identical to frame 0.",
+    ),
+    XaPanelSample(
+        "m38", 0, 0.0, "482580", 37800, 1, 2016, 32767, 32767,
+        "Baseline frame; save slot 6 freshly reloaded for a cleanly timed re-attempt.",
+    ),
+    XaPanelSample(
+        "m38", 8, 8.0, "482580", 37800, 1, 2016, 32767, 32767,
+        "Immediately before the user's reported 9-10s trigger point.",
+    ),
+    XaPanelSample(
+        "m38", 10, 10.0, "482580", 37800, 1, 2016, 32767, 32767,
+        "At the user's reported trigger point -- XA panel unchanged.",
+    ),
+    XaPanelSample(
+        "m38", 13, 13.0, "482580", 37800, 1, 2016, 32767, 32767,
+        "A few seconds into the expected voice-line duration -- still unchanged.",
+    ),
+    XaPanelSample(
+        "m38", 17, 17.0, "482580", 37800, 1, 2016, 32767, 32767,
+        "Well after the line should have finished -- still unchanged.",
+    ),
+    XaPanelSample(
+        "m38", 42, 42.0, "494288", 37800, 1, 2016, 32767, 32767,
+        "MEM shifted here (482580 -> 494288), ~30s after the reported "
+        "trigger -- too late to be the trigger's effect, and 494288 is "
+        "the same value the entire first (m37) capture sat at regardless "
+        "of any trigger, consistent with a generic post-load settling "
+        "artifact rather than a dialogue-driven event.",
+    ),
+    XaPanelSample(
+        "m38", 50, 50.0, "494288", 37800, 1, 2016, 32767, 32767,
+        "Late frame; XA panel still unchanged from frame 0.",
+    ),
+)
+
+
+def spu_debug_xa_panel_changed_during_confirmed_voice_line() -> bool:
+    """False: across two independent 60-frame live captures of the SPU
+    Debug window's XA panel (Frequency/Stereo/Samples/Volume L/R) --
+    including one with a precisely user-confirmed trigger at 9-10
+    seconds into the capture -- every single sampled frame showed
+    byte-identical XA panel values. The one MEM field change observed
+    (in the second capture, ~30s after the trigger) does not correlate
+    with the trigger timing. Consistent with, not contradicting, the
+    standing finding that dialogue bypasses the instrumented parts of
+    the SPU pipeline entirely."""
+    return any(
+        (s.frequency, s.stereo, s.samples, s.volume_l, s.volume_r)
+        != (
+            XA_PANEL_OBSERVATIONS[0].frequency,
+            XA_PANEL_OBSERVATIONS[0].stereo,
+            XA_PANEL_OBSERVATIONS[0].samples,
+            XA_PANEL_OBSERVATIONS[0].volume_l,
+            XA_PANEL_OBSERVATIONS[0].volume_r,
+        )
+        for s in XA_PANEL_OBSERVATIONS
+    )

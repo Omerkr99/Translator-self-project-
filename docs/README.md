@@ -50,8 +50,11 @@ voices; a DMA investigation via PCSX-Redux's native HW Registers
 window then found zero CD-ROM/SPU DMA activity during a confirmed
 voice line, pointing to a direct hardware audio bus bypassing system
 DMA — transport and stream format are now modeled as separate
-concepts) → `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up
-here" page for the next session).
+concepts; a follow-up pass then confirmed SPU-internal RAM inspection
+is a genuine tooling blocker across GUI/Lua/GDB, and ruled out the SPU
+Debug window's own live XA panel as a dialogue-correlated signal via
+two precisely-timed live captures) → `AUDIO_INVESTIGATION_RESUME.md`
+(the actionable "pick up here" page for the next session).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

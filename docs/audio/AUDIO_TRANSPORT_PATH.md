@@ -54,10 +54,34 @@ capture is the one reported above.
 
 ## SPU RAM behavior
 
-Not directly inspected this pass — the PS1 SPU's internal 512KB RAM is
-not part of the CPU's normal address space and isn't reachable through
-either the (already-unreliable) GDB MMIO path or the HW Registers
-window. Left open; see Next milestone.
+**Resolved (follow-up pass): not inspectable through any tool this
+project has access to.** Four avenues were checked and closed: the GUI
+Memory Editor windows (no memory-space selector, confirmed via
+screenshot — the "Options" menu is display formatting only), the
+native "SPU Debug" window itself (exactly 3 sections — SPU/XA/Channels
+— no raw memory/hex view), PCSX-Redux's documented Lua scripting API
+(`getMemPtr`/`getParPtr`/`getRomPtr`/`getScratchPtr`/`getRegisters`/
+`getReadLUT` — none reach SPU RAM; the only SPU-adjacent Lua function
+is an offline ADPCM encoder, unrelated to reading emulator state), and
+GDB's own SPU MMIO path (already confirmed stuck-zero on both KUSEG
+and KSEG1, closing the fallback of manually driving the real-hardware
+Sound RAM Transfer Address/FIFO protocol). See
+`spu_internal_ram_directly_inspectable()` → `False` and
+`SPU_RAM_INSPECTION_AVENUES_CHECKED`.
+
+### Follow-up: the SPU Debug window's own XA panel doesn't correlate either
+
+The SPU Debug window's `XA` section (Frequency/Stereo/Samples/Volume
+L/R) looked like a promising direct format signal — a screenshot
+showed `Frequency: 37800`, one of the PS1's two standard XA-ADPCM
+rates. Two independent 60-frame live captures were run to test it, the
+second with a user-confirmed trigger at a precise 9-10s mark. In both
+captures, every sampled frame (spanning well before, at, and long
+after the trigger) showed byte-identical `XA` panel values. One `MEM`
+field transition was observed in the second capture, but ~30s after
+the trigger — too late to be its effect, and matching the static value
+the entire first capture sat at regardless of any trigger. See
+`spu_debug_xa_panel_changed_during_confirmed_voice_line()` → `False`.
 
 ## CD transfer behavior
 
@@ -131,18 +155,32 @@ suitable for `RuntimeSnapshot`.
 
 ## Tests
 
-**612 passed** (602 baseline + 10 new in `test_spu_audio_path.py`, now
-43 total in that file), no regressions.
+**619 passed** (612 baseline + 7 new in `test_spu_audio_path.py`, now
+50 total in that file), no regressions.
 
-## Remaining blocker
+## Remaining blocker (superseded)
 
-There is no way to inspect the PS1 SPU's internal 512KB RAM directly
+~~There is no way to inspect the PS1 SPU's internal 512KB RAM directly
 through this project's current tooling, which blocks verifying whether
-any decoded-audio buffer exists there at all.
+any decoded-audio buffer exists there at all.~~ Confirmed, not
+resolved: SPU RAM inspection is a genuine tooling limitation (see "SPU
+RAM behavior" above), not a temporary gap — every available avenue
+(GUI, Lua, GDB) was checked and closed. The live-instrumentation
+approach (watching the SPU Debug window's exposed fields during a
+confirmed trigger) was also tried as a substitute and also came back
+negative. The format question (`classify_stream_format()` →
+`UNKNOWN`) remains open, but no further avenue within this project's
+current live-debugging toolkit is known to exist.
 
 ## Next milestone
 
-Find a way to inspect SPU-internal RAM content (not just the
-MMIO-mapped control registers) during a confirmed voice line, to check
-directly for a decoded-sample buffer rather than continuing to infer
-transport from its absence in system DMA.
+Every live-instrumentation and direct-memory-inspection avenue
+available through PCSX-Redux's own tooling (GUI, Lua scripting, GDB)
+has now been tried and closed without resolving the stream-format
+question. The next productive direction is likely **static/offline**
+rather than live: e.g. locating and disassembling the actual CD-ROM
+audio decode routine in the game's own code (if one exists outside the
+SPU's own hardware ADPCM decoder), or searching the disc image itself
+for the XAPACK source data's raw byte structure to check whether its
+headers match the documented XA-ADPCM sector format independent of any
+runtime observation.

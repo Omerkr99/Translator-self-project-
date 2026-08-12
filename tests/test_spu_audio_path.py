@@ -14,8 +14,10 @@ from gcrts.spu_audio_path import (
     SETMODE_CAPTURE_SAMPLE_COUNT,
     SPU_BASE_POINTER_HOLDERS,
     SPU_MMIO_READ_WRITE_ROUNDTRIP_RELIABLE,
+    SPU_RAM_INSPECTION_AVENUES_CHECKED,
     SPUCNT_CD_AUDIO_ENABLE_BIT,
     SPUCNT_WRITER_SITES,
+    XA_PANEL_OBSERVATIONS,
     DmaChannelObservation,
     LiveCorrelationRun,
     ManualMuteExperiment,
@@ -24,6 +26,7 @@ from gcrts.spu_audio_path import (
     SpuWriterSite,
     StreamFormat,
     TransportPath,
+    XaPanelSample,
     all_spu_voices_muted_dialogue_still_audible,
     cd_init_confirmed_live,
     cd_init_gatekeeper_sites_fired_during_confirmed_trigger,
@@ -36,6 +39,8 @@ from gcrts.spu_audio_path import (
     key_on_real_voice_trigger_confirmed_live,
     live_correlation_confirmed_audible_with_zero_known_hits,
     setmode_xa_adpcm_bit_ever_observed_set,
+    spu_debug_xa_panel_changed_during_confirmed_voice_line,
+    spu_internal_ram_directly_inspectable,
     spu_mmio_read_write_roundtrip_reliable,
 )
 
@@ -320,3 +325,53 @@ def test_classify_playback_backend_and_transport_path_are_consistent():
     assert classify_playback_backend() == PlaybackBackendClassification.CD_INPUT_UNKNOWN_FORMAT
     assert classify_transport_path() != TransportPath.SPU_VOICE_RAM
     assert classify_stream_format() == StreamFormat.UNKNOWN
+
+
+def test_spu_internal_ram_not_directly_inspectable():
+    assert spu_internal_ram_directly_inspectable() is False
+
+
+def test_spu_ram_inspection_avenues_checked_are_documented():
+    """Regression: every dead end must be a real, cited avenue, not a
+    placeholder -- and there must be more than one, since the whole
+    point of this finding is that GUI, Lua, and GDB were all checked."""
+    assert len(SPU_RAM_INSPECTION_AVENUES_CHECKED) >= 4
+    for avenue in SPU_RAM_INSPECTION_AVENUES_CHECKED:
+        assert avenue.strip() != ""
+
+
+def test_xa_panel_observations_span_both_captures():
+    capture_ids = {o.capture_id for o in XA_PANEL_OBSERVATIONS}
+    assert capture_ids == {"m37", "m38"}
+
+
+def test_xa_panel_observations_bracket_the_confirmed_trigger():
+    """The second capture (m38) has a real, user-confirmed trigger at
+    9-10s -- there must be sampled frames both before and comfortably
+    after that point."""
+    m38 = [o for o in XA_PANEL_OBSERVATIONS if o.capture_id == "m38"]
+    offsets = [o.seconds_offset for o in m38]
+    assert min(offsets) < 9.0
+    assert max(offsets) > 15.0
+
+
+def test_xa_panel_values_never_changed_across_either_capture():
+    baseline = XA_PANEL_OBSERVATIONS[0]
+    for o in XA_PANEL_OBSERVATIONS:
+        assert (o.frequency, o.stereo, o.samples, o.volume_l, o.volume_r) == (
+            baseline.frequency,
+            baseline.stereo,
+            baseline.samples,
+            baseline.volume_l,
+            baseline.volume_r,
+        )
+
+
+def test_spu_debug_xa_panel_changed_during_confirmed_voice_line_is_false():
+    assert spu_debug_xa_panel_changed_during_confirmed_voice_line() is False
+
+
+def test_xa_panel_sample_round_trips_as_dataclass_equality():
+    a = XaPanelSample("m38", 0, 0.0, "482580", 37800, 1, 2016, 32767, 32767, "note")
+    b = XaPanelSample("m38", 0, 0.0, "482580", 37800, 1, 2016, 32767, 32767, "note")
+    assert a == b

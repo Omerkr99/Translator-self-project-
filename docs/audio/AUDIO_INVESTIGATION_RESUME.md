@@ -71,6 +71,26 @@ it exists specifically so a fresh session doesn't have to.
   `DIRECT_HARDWARE_AUDIO_BUS`, `classify_stream_format()` → `UNKNOWN`
   (still open — the format question is unaffected by the transport
   finding).
+- **RESOLVED — SPU-internal RAM inspection is a confirmed tooling
+  blocker, not an open question**: four avenues were checked and
+  closed — the GUI Memory Editor windows (no memory-space selector,
+  confirmed via screenshot), the native SPU Debug window itself
+  (exactly 3 sections: SPU/XA/Channels, no raw memory view),
+  PCSX-Redux's documented Lua scripting API (`getMemPtr`/`getParPtr`/
+  `getRomPtr`/`getScratchPtr`/`getRegisters`/`getReadLUT` — none reach
+  SPU RAM; the only SPU-adjacent Lua function is an offline ADPCM
+  encoder, unrelated to reading emulator state), and GDB's own SPU
+  MMIO path (already confirmed unreliable on both KUSEG and KSEG1,
+  closing the real-hardware-transfer-protocol fallback too).
+  `spu_internal_ram_directly_inspectable()` → `False`. As a substitute,
+  the SPU Debug window's own live `XA` panel (Frequency/Stereo/
+  Samples/Volume L/R) was watched across two independent 60-frame live
+  captures — one with a user-confirmed trigger at a precise 9-10s mark
+  — and every sampled frame showed byte-identical values, no
+  correlation with the trigger.
+  `spu_debug_xa_panel_changed_during_confirmed_voice_line()` →
+  `False`. See `docs/audio/AUDIO_TRANSPORT_PATH.md`'s "SPU RAM
+  behavior" section for full detail.
 
 ## Environment setup (do this first, every time)
 
@@ -127,22 +147,28 @@ it exists specifically so a fresh session doesn't have to.
 
 ## The actual next task
 
-Find a way to inspect the PS1 SPU's **internal 512KB RAM content**
-directly (not just its MMIO-mapped control registers) during a
-confirmed voice line, to check for a decoded-sample buffer. This is
-the one transport-adjacent question the DMA finding couldn't answer:
-SPU-internal RAM is not part of the CPU's normal address space and
-isn't reachable through either GDB's (already-unreliable) MMIO path or
-the `HW Registers` window used for the DMA finding. Check whether
-PCSX-Redux's `Debug > SPU` submenu (only `Show SPU debug` was explored
-so far) or the SPU Debug window itself exposes any RAM-content view,
-before assuming a new tool is needed.
+Every live-instrumentation and direct-memory-inspection avenue this
+project's tooling offers (GUI Memory Editors, the native SPU Debug
+window including its live XA panel, PCSX-Redux's documented Lua
+scripting API, and GDB's own SPU MMIO path) has now been tried and
+closed without resolving the stream-format question
+(`classify_stream_format()` → `UNKNOWN`). The next productive
+direction is likely **static/offline analysis** rather than another
+live capture: e.g. locating and disassembling the actual CD-ROM audio
+decode routine in the game's own code (if the game does its own
+decoding rather than relying purely on the SPU's hardware ADPCM
+decoder), or examining the disc image's raw sector bytes for the
+resolved XAPACK source data to check whether their headers match the
+documented XA-ADPCM sector format independent of any runtime
+observation.
 
 Independently verifying the CD input stream's exact format
 (`classify_stream_format()` → `UNKNOWN`) remains the underlying goal,
 but every software-side avenue tried so far (`CD_init`'s real
-per-event candidates, the known Setmode dispatch site) has come back
-negative — this next task is transport-side, not command-side.
+per-event candidates, the known Setmode dispatch site, and now the SPU
+Debug window's own live fields) has come back negative — this next
+task needs a genuinely different investigative angle, not a repeat of
+live-capture methodology.
 
 Automated triggering remains unsolved (see the environmental
 constraint above) — assume any further live-correlation work needs a
@@ -183,7 +209,7 @@ human physically present to trigger dialogue and confirm what's heard.
 - Don't re-capture DMA channel 3/4 state hoping for a different
   result — a real, verified-running 25-frame capture spanning a
   confirmed voice line found zero activity on both; that question is
-  closed. Do check SPU-internal RAM instead (see next task).
+  closed.
 - Before trusting *any* "nothing changed" capture as a real negative,
   verify genuine execution happened during it — check a hardware
   timer's own counter changed across frames, or (as this milestone
@@ -191,3 +217,14 @@ human physically present to trigger dialogue and confirm what's heard.
   the same captures. An early attempt this pass captured 25 frames of
   a completely frozen emulator and nearly reported it as a negative
   result.
+- Don't re-check the GUI Memory Editor windows, the SPU Debug window's
+  layout, or PCSX-Redux's documented Lua API for an SPU-RAM view —
+  all three were checked and closed (see "RESOLVED — SPU-internal RAM
+  inspection" above). SPU RAM is not inspectable through this
+  project's current tooling; that's a settled fact, not a gap to keep
+  probing.
+- Don't re-watch the SPU Debug window's `XA` panel
+  (Frequency/Stereo/Samples/Volume L/R) hoping a longer or
+  better-timed capture will show a change — two independent 60-frame
+  captures, one with a trigger pinned to a precise 9-10s mark, both
+  showed zero correlation. That specific live signal is closed too.

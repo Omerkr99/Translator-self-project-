@@ -236,3 +236,41 @@ changed between frames, or confirm at least one DMA channel shows real
 activity in the same captures (a channel with zero activity is only
 meaningful evidence if some other channel in the same window proves
 execution was genuinely happening).
+
+## 15. The "SPU Debug" window's full layout, and where SPU-internal RAM is NOT exposed
+
+The full "SPU Debug" window (section 10) is exactly three collapsible
+sections, confirmed via a full-window screenshot: `SPU`
+(`IRQ`/`CTRL`/`STAT`/`MEM`), `XA` (`Frequency`/`Stereo`/`Samples`/
+`Volume L`/`Volume R`), and `Channels` (per-voice On/Off/Mute/Solo/
+Noise/FMod/waveform-plot/Frequency/Position). There is no raw
+memory/hex byte view anywhere in it — don't go looking for one.
+
+**None of PCSX-Redux's memory-inspection tools reach the SPU's
+internal 512KB sound RAM** (distinct from the MMIO control registers
+covered above): the GUI Memory Editor windows (`Memory Editor #1`-`#8`
+plus the named Parallel Port/Scratch Pad/Hardware Registers/BIOS/VRAM
+presets) have no memory-space selector — their `Options` button is
+display formatting only (column count, hex casing, ASCII panel,
+zero-greying), confirmed live via screenshot. PCSX-Redux's own
+documented Lua scripting API
+(`pcsx-redux.consoledev.net/Lua/memory-and-registers/`) exposes
+`PCSX.getMemPtr()` (main RAM), `getParPtr()` (parallel port),
+`getRomPtr()` (BIOS), `getScratchPtr()` (scratchpad),
+`getRegisters()`, and `getReadLUT()` — none of which reach SPU RAM;
+the only SPU-adjacent Lua function (`Adpcm:processSPUBlock()`/
+`:finishSPU()`) is an offline ADPCM *encoder* utility for authoring
+sample data, unrelated to reading live emulator state. Combined with
+the already-documented GDB SPU-MMIO unreliability (section 10, both
+address segments), this is a genuine, thoroughly-checked tooling
+blocker — don't re-open this search without a fundamentally new idea
+(e.g. a different emulator build, or source-level access to
+PCSX-Redux's own C++ core).
+
+The `XA` panel's live values (`Frequency`/`Stereo`/`Samples`/
+`Volume L`/`Volume R`) are visible and update, but were tested directly
+against a precisely-timed confirmed voice-line trigger (two 60-frame
+captures) and showed **zero correlation** — don't treat a static,
+non-zero `Frequency` reading (e.g. `37800`, a real XA-ADPCM rate) as
+evidence of active playback; it appears to be a resting/default value
+that doesn't react to individual dialogue events.

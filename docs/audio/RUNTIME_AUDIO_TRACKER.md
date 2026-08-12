@@ -429,6 +429,45 @@ into one classification: `classify_transport_path()` ->
 unaffected and consistent with the new separated model. Test count:
 **612 passed** (602 + 10 in `test_spu_audio_path.py`).
 
+**Twentieth follow-up milestone (SPU-Internal RAM Inspection Attempt +
+XA Panel Correlation, `AUDIO_TRANSPORT_PATH.md`'s "SPU RAM behavior"
+section, `gcrts.spu_audio_path`)**: per the prior milestone's own
+"next task," tried to find a way to inspect the SPU's internal 512KB
+sound RAM directly. Four avenues were checked and closed: PCSX-Redux's
+GUI Memory Editor windows (no memory-space selector -- confirmed live
+via screenshot, the "Options" menu is display formatting only), the
+native SPU Debug window itself (exactly 3 sections -- SPU/XA/Channels
+-- no raw memory view), PCSX-Redux's own documented Lua scripting API
+(fetched and checked directly: `getMemPtr`/`getParPtr`/`getRomPtr`/
+`getScratchPtr`/`getRegisters`/`getReadLUT` cover main RAM, parallel
+port, BIOS, scratchpad, and CPU registers/LUT but not SPU RAM; the
+only SPU-adjacent Lua function is an offline ADPCM encoder utility,
+unrelated to reading live emulator state), and GDB's own SPU MMIO
+read/write path (already confirmed stuck-zero on both the KUSEG and
+KSEG1 addresses, closing the fallback of manually driving the
+real-hardware Sound RAM Transfer Address/FIFO protocol, since that
+protocol itself needs a working SPU register write path).
+`spu_internal_ram_directly_inspectable()` -> `False` -- a genuine,
+well-supported tooling limitation, not a temporary gap.
+
+As a substitute, the SPU Debug window's own live `XA` panel
+(Frequency/Stereo/Samples/Volume L/R -- a real, non-zero,
+standard-XA-ADPCM-rate `Frequency: 37800` had been spotted in a
+screenshot) was tested directly: two independent 60-frame live
+captures (~1fps, self-resuming GDB continue loop keeping the emulator
+genuinely running, verified via per-channel Position/Current values
+actively changing across frames), the second with a user-confirmed
+trigger at a precise 9-10s mark. In both captures, every sampled frame
+-- spanning well before, at, and long after the trigger -- showed
+byte-identical `XA` panel values. One `MEM` field transition was
+observed in the second capture, but ~30s after the trigger (too late
+to be its effect, and matching the static value the first capture sat
+at regardless of any trigger) --
+`spu_debug_xa_panel_changed_during_confirmed_voice_line()` -> `False`.
+Consistent with, not contradicting, the standing finding that dialogue
+bypasses the instrumented parts of the SPU pipeline entirely. Test
+count: **619 passed** (612 + 7 in `test_spu_audio_path.py`).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one
