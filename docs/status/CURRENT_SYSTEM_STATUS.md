@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 619 passed, 0 failed (`py -m pytest tests/ -q`), ~18s.
-  84 modules in `gcrts/`, 65 test files.
+- **Test count**: 666 passed, 0 failed (`py -m pytest tests/ -q`), ~16s.
+  87 modules in `gcrts/`, 68 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -232,6 +232,25 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   `False`. Next direction: static/offline analysis (disassemble the
   actual decode routine, or inspect raw XAPACK sector bytes) rather
   than further live capture.
+  **Follow-up (`XAPACK_FORMAT.md`) — the format question resolved,
+  statically**: a byte-level scan of every audio sector across all 43
+  real `XAPACK*.BIN` files found the exact standard Green Book CD-XA
+  real-time-audio submode (`0x64`/`0xE4`) with `coding_info=0x01`
+  (stereo, 37800 Hz, 4-bit ADPCM) — not inferred from the filename or
+  the SPU Debug window, from the disc's own physical sector headers.
+  `classify_stream_format()` now returns `XA_ADPCM` (previously
+  `UNKNOWN`). Cross-validated against two real live LBA anchors already
+  on record (`KNOWN_CUE_SOURCES[127]`'s `xa_channel=7`/LBA `126921`
+  lands exactly inside channel 7's own physically-bounded stream in
+  `XAPACK08.BIN`). Also found: strict 8-way channel interleave with a
+  real, physical per-channel EOF marker (solving event segmentation
+  without needing a live capture), a new `AudioAsset` stable-identity
+  model (`gcrts.xapack`), a runtime bridge from `ScriptAudioAssociation`
+  to `AudioAsset` (`gcrts.audio_asset_resolver`), and a working (raw +
+  decoded-WAV) extraction pipeline — decode math is high-confidence,
+  but the exact nibble-interleave layout has not been perceptually
+  verified (no audio playback in this environment), an explicitly
+  flagged, honest gap.
 
 ## Key current distinctions (do not lose these)
 
@@ -614,7 +633,19 @@ exhausted) and separately ruled out the SPU Debug window's own live
 `XA` panel as a dialogue-correlated signal via two precisely-timed
 live captures — format remains `UNKNOWN`, with the recommended next
 direction now static/offline analysis rather than further live
-capture.
+capture. **`XAPACK_FORMAT.md` then resolved the format question this
+way**: a byte-level scan of every audio sector across all 43 real
+`XAPACK*.BIN` files found the standard Green Book CD-XA real-time-audio
+submode with `coding_info=0x01` (stereo, 37800 Hz, 4-bit ADPCM) —
+`classify_stream_format()` now returns `XA_ADPCM`, cross-validated
+against two real live LBA anchors. The same milestone built a stable
+`AudioAsset` identity model (`gcrts.xapack`), a runtime resolver from
+`ScriptAudioAssociation` to `AudioAsset` (`gcrts.audio_asset_resolver`),
+and a working raw+decoded-WAV extraction pipeline — the ADPCM decode
+math is high-confidence but its exact nibble layout is not yet
+perceptually verified (no audio playback available in this
+environment), an honestly flagged remaining gap. See
+`AUDIO_ASSET_MODEL.md` for the data-model reference.
 
 - **Fully live-proven, every link actually captured, none inferred**:
   one script control code's complete call chain, from its literal

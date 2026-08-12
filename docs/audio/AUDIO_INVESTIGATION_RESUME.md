@@ -45,10 +45,18 @@ it exists specifically so a fresh session doesn't have to.
   `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT`,
   not `UNKNOWN` — the first confirmed classification this whole audio
   investigation has produced.
-- **Still open**: the CD input stream's exact format. XA-ADPCM is the
-  only realistic candidate by elimination (CD-DA is structurally ruled
-  out on this disc, `XA_PLAYBACK_PATH.md`) but was not independently
-  re-verified — `CD_INPUT_UNKNOWN_FORMAT`, not `XA_ADPCM_CONFIRMED`.
+- **RESOLVED — the CD input stream's exact format**: a byte-level scan
+  of every audio sector across all 43 real `XAPACK*.BIN` files
+  (`XAPACK_FORMAT.md`, `gcrts.xapack`) found the exact standard Green
+  Book CD-XA real-time-audio submode with `coding_info=0x01` (stereo,
+  37800 Hz, 4-bit ADPCM) — from the disc's own physical sector headers,
+  not the filename or a debugger reading. `classify_stream_format()`
+  now returns `XA_ADPCM`. Cross-validated against two real live LBA
+  anchors (`KNOWN_CUE_SOURCES[127]`'s channel 7/LBA `126921` lands
+  exactly inside channel 7's own physically-bounded stream in
+  `XAPACK08.BIN`). The legacy `classify_playback_backend()` still
+  returns `CD_INPUT_UNKNOWN_FORMAT` (kept as-is, backward compatible —
+  see `gcrts.spu_audio_path`'s own docstring).
 - **Two more confirmed negatives on the format side**: `CD_init`'s 2
   position-change-gated call sites (`CD_INIT_GATEKEEPER_SITES`) were
   live-armed across a real, confirmed voice line twice — neither
@@ -68,9 +76,9 @@ it exists specifically so a fresh session doesn't have to.
   `docs/audio/AUDIO_TRANSPORT_PATH.md`. `TransportPath` and
   `StreamFormat` are now separate enums (no longer folded into one
   classification): `classify_transport_path()` →
-  `DIRECT_HARDWARE_AUDIO_BUS`, `classify_stream_format()` → `UNKNOWN`
-  (still open — the format question is unaffected by the transport
-  finding).
+  `DIRECT_HARDWARE_AUDIO_BUS`, `classify_stream_format()` → `XA_ADPCM`
+  (resolved by a later milestone, statically — see below, not through
+  the transport finding itself).
 - **RESOLVED — SPU-internal RAM inspection is a confirmed tooling
   blocker, not an open question**: four avenues were checked and
   closed — the GUI Memory Editor windows (no memory-space selector,
@@ -91,6 +99,25 @@ it exists specifically so a fresh session doesn't have to.
   `spu_debug_xa_panel_changed_during_confirmed_voice_line()` →
   `False`. See `docs/audio/AUDIO_TRANSPORT_PATH.md`'s "SPU RAM
   behavior" section for full detail.
+- **RESOLVED — the XAPACK physical format, event segmentation, and an
+  extraction pipeline** (`XAPACK_FORMAT.md`, `AUDIO_ASSET_MODEL.md`,
+  `gcrts.xapack`, `gcrts.xapack_catalog`, `gcrts.audio_asset_resolver`):
+  worked entirely offline this pass (no live capture). Found strict
+  8-way channel interleave with a real, physical per-channel EOF marker
+  across all 43 packs (41/43 exactly, 2 minor explainable variations),
+  giving up to 343 real, independently-extractable audio streams on the
+  disc. Built a stable `AudioAsset` identity (`"<pack>:<channel>"`, not
+  the selector value), a working raw+decoded-WAV extraction pipeline,
+  and a runtime bridge from `ScriptAudioAssociation` to `AudioAsset`.
+  Two real bugs were caught and fixed by this milestone's own
+  self-testing before being trusted: a sector-alignment drift bug in
+  raw extraction, and a channel-identity confusion bug in the LBA
+  resolver (interleaved channels' ranges overlap almost entirely --
+  range containment alone picks the wrong channel; the real sector's
+  own subheader byte must be read directly). The ADPCM decode math
+  itself is high-confidence, but its exact nibble-interleave layout is
+  NOT perceptually verified (no audio playback in this environment) --
+  see "The actual next task" below.
 
 ## Environment setup (do this first, every time)
 
@@ -147,28 +174,38 @@ it exists specifically so a fresh session doesn't have to.
 
 ## The actual next task
 
-Every live-instrumentation and direct-memory-inspection avenue this
-project's tooling offers (GUI Memory Editors, the native SPU Debug
-window including its live XA panel, PCSX-Redux's documented Lua
-scripting API, and GDB's own SPU MMIO path) has now been tried and
-closed without resolving the stream-format question
-(`classify_stream_format()` → `UNKNOWN`). The next productive
-direction is likely **static/offline analysis** rather than another
-live capture: e.g. locating and disassembling the actual CD-ROM audio
-decode routine in the game's own code (if the game does its own
-decoding rather than relying purely on the SPU's hardware ADPCM
-decoder), or examining the disc image's raw sector bytes for the
-resolved XAPACK source data to check whether their headers match the
-documented XA-ADPCM sector format independent of any runtime
-observation.
+The stream-format question itself is now resolved
+(`classify_stream_format()` → `XA_ADPCM`, see `XAPACK_FORMAT.md`) via
+static/offline disc analysis, exactly the direction this doc previously
+recommended. What's left is narrower and concrete: **get a real
+listening or reference-decoder verification of
+`gcrts.xapack.decode_channel_to_pcm`'s output.**
 
-Independently verifying the CD input stream's exact format
-(`classify_stream_format()` → `UNKNOWN`) remains the underlying goal,
-but every software-side avenue tried so far (`CD_init`'s real
-per-event candidates, the known Setmode dispatch site, and now the SPU
-Debug window's own live fields) has come back negative — this next
-task needs a genuinely different investigative angle, not a repeat of
-live-capture methodology.
+The decode's core sample math (5-filter-pair PSX ADPCM, identical to
+SPU voice ADPCM) is high-confidence, and the implementation passed a
+strong structural self-test (correct sample count matching the SPU
+Debug window's own independently-observed `Samples: 2016` constant, no
+clipping/saturation, non-degenerate variance, a speech-plausible
+rise/sustain/decay energy envelope ending in near-silence exactly at
+the stream's own EOF marker). But the exact sound-group nibble/byte
+interleave layout was implemented from the most commonly cited public
+CD-XA documentation, not independently verified against a reference
+decoder or by ear — no audio playback was possible in this environment.
+Concretely: extract and decode a known channel (e.g.
+`XAPACK08.BIN` channel 7, the confirmed dialogue cue) to WAV, and either
+play it back for a human listener or diff it against an established
+open-source XA-ADPCM decoder (e.g. `vgmstream`/`ffmpeg`, if available)
+to confirm the interleave choice was correct. Resolving this once
+upgrades confidence for every asset at once, rather than needing a
+per-asset re-check.
+
+A secondary, smaller follow-up: this pass's Phase 9-11 (static code
+search for the game's own XAPACK-consuming functions, to
+cross-validate the disc-structural findings against the executable
+itself) was explicitly deprioritized -- no standalone extracted main
+executable + disassembly toolchain was available in this environment
+this pass (only `CAP0.EXE`, a different overlay, was found locally).
+Worth revisiting if a full executable dump becomes available.
 
 Automated triggering remains unsolved (see the environmental
 constraint above) — assume any further live-correlation work needs a

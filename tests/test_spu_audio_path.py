@@ -311,20 +311,24 @@ def test_classify_transport_path_is_direct_hardware_audio_bus():
     assert classify_transport_path() == TransportPath.DIRECT_HARDWARE_AUDIO_BUS
 
 
-def test_classify_stream_format_stays_unknown():
-    """Must not be silently upgraded to XA_ADPCM without the format
-    itself (not just the routing) being independently observed."""
-    assert classify_stream_format() == StreamFormat.UNKNOWN
+def test_classify_stream_format_is_xa_adpcm():
+    """Resolved by the XAPACK Raw Format milestone: a byte-level scan
+    of the real disc's own sectors (not a debugger reading, not the
+    Setmode toggle) found the standard Green Book CD-XA real-time-audio
+    submode with coding_info=0x01 across all 43 packs -- see
+    gcrts.xapack's module docstring for the full evidence."""
+    assert classify_stream_format() == StreamFormat.XA_ADPCM
 
 
 def test_classify_playback_backend_and_transport_path_are_consistent():
     """The legacy combined classification and the new separated model
     must not contradict each other: CD_INPUT_UNKNOWN_FORMAT implies
-    the transport is not a regular SPU voice and the format is
-    unknown, matching the separated model's own results."""
+    the transport is not a regular SPU voice; the separated model now
+    additionally knows the format (XA_ADPCM), which does not
+    contradict the legacy value's own routing claim."""
     assert classify_playback_backend() == PlaybackBackendClassification.CD_INPUT_UNKNOWN_FORMAT
     assert classify_transport_path() != TransportPath.SPU_VOICE_RAM
-    assert classify_stream_format() == StreamFormat.UNKNOWN
+    assert classify_stream_format() == StreamFormat.XA_ADPCM
 
 
 def test_spu_internal_ram_not_directly_inspectable():

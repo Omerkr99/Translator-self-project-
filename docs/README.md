@@ -53,8 +53,16 @@ DMA — transport and stream format are now modeled as separate
 concepts; a follow-up pass then confirmed SPU-internal RAM inspection
 is a genuine tooling blocker across GUI/Lua/GDB, and ruled out the SPU
 Debug window's own live XA panel as a dialogue-correlated signal via
-two precisely-timed live captures) → `AUDIO_INVESTIGATION_RESUME.md`
-(the actionable "pick up here" page for the next session).
+two precisely-timed live captures) → `XAPACK_FORMAT.md` (worked
+offline instead: a byte-level scan of every audio sector across all 43
+real XAPACK files found standard Green Book CD-XA real-time-audio
+sectors with `coding_info=0x01`, finally resolving `classify_stream_
+format()` to `XA_ADPCM`; also found a real per-channel EOF marker
+solving event segmentation, and built a raw+decoded-WAV extraction
+pipeline) → `AUDIO_ASSET_MODEL.md` (the resulting `AudioAsset` identity
+model and `ScriptAudioAssociation → AudioAsset` runtime bridge) →
+`AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
+the next session).
 
 ### [`assets/`](assets/) — image/sprite asset pipeline
 Decoding, cataloging, safely re-injecting, and inspecting TIM/MENUDAT-

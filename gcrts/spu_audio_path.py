@@ -405,6 +405,35 @@ does not move the needle on any field this debugger window exposes,
 reinforcing rather than resolving the "format still unknown"
 conclusion. See `spu_debug_xa_panel_changed_during_confirmed_voice_line()`
 below.
+
+## Follow-up: the stream format question, finally resolved -- statically, not live
+
+The "GCRTS XAPACK Raw Format + Audio Asset Discovery" milestone
+(`docs/audio/XAPACK_FORMAT.md`, `gcrts.xapack`) deliberately stopped
+chasing the format question through live SPU capture and went offline:
+a byte-level scan of the real disc's own `XAPACK*.BIN` sectors (not a
+debugger reading, not the filename) found every audio-carrying sector,
+across all 43 real pack files, shows the exact standard Green Book
+CD-XA real-time-audio submode (`0x64`/`0xE4`: Audio+Form2+Realtime,
+optionally EOF) with `coding_info=0x01` -- stereo, 37800 Hz, 4-bit
+ADPCM. This independently explains the SPU Debug window's own earlier
+static `Frequency: 37800`/`Stereo: 1` reading (not meaningless after
+all -- an accurate, constant report of the real hardware decode
+configuration, just not something that toggles per dialogue event
+because the format never changes).
+
+Two real, independently-established live LBA anchors already on
+record elsewhere in this project (the confirmed dialogue cue's
+observed LBA `126921` with `xa_channel=7`, and a second capture landing
+exactly on `XAPACK06.BIN`'s own start LBA) both fall exactly where this
+disc-structural model predicts: `126921` lands inside channel 7's own
+physically-bounded audio stream in `XAPACK08.BIN` (LBA
+`126225`-`129273`, EOF-marker-terminated). Neither anchor was used to
+derive the model; both were used only to check it afterward, and both
+checks passed -- satisfying this project's own standing bar for
+`classify_stream_format()` to finally leave `UNKNOWN` (see
+`gcrts.xapack`'s module docstring for the full evidence and the
+explicit, honest confidence breakdown on the ADPCM decoder itself).
 """
 from __future__ import annotations
 
@@ -821,16 +850,23 @@ def classify_transport_path() -> TransportPath:
 
 
 def classify_stream_format() -> StreamFormat:
-    """UNKNOWN -- deliberately not XA_ADPCM_CONFIRMED. XA-ADPCM is the
-    only realistic candidate by elimination (CD-DA is structurally
-    impossible on this disc, see XA_PLAYBACK_PATH.md), but the actual
-    encoding was never independently observed -- the software Setmode
-    toggle this project can instrument never showed the XA-ADPCM bit
-    set (setmode_xa_adpcm_bit_ever_observed_set() -> False), and no
-    decoded-sample buffer or decoder algorithm has been located. Keep
-    this UNKNOWN until the format itself, not just the routing, is
-    directly observed."""
-    return StreamFormat.UNKNOWN
+    """XA_ADPCM -- resolved by the "GCRTS XAPACK Raw Format" milestone,
+    statically, not through the software Setmode toggle this project
+    could never observe set (setmode_xa_adpcm_bit_ever_observed_set()
+    stays False, and remains correct: Setmode was never the right
+    signal). A byte-level scan of every audio sector across all 43 real
+    `XAPACK*.BIN` files on the disc found the exact standard Green Book
+    CD-XA real-time-audio submode with `coding_info=0x01` (stereo,
+    37800 Hz, 4-bit ADPCM) -- see `gcrts.xapack`'s module docstring for
+    the full evidence, including cross-validation against two real,
+    independently-established live LBA anchors that both land exactly
+    where this disc-structural model predicts. This is a genuinely
+    different, stronger evidence source than the SPU Debug window's
+    static XA panel reading (which this project correctly declined to
+    trust alone, see spu_debug_xa_panel_changed_during_confirmed_voice_line
+    above) -- it comes from the disc's own physical sector headers, not
+    a debugger display."""
+    return StreamFormat.XA_ADPCM
 
 
 # The avenues checked (and closed) while looking for a way to inspect

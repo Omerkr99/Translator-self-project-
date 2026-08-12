@@ -97,6 +97,20 @@ def resolve_lba_to_file(lba: int) -> XaLocation | None:
     return None
 
 
+def all_xapack_files() -> list[tuple[str, int, int]]:
+    """Every known XAPACK file as (disc_path, start_lba, end_lba) --
+    end exclusive, contiguous with the next file's own start (matches
+    resolve_lba_to_file's own boundary convention). Pure, offline: just
+    exposes the same real, ISO9660-derived table this module already
+    uses internally, for callers (e.g. gcrts.xapack_catalog) that need
+    to enumerate every file rather than resolve one LBA at a time."""
+    result: list[tuple[str, int, int]] = []
+    for i, (path, start) in enumerate(_XAPACK_TABLE):
+        end = _XAPACK_TABLE[i + 1][1] if i + 1 < len(_XAPACK_TABLE) else _LAST_END_LBA
+        result.append((path, start, end))
+    return result
+
+
 _FILENAME_TO_PATH: dict[str, str] = {path.rsplit("/", 1)[1].split(".")[0]: path for path, _ in _XAPACK_TABLE}
 
 

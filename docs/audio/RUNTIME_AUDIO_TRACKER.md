@@ -468,6 +468,44 @@ Consistent with, not contradicting, the standing finding that dialogue
 bypasses the instrumented parts of the SPU pipeline entirely. Test
 count: **619 passed** (612 + 7 in `test_spu_audio_path.py`).
 
+**Twenty-first follow-up milestone (GCRTS XAPACK Raw Format + Audio
+Asset Discovery, `XAPACK_FORMAT.md`, `AUDIO_ASSET_MODEL.md`,
+`gcrts.xapack`, `gcrts.xapack_catalog`, `gcrts.audio_asset_resolver`)**:
+per an explicit instruction to work offline/static-first rather than
+another live capture, a byte-level scan of every audio sector across
+**all 43 real `XAPACK*.BIN` files** found the exact standard Green Book
+CD-XA real-time-audio submode (`0x64`/`0xE4`: Audio+Form2+Realtime,
+optionally EOF) with `coding_info=0x01` (stereo, 37800 Hz, 4-bit
+ADPCM) -- `classify_stream_format()` finally leaves `UNKNOWN` for
+`XA_ADPCM`, resolved statically from the disc's own physical sector
+headers rather than any debugger reading. Found strict 8-way channel
+interleave with a real, physical per-channel EOF marker (41/43 packs
+match exactly; 2 minor, explainable variations), giving up to 343 real
+audio streams. Cross-validated -- not derived from -- two real live LBA
+anchors already on record (`KNOWN_CUE_SOURCES[127]`'s channel 7/LBA
+`126921` lands exactly inside channel 7's own physically-bounded
+stream in `XAPACK08.BIN`). Built `AudioAsset` (a stable
+`"<pack>:<channel>"` identity, deliberately not the unstable selector
+value), a raw+decoded-WAV extraction pipeline, and a runtime resolver
+bridging `ScriptAudioAssociation` to `AudioAsset`. Two real bugs were
+caught and fixed by this milestone's own self-testing: a sector
+-alignment drift in raw extraction (fixed by trimming each sector's
+20-byte reserved/EDC trailer before decode), and a channel-identity
+confusion bug in the LBA resolver (interleaved channels' `[first,eof]`
+spans overlap almost entirely -- range containment alone silently
+picked the wrong channel; fixed by reading the real sector's own
+subheader `channel_number` byte first). The ADPCM decode's core sample
+math is high-confidence (cross-validated by an exact 2016-
+samples/channel/sector match against the SPU Debug window's own static
+reading), but its exact nibble-interleave layout is honestly flagged
+as NOT perceptually verified -- no audio playback was possible in this
+environment; a real, speech-plausible energy envelope in the decoded
+output is corroborating, not conclusive, evidence. Test count: **666
+passed** (619 + 47: `test_xapack_catalog.py`, `test_xapack.py`,
+`test_audio_asset_resolver.py`, 2 new in `test_xa_disc_index.py`, plus
+`test_spu_audio_path.py`'s stream-format tests updated from UNKNOWN to
+XA_ADPCM).
+
 ## Starting point
 
 Stage C (`BACKLOG_INVESTIGATION_RESULTS.md`) had already live-traced one

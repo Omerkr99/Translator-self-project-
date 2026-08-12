@@ -1,4 +1,4 @@
-from gcrts.xa_disc_index import read_sector_meta, resolve_filename_to_path, resolve_lba_to_file
+from gcrts.xa_disc_index import all_xapack_files, read_sector_meta, resolve_filename_to_path, resolve_lba_to_file
 
 SYNC = b"\x00" + b"\xff" * 10 + b"\x00"
 
@@ -143,3 +143,22 @@ def test_resolve_filename_to_path_case_insensitive():
 
 def test_resolve_filename_to_path_none_for_unrelated_name():
     assert resolve_filename_to_path("MENUDAT") is None
+
+
+# --- all_xapack_files -------------------------------------------------------
+
+
+def test_all_xapack_files_has_43_entries():
+    files = all_xapack_files()
+    assert len(files) == 43
+
+
+def test_all_xapack_files_are_contiguous_and_match_resolve_lba_to_file():
+    files = all_xapack_files()
+    for i in range(len(files) - 1):
+        assert files[i][2] == files[i + 1][1]  # this file's end == next file's start
+    path, start, end = files[8]
+    assert path == "DAT/XA1/XAPACK08.BIN"
+    assert start == 126218
+    loc = resolve_lba_to_file(start)
+    assert loc.disc_path == path
