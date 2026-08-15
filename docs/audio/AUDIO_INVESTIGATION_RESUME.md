@@ -191,18 +191,31 @@ it exists specifically so a fresh session doesn't have to.
 
 ## The actual next task
 
-Both the stream-format question (`classify_stream_format()` →
-`XA_ADPCM`) and the decoder-correctness question
-(`decoder_verification_status()` → `REFERENCE_VERIFIED`, see
-`XA_DECODER_VERIFICATION.md`) are now resolved via static/offline disc
-analysis and independent reference-decoder comparison. What's left is
-narrower: **get a human to actually listen to the exported golden WAV**
-(`XAPACK08:7`, export via
-`gcrts.audio_asset_resolver.export_audio_asset_wav`) and confirm it
-sounds like correct, intelligible dialogue. This is the one remaining
-step to `DecoderConfidence.REFERENCE_AND_PERCEPTUALLY_VERIFIED` — no
-audio playback capability exists in this environment, so this needs a
-human with speakers/headphones, not another automated pass.
+The stream-format question (`classify_stream_format()` → `XA_ADPCM`)
+and the decoder-correctness question (`decoder_verification_status()`
+→ `REFERENCE_VERIFIED`, see `XA_DECODER_VERIFICATION.md`) are resolved.
+**RESOLVED — direct listening confirmation**: the user listened to the
+exported golden WAV (`XAPACK08:7`) live and confirmed it contains real,
+identifiable speech content. Persisted as this project's first
+confirmed semantic label
+(`gcrts.semantic_label_store`: `DIALOGUE`, `USER_LISTENING`).
+
+**Current active work (see `SEMANTIC_AUDIO_CLASSIFICATION.md`)**: a
+fourth layer, *semantic role* (dialogue/music/ambience/silence — a
+question the physical-format layer says nothing about), with its own
+review pipeline (`gcrts.audio_review.build_pack_review`, producing
+per-pack WAV + `analysis.json` + `ranking.csv` + `review.html` folders
+under `audio_export/review/<pack>/`). The classifier has already been
+sanity-checked against the one confirmed asset, found genuinely wrong
+once (fixed: `burst_regularity_cv`, distinguishing a rhythmic loop's
+regular bursts from real speech's irregular ones), and works
+noticeably better on short clips (1-7s, clean burst/silence pattern)
+than on long sustained dialogue like the golden asset. Next concrete
+step: listen to the current top candidates for `XAPACK04`
+(`XAPACK04:6`/`XAPACK04:5`, cross-validated two independent ways --
+see that doc) and persist whichever is confirmed via
+`gcrts.semantic_label_store.save_label`, growing the confirmed-example
+set.
 
 A secondary, smaller follow-up: this pass's Phase 9-11 (static code
 search for the game's own XAPACK-consuming functions, to

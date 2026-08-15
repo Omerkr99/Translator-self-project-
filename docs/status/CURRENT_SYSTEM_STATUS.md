@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 686 passed, 0 failed (`py -m pytest tests/ -q`), ~19s.
-  88 modules in `gcrts/`, 69 test files.
+- **Test count**: 719 passed, 0 failed (`py -m pytest tests/ -q`), ~19s.
+  91 modules in `gcrts/`, 72 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -272,6 +272,25 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   (`decode_audio_asset`/`export_audio_asset_wav`). Only perceptual
   (by-ear) confirmation remains open — no audio playback available in
   this environment.
+  **Follow-up (`SEMANTIC_AUDIO_CLASSIFICATION.md`) — a new, fourth
+  layer**: knowing the physical format (`XA_ADPCM`, verified) says
+  nothing about a channel's semantic role (dialogue/music/ambience/
+  silence) — that gap is now closed by `gcrts.audio_semantic`
+  (relative, within-pack feature classification — never claims
+  `CONFIRMED`, only a `HEURISTIC` candidate score),
+  `gcrts.semantic_label_store` (permanent, human-in-the-loop
+  confirmed-label persistence), and `gcrts.audio_review` (per-pack
+  review folders: WAV + `analysis.json` + `ranking.csv` +
+  `review.html`, built so a human can confirm a channel's role in
+  under a minute). A sanity check against the one already-confirmed
+  asset (`XAPACK08:7`) caught a real classifier bug (high variance
+  from a *regular* rhythmic loop was conflated with genuine speech
+  burstiness — fixed via a new `burst_regularity_cv` feature) and
+  surfaced a real, accepted limitation (envelope heuristics work well
+  for short clips, not long sustained dialogue — that needs the
+  runtime-anchor cross-check or direct listening instead).
+  `XAPACK08:7` is now the project's first persisted confirmed semantic
+  label (`DIALOGUE`, `USER_LISTENING`).
 
 ## Key current distinctions (do not lose these)
 

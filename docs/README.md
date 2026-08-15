@@ -65,6 +65,12 @@ model and `ScriptAudioAssociation → AudioAsset` runtime bridge) →
 independent `adpcm_xa` decoder, found and fixed two real layout bugs
 plus a mono-handling bug, reached 100.0000% exact sample match on 5
 real assets — `REFERENCE_VERIFIED`) →
+`SEMANTIC_AUDIO_CLASSIFICATION.md` (a fourth layer — physical format
+says nothing about semantic role; relative within-pack feature
+classification plus human-in-the-loop confirmed-label persistence and
+a per-pack review-folder pipeline, `review.html` included; caught and
+fixed a real classifier bug — regular loops vs. genuinely irregular
+speech bursts — against the one already-confirmed asset) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

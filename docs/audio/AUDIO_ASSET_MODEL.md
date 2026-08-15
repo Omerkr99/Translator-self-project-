@@ -4,7 +4,11 @@ A reference for the data model this project now uses to represent one
 extractable audio stream, and how to get from a script occurrence to
 one. For the reverse-engineering story behind *why* this model looks
 the way it does, see `XAPACK_FORMAT.md` -- this doc is the "how to use
-it" companion.
+it" companion. This doc covers the *source identity* and *physical
+format* layers; for the separate *semantic role* layer (is a channel
+actually dialogue, music, ambience, or silence?) and the human-in-the-
+loop review workflow, see `SEMANTIC_AUDIO_CLASSIFICATION.md` -- do not
+conflate the two questions.
 
 ## Why a new identity, not the existing selector/parameter
 

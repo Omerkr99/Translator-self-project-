@@ -3,6 +3,15 @@
 # provenance all live under this folder).
 קיבצי דמה/
 
+# Decoded/extracted game audio (WAV files) and other bulk-regeneratable
+# exports (the full disc asset index, per-pack review folders) --
+# copyrighted content and/or trivially regenerable from the real disc
+# image via gcrts.audio_asset_resolver/gcrts.audio_review, never
+# committed. The one exception is the human-confirmed semantic label
+# store, which is real, non-audio, hand-authored project data --
+# force-added explicitly, not covered by this ignore rule in practice.
+audio_export/
+
 # Leftover scratch/test-run artifacts from local test sessions (some are
 # even permission-locked) -- not real project state.
 asset_test_tmp/

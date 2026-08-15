@@ -1,0 +1,9 @@
+{
+  "XAPACK08:7": {
+    "asset_id": "XAPACK08:7",
+    "semantic_type": "DIALOGUE",
+    "verification_source": "USER_LISTENING",
+    "notes": "KNOWN_CUE_SOURCES[127]: xa_channel=7, live-observed LBA 126921 falls exactly inside this stream's own bounds. Decoded PCM verified 100.0000% sample-identical against FFmpeg's independent adpcm_xa decoder (docs/audio/XA_DECODER_VERIFICATION.md). User confirmed the decoded content sounds like real, identifiable speech (a train station announcer / PA-style line) when listened to directly. This is the project's first Golden Audio Asset.",
+    "verified_at": "2026-08-15T21:16:38.733171+00:00"
+  }
+}
