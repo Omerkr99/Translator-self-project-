@@ -79,6 +79,10 @@ implemented) →
 combines physical identity, confirmed semantic label, and Fandub
 template into one `DialogueDatabaseEntry` with a derived, never-jumps-
 ahead workflow status) →
+`LIVE_AUDIO_INSPECTOR.md` (wraps the LBA resolver + Dialogue Database
+into a live `NOW PLAYING: <asset_id>` panel in the Visual Inspector;
+never overwrites an existing entry's hand-added evidence; live-verified
+against the actually-running emulator) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

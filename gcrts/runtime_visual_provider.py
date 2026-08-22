@@ -15,6 +15,7 @@ from gcrts.audio_context import audio_context_for_association
 from gcrts.audio_caption import caption_for_association
 from gcrts.audio_stream_source import resolve_audio_stream_source
 from gcrts.cdrom_driver_map import resolve_cdrom_driver_map
+from gcrts.live_audio_inspector import inspect_live_audio
 from gcrts.screen_objects import *
 from gcrts.vram_asset_detector import VramAssetDetector
 
@@ -47,7 +48,7 @@ class RuntimeVisualProvider:
     per-call correlation can't answer on its own."""
     def __init__(self,projects,event_path=r"C:\tmp\gcrts-runtime-events.tsv",base_url="http://127.0.0.1:8080",tracker:RuntimeAssetTracker|None=None,disc_image_path:str|Path|None=None):
         self.projects=tuple(projects);self.event_path=Path(event_path);self.base_url=base_url.rstrip("/")
-        self.tracker=tracker if tracker is not None else RuntimeAssetTracker();self._instance_by_asset_id={};self.last_renderer1_validation=ValidationResult.REIDENTIFICATION_REQUIRED.value;self.last_audio_event=None;self.last_script_association=None;self.last_audio_context=None;self.last_audio_caption=None;self.last_audio_stream_source=None;self.last_cdrom_driver_map=None
+        self.tracker=tracker if tracker is not None else RuntimeAssetTracker();self._instance_by_asset_id={};self.last_renderer1_validation=ValidationResult.REIDENTIFICATION_REQUIRED.value;self.last_audio_event=None;self.last_script_association=None;self.last_audio_context=None;self.last_audio_caption=None;self.last_audio_stream_source=None;self.last_cdrom_driver_map=None;self.last_live_audio_inspection=None
         # Optional: only needed for xa_channel resolution (gcrts.xa_disc_index
         # read_sector_meta needs real sector bytes, not just the static LBA
         # table). Loaded once, lazily -- most callers never touch audio at
@@ -143,11 +144,21 @@ class RuntimeVisualProvider:
         whether an audio event is currently active -- same reasoning as
         `_audio_stream_source`."""
         return resolve_cdrom_driver_map(lambda addr,length:_ram_slice(ram,addr,length))
+    def _live_audio_inspection(self,audio_event):
+        """Live Audio Inspector milestone (gcrts.live_audio_inspector):
+        the display layer over the already-working LBA resolver +
+        Dialogue Asset Database, wired in the same no-second-fetch
+        pattern as the audio methods above. `self._disc_bytes` is set
+        as a side effect of `_audio_event` when a disc_image_path was
+        given; without one this always returns None (no disc bytes to
+        resolve an asset from), same as every other audio field here."""
+        return inspect_live_audio(audio_event,self._disc_bytes)
     def scan(self):
         ram=urllib.request.urlopen(self.base_url+"/api/v1/cpu/ram/raw",timeout=5).read();frame,roots=self._roots(ram)
         snapshot_id=frame or int(time.monotonic()*1000)
         self.tracker.begin_frame(snapshot_id)
         self.last_audio_event=self._audio_event(ram)
+        self.last_live_audio_inspection=self._live_audio_inspection(self.last_audio_event)
         self.last_script_association=self._script_association(ram,self.last_audio_event)
         self.last_audio_context=self._audio_context(ram,self.last_script_association)
         self.last_audio_caption=self._audio_caption(self.last_script_association)

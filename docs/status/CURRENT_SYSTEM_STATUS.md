@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 753 passed, 0 failed (`py -m pytest tests/ -q`), ~22s.
-  93 modules in `gcrts/`, 74 test files.
+- **Test count**: 766 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
+  94 modules in `gcrts/`, 75 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -325,6 +325,23 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   `TRANSLATION_DRAFT` (real transcript + draft translation, neither
   verified nor approved). 22 new tests; full suite 753 passed, no
   regressions.
+  **Follow-up (`LIVE_AUDIO_INSPECTOR.md`)**: the second of the
+  roadmap's three named next priorities. `gcrts.live_audio_inspector`
+  adds no new resolution logic — it chains the already-working LBA
+  resolver and the Dialogue Database into one `LiveAudioInspection`
+  per poll, wired into `RuntimeVisualProvider.last_live_audio_inspection`
+  and displayed as a `NOW PLAYING: <asset_id> [state] <semantic type>
+  -- <workflow status>` line at the top of the Visual Inspector's audio
+  panel. Its one deliberate write — auto-registering a brand-new asset
+  as `DETECTED` the first time it's ever resolved — is guarded to never
+  touch an entry that already exists, so a human's hand-added evidence
+  can never be silently overwritten by a later poll (regression-tested,
+  and independently reconfirmed live: `git diff` on the real database
+  file showed zero changes after 10 live polls against an
+  already-known asset). **Live-verified against the actually-running
+  emulator this session**: 10 consecutive real polls all resolved to
+  `XAPACK22:7`, correctly showing its real `DIALOGUE`/`TRANSLATION_DRAFT`
+  entry. 13 new tests; full suite 766 passed, no regressions.
 
 ## Key current distinctions (do not lose these)
 

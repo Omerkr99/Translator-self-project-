@@ -135,9 +135,9 @@ class VisualInspectorApp(tk.Tk):
             else:self.objects=self.registry.filtered(self.context_id,text_only=self.translation.get(),assets=self.assets.get(),renderer1=self.r1.get(),renderer2=self.r2.get(),unknown=self.unknown.get())
     def update_runtime(self):
         self.runtime_frame,self.runtime_objects=self.runtime_provider.scan();self.runtime_scanned=True;ids={o.source.get("asset_id") for o in self.runtime_objects};self.current_page,is_new=self.page_detector.observe(ids);self.page_detector.save(self.page_path);self.status.set(f"Runtime snapshot {self.runtime_frame} | Page {self.current_page.page_id}{' NEW' if is_new else ''} | {len(self.runtime_objects)} DRAWN_THIS_FRAME")
-        self.audio_status.set(self._format_audio_status(self.runtime_provider.last_audio_event,self.runtime_provider.last_script_association,self.runtime_provider.last_audio_context,self.runtime_provider.last_audio_caption,self.runtime_provider.last_audio_stream_source,self.runtime_provider.last_cdrom_driver_map))
+        self.audio_status.set(self._format_audio_status(self.runtime_provider.last_audio_event,self.runtime_provider.last_script_association,self.runtime_provider.last_audio_context,self.runtime_provider.last_audio_caption,self.runtime_provider.last_audio_stream_source,self.runtime_provider.last_cdrom_driver_map,self.runtime_provider.last_live_audio_inspection))
     @staticmethod
-    def _format_audio_status(event,association=None,context=None,caption=None,stream_source=None,cdrom_driver=None)->str:
+    def _format_audio_status(event,association=None,context=None,caption=None,stream_source=None,cdrom_driver=None,live_audio_inspection=None)->str:
         from gcrts.runtime_audio import AudioLifecycleState
         from gcrts.script_audio_association import ScriptAssociationConfidence
         from gcrts.audio_context import AudioContextConfidence
@@ -146,7 +146,12 @@ class VisualInspectorApp(tk.Tk):
         if event.state in (AudioLifecycleState.STARTING,AudioLifecycleState.PLAYING):
             chan=f" ch{event.xa_channel}" if event.xa_channel is not None else " (channel not resolved -- no disc image loaded)"
             source=f"{event.source_file}{chan}" if event.source_file else "(unresolved -- position outside any known XAPACK file)"
-            lines=[f"State: {event.state.value}",f"Cue: {event.script_parameter}",f"Source: {source}",
+            # Live Audio Inspector milestone (gcrts.live_audio_inspector):
+            # the one line the roadmap actually asked for -- resolved
+            # AudioAsset identity plus its Dialogue Asset Database entry,
+            # reusing the same text a CLI/log driver would print.
+            from gcrts.live_audio_inspector import format_now_playing
+            lines=[format_now_playing(live_audio_inspection),f"State: {event.state.value}",f"Cue: {event.script_parameter}",f"Source: {source}",
                    f"Resolved via: {event.resolution_method}",
                    f"Start LBA: {event.start_lba}",
                    f"Position: {event.position_counter} (+{event.position_counter-event.position_counter_start} since start)",
