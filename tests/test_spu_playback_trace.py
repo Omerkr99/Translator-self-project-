@@ -1,6 +1,7 @@
 import pytest
 
 from gcrts.spu_playback_trace import (
+    CdCommandEvent,
     HeartbeatEvent,
     MarkEvent,
     SaveStateLoadedEvent,
@@ -10,6 +11,7 @@ from gcrts.spu_playback_trace import (
     UnknownTraceEventError,
     VOICE_BLOCK_SIZE,
     VOICE_COUNT,
+    cdrom_command_name,
     decode_voice_mask,
     load_trace,
     merge_traces,
@@ -98,6 +100,7 @@ def test_write_and_parse_all_event_types_round_trip(tmp_path):
     events = [
         SpuKeyWriteEvent(t=0.0, write_pc=0x800866A8, family="PERIODIC_VOICE_SYNC", register="KEY_ON", voice_mask=0),
         SpucntWriteEvent(t=0.1, write_pc=0x80081BB8, value=0xC001),
+        CdCommandEvent(t=0.15, call_site_addr=0x8008182C, command_byte=0x0D, a0=2, a1=0x800A3070),
         HeartbeatEvent(t=0.2, position_counter=126921, lifecycle_state_raw=1, last_req_params=127),
         SaveStateLoadedEvent(t=0.0, hard=False),
         MarkEvent(t=5.0, label="target line heard"),
@@ -129,6 +132,33 @@ def test_spucnt_write_event_cd_audio_enable_bit():
     assert e.cd_audio_enable_bit_set is True
     e2 = SpucntWriteEvent(t=0.0, write_pc=0x80081BB8, value=0xC000)
     assert e2.cd_audio_enable_bit_set is False
+
+
+# --- CdCommandEvent / cdrom_command_name ----------------------------------------
+
+
+def test_cdrom_command_name_known_bytes():
+    assert cdrom_command_name(0x0D) == "Setfilter"
+    assert cdrom_command_name(0x0E) == "Setmode"
+    assert cdrom_command_name(0x06) == "ReadN"
+    assert cdrom_command_name(0x11) == "GetlocP"
+
+
+def test_cdrom_command_name_unknown_byte():
+    assert cdrom_command_name(0xFF) == "UNKNOWN(0xFF)"
+
+
+def test_cd_command_event_command_name_property():
+    e = CdCommandEvent(t=1.0, call_site_addr=0x8008182C, command_byte=0x0D, a0=2, a1=0x800A3070)
+    assert e.command_name == "Setfilter"
+
+
+def test_cd_command_event_round_trips(tmp_path):
+    path = str(tmp_path / "trace.jsonl")
+    e = CdCommandEvent(t=1.0, call_site_addr=0x8008182C, command_byte=0x0D, a0=2, a1=0x800A3070, cpu_pc=0x8008182C, frame=5)
+    with open(path, "w", encoding="utf-8") as f:
+        write_event(e, f)
+    assert load_trace(path) == [e]
 
 
 # --- merge_traces ---------------------------------------------------------------

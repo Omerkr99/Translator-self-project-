@@ -168,9 +168,31 @@ def decode_voice_mask(mask: int) -> list[int]:
 class TraceEventType(str, Enum):
     SPU_KEY_WRITE = "SPU_KEY_WRITE"
     SPUCNT_WRITE = "SPUCNT_WRITE"
+    CD_COMMAND = "CD_COMMAND"
     HEARTBEAT = "HEARTBEAT"
     SAVE_STATE_LOADED = "SAVE_STATE_LOADED"
     MARK = "MARK"
+
+
+# Standard, publicly-documented PS1 CD-ROM command byte values (psx-spx /
+# LibPSn00b Runtime Library Reference) -- external reference constants,
+# used only to LABEL a command byte this project's own already-verified
+# breakpoint sites (gcrts.cdrom_driver_map.COMMAND_ISSUE_ROUTINE_ADDR,
+# gcrts.cdrom_setfilter.SETFILTER_CALL_SITE_ADDR/OTHER_COMMAND_WRITE_SITES)
+# actually capture live -- never used to invent a command that wasn't
+# really observed.
+CDROM_COMMAND_NAMES: dict[int, str] = {
+    0x01: "Getstat", 0x02: "Setloc", 0x03: "Play", 0x04: "Forward", 0x05: "Backward",
+    0x06: "ReadN", 0x07: "MotorOn", 0x08: "Stop", 0x09: "Pause", 0x0A: "Init",
+    0x0B: "Mute", 0x0C: "Demute", 0x0D: "Setfilter", 0x0E: "Setmode", 0x0F: "Getparam",
+    0x10: "GetlocL", 0x11: "GetlocP", 0x12: "SetSession", 0x13: "GetTN", 0x14: "GetTD",
+    0x15: "SeekL", 0x16: "SeekP", 0x19: "Test", 0x1A: "GetID", 0x1B: "ReadS",
+    0x1C: "Reset", 0x1E: "ReadTOC",
+}
+
+
+def cdrom_command_name(command_byte: int) -> str:
+    return CDROM_COMMAND_NAMES.get(command_byte, f"UNKNOWN(0x{command_byte:02X})")
 
 
 @dataclass
@@ -224,6 +246,39 @@ class SpucntWriteEvent:
     def to_dict(self) -> dict:
         return {
             "event": self.event, "t": self.t, "write_pc": self.write_pc, "value": self.value,
+            "cpu_pc": self.cpu_pc, "frame": self.frame,
+        }
+
+
+@dataclass
+class CdCommandEvent:
+    """One hit of an already-verified CD-ROM command-write call site
+    (`gcrts.cdrom_setfilter.SETFILTER_CALL_SITE_ADDR`/
+    `OTHER_COMMAND_WRITE_SITES`, or `gcrts.cdrom_driver_map.
+    COMMAND_ISSUE_ROUTINE_ADDR`) -- these addresses were live-confirmed
+    in an earlier milestone to have the command byte already sitting in
+    `$v0` at the trapping instruction, no stack-offset guessing needed.
+    `command_byte` is the raw value; `command_name` (see
+    `cdrom_command_name`) is computed at parse/report time, not stored,
+    so a fix to the lookup table doesn't require re-capturing traces."""
+
+    t: float
+    call_site_addr: int
+    command_byte: int
+    a0: int | None = None  # often a parameter count (e.g. Setfilter: 2)
+    a1: int | None = None  # often a pointer to the parameter buffer
+    cpu_pc: int | None = None
+    frame: int | None = None
+    event: str = TraceEventType.CD_COMMAND.value
+
+    @property
+    def command_name(self) -> str:
+        return cdrom_command_name(self.command_byte)
+
+    def to_dict(self) -> dict:
+        return {
+            "event": self.event, "t": self.t, "call_site_addr": self.call_site_addr,
+            "command_byte": self.command_byte, "a0": self.a0, "a1": self.a1,
             "cpu_pc": self.cpu_pc, "frame": self.frame,
         }
 
@@ -286,11 +341,12 @@ class MarkEvent:
         return {"event": self.event, "t": self.t, "label": self.label, "frame": self.frame}
 
 
-TraceEvent = SpuKeyWriteEvent | SpucntWriteEvent | HeartbeatEvent | SaveStateLoadedEvent | MarkEvent
+TraceEvent = SpuKeyWriteEvent | SpucntWriteEvent | CdCommandEvent | HeartbeatEvent | SaveStateLoadedEvent | MarkEvent
 
 _EVENT_CLASSES: dict[str, type] = {
     TraceEventType.SPU_KEY_WRITE.value: SpuKeyWriteEvent,
     TraceEventType.SPUCNT_WRITE.value: SpucntWriteEvent,
+    TraceEventType.CD_COMMAND.value: CdCommandEvent,
     TraceEventType.HEARTBEAT.value: HeartbeatEvent,
     TraceEventType.SAVE_STATE_LOADED.value: SaveStateLoadedEvent,
     TraceEventType.MARK.value: MarkEvent,

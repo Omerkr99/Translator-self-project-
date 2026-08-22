@@ -2,8 +2,9 @@
 --
 -- See docs/audio/SPU_PLAYBACK_TRACE.md for the full methodology, why
 -- this exists, and how to run the "critical experiment" (load save
--- slot 9, arm this script, play, press the marker key when the target
--- dialogue is heard, stop, analyze with gcrts.spu_trace_analyzer).
+-- slot 9, arm this script, play, press the marker key ONCE when the
+-- target dialogue STARTS (TARGET_BEGIN) and ONCE AGAIN when it ENDS
+-- (TARGET_END), stop, analyze with `python -m gcrts.spu_trace_analyzer`).
 --
 -- HOW TO LOAD: Debug > Lua Editor (or Lua Console) > open this file >
 -- Run. PCSX-Redux prints "SPU Playback Trace armed: ..." via
@@ -121,6 +122,34 @@ for _, site in ipairs(WRITER_SITES) do
     table.insert(breakpoints, bp)
 end
 
+-- ==== CD-ROM command-write sites ====
+-- Addresses are gcrts.cdrom_setfilter's own already-live-confirmed call
+-- sites (SETFILTER_CALL_SITE_ADDR, OTHER_COMMAND_WRITE_SITES) plus
+-- gcrts.cdrom_driver_map's COMMAND_ISSUE_ROUTINE_ADDR -- not re-derived,
+-- copied here the same way WRITER_SITES is. At each, $v0 was already
+-- confirmed (via an earlier static scan, not guessed) to hold the
+-- command byte about to be written to the real hardware command
+-- register. $a0/$a1 are also captured raw (often a parameter count and
+-- a pointer to the parameter buffer, per the Setfilter capture that
+-- established this call site -- see that module's own docstring) but
+-- are not dereferenced here (this script never reads beyond the CPU's
+-- own registers into an arbitrary pointed-to buffer, to keep the
+-- in-process hook simple and safe).
+local CD_COMMAND_SITES = { 0x8008182C, 0x80081AC8, 0x80081C2C, 0x80081C00 }
+
+for _, pc in ipairs(CD_COMMAND_SITES) do
+    local bp = PCSX.addBreakpoint(pc, "Exec", 4, "spu_playback_trace", function(address, width, cause)
+        local regs = PCSX.getRegisters()
+        write_json({
+            event = "CD_COMMAND", t = now(), call_site_addr = pc,
+            command_byte = tonumber(regs.GPR.n.v0), a0 = tonumber(regs.GPR.n.a0), a1 = tonumber(regs.GPR.n.a1),
+            cpu_pc = tonumber(regs.pc),
+        })
+        return false
+    end, "CD_CMD@" .. string.format("0x%08X", pc))
+    table.insert(breakpoints, bp)
+end
+
 -- ==== Heartbeat: per-vsync snapshot of the already-known, already- ====
 -- ==== reliable CD-audio-lifecycle CPU RAM fields (main RAM only,   ====
 -- ==== never an SPU MMIO read)                                      ====
@@ -162,7 +191,7 @@ local savestate_listener = PCSX.Events.createEventListener("ExecutionFlow::SaveS
     write_json({ event = "SAVE_STATE_LOADED", t = now() })
 end)
 
--- ==== User marker ====
+-- ==== User marker: TARGET_BEGIN / TARGET_END, alternating ====
 -- This is PCSX-Redux's own application receiving a real physical
 -- keypress -- NOT an attempt to inject input into the emulated game
 -- controller (already confirmed broken, see
@@ -171,12 +200,24 @@ end)
 -- written into the JSONL trace -- that schema only recognizes the 5
 -- event types gcrts.spu_playback_trace defines) so the marker key can
 -- be verified/corrected without guessing.
+--
+-- The SAME key (MARK_KEY) is pressed twice per line: once when the
+-- target line STARTS, once when it ENDS. This toggle alternates the
+-- label every press so a single continuous trace naturally supports
+-- repeated runs (BEGIN/END/BEGIN/END/...) without reloading the
+-- script between attempts -- press it an odd number of times total in
+-- one session and the LAST marker is a dangling BEGIN with no
+-- matching END; gcrts.spu_trace_analyzer's target_windows() reports
+-- this explicitly rather than guessing a pairing.
+local next_mark_is_begin = true
 
 local keyboard_listener = PCSX.Events.createEventListener("Keyboard", function(e)
     PCSX.log("SPU Playback Trace: keyboard event key=" .. tostring(e.key) .. " action=" .. tostring(e.action))
     if e.key == MARK_KEY and e.action == MARK_ACTION_PRESS then
-        write_json({ event = "MARK", t = now(), label = "user marker key" })
-        PCSX.log("SPU Playback Trace: MARK recorded at t=" .. tostring(now()))
+        local label = next_mark_is_begin and "TARGET_BEGIN" or "TARGET_END"
+        write_json({ event = "MARK", t = now(), label = label })
+        PCSX.log("SPU Playback Trace: MARK " .. label .. " recorded at t=" .. tostring(now()))
+        next_mark_is_begin = not next_mark_is_begin
     end
 end)
 

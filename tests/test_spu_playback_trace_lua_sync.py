@@ -7,6 +7,8 @@ script's own comment warns about."""
 import re
 from pathlib import Path
 
+from gcrts.cdrom_driver_map import COMMAND_ISSUE_ROUTINE_ADDR
+from gcrts.cdrom_setfilter import OTHER_COMMAND_WRITE_SITES, SETFILTER_CALL_SITE_ADDR
 from gcrts.spu_audio_path import KEY_WRITER_SITES, SPUCNT_WRITER_SITES
 
 LUA_PATH = Path(__file__).resolve().parent.parent / "pcsx_lua" / "spu_playback_trace.lua"
@@ -15,6 +17,13 @@ LUA_PATH = Path(__file__).resolve().parent.parent / "pcsx_lua" / "spu_playback_t
 def _lua_writer_site_pcs() -> set[int]:
     text = LUA_PATH.read_text(encoding="utf-8")
     return {int(m, 16) for m in re.findall(r"pc\s*=\s*(0x[0-9A-Fa-f]+)", text)}
+
+
+def _lua_cd_command_site_pcs() -> set[int]:
+    text = LUA_PATH.read_text(encoding="utf-8")
+    m = re.search(r"CD_COMMAND_SITES\s*=\s*\{([^}]*)\}", text)
+    assert m is not None, "CD_COMMAND_SITES table not found in the Lua script"
+    return {int(x, 16) for x in re.findall(r"0x[0-9A-Fa-f]+", m.group(1))}
 
 
 def test_lua_file_exists():
@@ -33,3 +42,12 @@ def test_lua_writer_sites_do_not_invent_unknown_pcs():
     python_pcs = {s.write_pc for s in SPUCNT_WRITER_SITES} | {s.write_pc for s in KEY_WRITER_SITES}
     extra = lua_pcs - python_pcs
     assert not extra, f"pcsx_lua/spu_playback_trace.lua arms PC(s) not present in gcrts.spu_audio_path (a fabricated or stale address?): {[hex(x) for x in extra]}"
+
+
+def test_lua_cd_command_sites_match_already_verified_python_constants():
+    lua_pcs = _lua_cd_command_site_pcs()
+    python_pcs = {SETFILTER_CALL_SITE_ADDR, COMMAND_ISSUE_ROUTINE_ADDR, *OTHER_COMMAND_WRITE_SITES}
+    assert lua_pcs == python_pcs, (
+        f"pcsx_lua/spu_playback_trace.lua's CD_COMMAND_SITES ({[hex(x) for x in sorted(lua_pcs)]}) does not match "
+        f"gcrts.cdrom_setfilter/gcrts.cdrom_driver_map's already-verified sites ({[hex(x) for x in sorted(python_pcs)]})"
+    )

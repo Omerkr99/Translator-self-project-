@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 815 passed, 0 failed (`py -m pytest tests/ -q`), ~20s.
+- **Test count**: 843 passed, 0 failed (`py -m pytest tests/ -q`), ~20s.
   97 modules in `gcrts/`, 79 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -402,6 +402,38 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   schema/JSONL round-trips, marker-window filtering, voice-mask
   decode, classification logic per taxonomy value, a Lua/Python
   writer-site drift guard); full suite 815 passed, no regressions.
+  **Follow-up ("smallest decisive runtime experiment" milestone)**:
+  fixed the one narrow gap in the prior tooling (the marker only ever
+  wrote a single generic label) -- the Lua script's marker key now
+  alternates `TARGET_BEGIN`/`TARGET_END` on successive presses, so one
+  continuous recording supports repeated runs without reloading the
+  script. Added a `CdCommandEvent` type wired to 3 already-verified
+  CD-ROM command-write call sites (`gcrts.cdrom_setfilter`/
+  `gcrts.cdrom_driver_map` -- reused, not fabricated). Built
+  `gcrts.spu_trace_analyzer`'s `pair_target_runs` (explicitly reports a
+  dangling unpaired marker rather than mis-pairing), `tight_window`/
+  `context_window`/`control_windows` (Control A/C derived automatically
+  from the two markers, no extra keypress needed), and
+  `assess_instrumentation_health` -- the mandatory gate this milestone
+  required: an absence of a meaningful Key write is only trusted as
+  `CD_AUDIO_INPUT`/`OTHER_OR_UNKNOWN` evidence once at least one
+  `HEARTBEAT` and one `SPU_KEY_WRITE` (of any kind) are proven to exist
+  somewhere in the session; otherwise the result is honestly
+  `NOT_YET_CLASSIFIED` (`instrumentation_not_yet_validated`). A
+  genuinely observed meaningful Key write remains self-certifying and
+  bypasses that gate. Added `correlate_runs` (a stability table across
+  repeated runs) and a full `python -m gcrts.spu_trace_analyzer
+  <file...>` CLI producing the complete report (trace integrity,
+  markers, controls, target SPU/CD activity in both window widths,
+  mixer state, cross-run correlation, classification with a cited
+  confidence level) -- smoke-tested end to end against a synthetic
+  trace. **Still not live-tested against the actual running
+  emulator**: the critical experiment (load slot 9, arm, play, mark
+  TARGET_BEGIN/TARGET_END, analyze) requires the user's own real
+  gameplay and listening -- irreducibly human, per this project's own
+  established constraint (synthetic input into the game has been
+  confirmed broken since early in this investigation). 28 new tests;
+  full suite 843 passed, no regressions.
 
 ## Key current distinctions (do not lose these)
 

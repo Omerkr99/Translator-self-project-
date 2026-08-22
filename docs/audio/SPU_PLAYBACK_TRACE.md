@@ -119,57 +119,73 @@ narrowest unresolved gap for this register class.
    `spu_playback_trace.jsonl`).
 2. `Debug > Lua Editor` (or `Lua Console`), open
    `pcsx_lua/spu_playback_trace.lua`, click Run.
-3. Confirm the Lua console/log shows: `SPU Playback Trace armed: 8
+3. Confirm the Lua console/log shows: `SPU Playback Trace armed: 11
    breakpoints, heartbeat + save-state + marker listeners active.
-   Writing to spu_playback_trace.jsonl. Press the marker key (default
-   F9) when the target dialogue is heard.`
+   Writing to spu_playback_trace.jsonl.` (6 SPU Key ON/OFF sites + 2
+   SPUCNT sites + 4 CD-ROM command sites, plus the periodic heartbeat
+   and the save-state/keyboard listeners).
+4. **Arm BEFORE gameplay begins** -- load save slot 9 only after the
+   script is confirmed running, so the trace covers several seconds of
+   context before the target line, not just the line itself.
 
-## 5. How to create a marker
+## 5. How to create a marker: TARGET_BEGIN and TARGET_END
 
 Press **F9** (the script's `MARK_KEY` default, `GLFW_KEY_F9 = 298`,
 `GLFW_PRESS = 1` -- both standard, stable GLFW constants, but **not
 independently live-verified against this specific PCSX-Redux build
-this session**) while the target dialogue line is audible. This is
-PCSX-Redux's own application receiving a real physical keypress -- a
-genuinely different channel from the already-confirmed-broken
-"synthetic input into the emulated game controller" problem
+this session**) **once** the instant the target dialogue line
+**starts**, and **again** the instant it **ends**. The same key
+alternates the label every press (`TARGET_BEGIN` then `TARGET_END`
+then `TARGET_BEGIN` again for a repeat run, ...) -- `gcrts.
+spu_trace_analyzer.pair_target_runs` turns this flat, alternating
+sequence into `TargetRun`s, explicitly reporting a trailing unpaired
+`TARGET_BEGIN` (an odd number of total presses) rather than silently
+mis-pairing it.
+
+This is PCSX-Redux's own application receiving a real physical
+keypress -- a genuinely different channel from the already-confirmed-
+broken "synthetic input into the emulated game controller" problem
 (`gcrts.pcsx_spu_observer.synthetic_input_reaches_game_controller()`
 -> `False`); it does not need to reach the emulated console at all,
 only the host application, the same way PCSX-Redux's own menu
-shortcuts already work.
+shortcuts already work. This is the simplest reliable alternative
+available through PCSX-Redux -- no separate hardware, no synthetic
+input, no reliance on the (already-broken) game-controller path.
 
-**If F9 does not produce a `MARK recorded` log line**: every real
-keypress is logged as `SPU Playback Trace: keyboard event key=<N>
-action=<N>` (a diagnostic line, not written into the JSONL trace).
-Check the console for the real `key`/`action` values and update
-`MARK_KEY`/`MARK_ACTION_PRESS` at the top of the script.
+**If F9 does not produce a `MARK <label> recorded` log line**: every
+real keypress is logged as `SPU Playback Trace: keyboard event
+key=<N> action=<N>` (a diagnostic line, not written into the JSONL
+trace). Check the console for the real `key`/`action` values and
+update `MARK_KEY`/`MARK_ACTION_PRESS` at the top of the script.
 
 ## 6. How to stop and analyze
 
-Stop the Lua script (or just stop playing) once a marker plus a few
-seconds of surrounding context have been captured. Then, in Python:
+Stop the Lua script (or just stop playing) once TARGET_BEGIN,
+TARGET_END, and a few seconds of surrounding context (before AND
+after) have been captured. Then run the analyzer CLI directly:
 
-```python
-from gcrts.spu_playback_trace import load_trace
-from gcrts.spu_trace_analyzer import events_near_marker, first_marker, classify_playback_from_trace
-
-events = load_trace("spu_playback_trace.jsonl")
-marker = first_marker(events)
-window = events_near_marker(events, marker, before_seconds=2.0, after_seconds=2.0)  # configurable, not hardcoded
-result = classify_playback_from_trace(window)
-print(result.classification, "--", result.evidence)
+```
+python -m gcrts.spu_trace_analyzer spu_playback_trace.jsonl
 ```
 
-To also see which `AudioAsset` (if any) the CD position resolved to
-during the same window -- correlation evidence, never the
-classification's own basis (section 2's methodological constraint):
+This prints the full report: trace integrity, paired TARGET_BEGIN/
+TARGET_END runs, Control A (silence before)/Control C (post-dialogue)
+derived automatically from the same markers, target SPU/CD activity in
+both the tight (±250ms) and context (±2s) windows, mixer state, and a
+classification with a cited confidence level. Pass multiple trace
+files (one per repeated run) for the cross-run correlation section:
 
-```python
-from gcrts.spu_trace_analyzer import correlate_heartbeats_with_resolver
-disc_bytes = open(DISC_PATH, "rb").read()
-for c in correlate_heartbeats_with_resolver(window, disc_bytes):
-    print(c.heartbeat.t, c.resolution.confidence, c.resolution.asset)
 ```
+python -m gcrts.spu_trace_analyzer run1.jsonl run2.jsonl run3.jsonl
+```
+
+For programmatic use, the same building blocks are directly callable:
+`pair_target_runs`, `tight_window`/`context_window`/`control_windows`,
+`assess_instrumentation_health`, `classify_playback_from_trace`,
+`correlate_heartbeats_with_resolver` (to see which `AudioAsset`, if
+any, the CD position resolved to in the same window -- correlation
+evidence, never the classification's own basis, section 2's
+methodological constraint), and `correlate_runs`.
 
 ## 7. How to extract a candidate SPU sample
 
@@ -187,16 +203,60 @@ explicit and callable, for the moment a future session finds a real
 SPU-RAM-reading channel -- see its own docstring for exactly what
 would need to change.
 
-## 8. What evidence distinguishes SPU voice playback from CD audio input
+## 8. Experiment design: controls, windows, instrumentation validation, repetition
+
+**Controls.** Control A (silence, immediately before `TARGET_BEGIN`)
+and Control C (post-dialogue, immediately after `TARGET_END`) are
+derived automatically from the two markers already captured -- no
+extra marker press needed, since the tracer runs continuously
+(`gcrts.spu_trace_analyzer.control_windows`). Control B (a naturally-
+occurring, clearly audible SFX/UI sound) has no dedicated marker in
+this tooling; if one occurs in the captured session, it shows up as
+ordinary `SPU_KEY_WRITE`/`CD_COMMAND` activity outside the target
+run's own window in the report -- this tooling does not require
+artificially triggering one.
+
+**Two window widths, never just one.** `tight_window` (`TARGET_BEGIN -
+250ms` to `TARGET_END + 250ms`, both configurable) for events tightly
+synchronized to the audible line; `context_window` (`TARGET_BEGIN -
+2s` to `TARGET_END + 2s`, also configurable) for setup events (CD
+seek/read, mixer changes) that precede audible playback.
+
+**Instrumentation validation is mandatory before trusting a negative
+result.** `assess_instrumentation_health` requires at least one
+`HEARTBEAT` (main-RAM read path alive) and at least one
+`SPU_KEY_WRITE` of ANY kind, meaningful or not (the Key ON/OFF
+breakpoints have actually fired -- prior sessions found the periodic
+sync pair firing constantly, ~9.5 Hz, so a total absence across a real
+multi-second session is itself suspicious, not evidence of anything
+about the game). `classify_playback_from_trace` applies this gate
+**only** to the CD_AUDIO_INPUT/OTHER_OR_UNKNOWN paths (which rest on
+an absence of a meaningful Key write) -- a genuinely observed
+meaningful Key write is self-certifying and needs no separate proof of
+life. When the gate fails, the result is `NOT_YET_CLASSIFIED` with
+`instrumentation_not_yet_validated` named explicitly in the evidence
+string, never silently folded into a confident negative.
+
+**Repetition and cross-run correlation.** The Lua script's alternating
+marker label supports repeating BEGIN/END within one continuous
+recording, or across separately saved trace files. `correlate_runs`
+builds the comparison table this milestone's brief asked for (same
+Key ON voice? same writer PC? same CD command(s)? same LBA region?),
+marking each row `stable` only when every run agrees -- distinguishing
+deterministic behavior from incidental timing coincidence.
+
+## 9. What evidence distinguishes SPU voice playback from CD audio input
 
 | Evidence | SPU_VOICE_PLAYBACK | CD_AUDIO_INPUT |
 |---|---|---|
-| Key ON/OFF writer hit with a nonzero voice mask in the marker window | Present (never yet observed for this game's dialogue) | Absent (only the empty/no-op mask, matching every prior capture) |
+| Key ON/OFF writer hit with a nonzero voice mask in the marker window | Present (never yet observed for this game's dialogue) | Absent (only the empty/no-op mask, matching every prior capture) -- but ONLY meaningful once instrumentation health passes (section 8) |
+| CD-ROM command traffic (`CdCommandEvent`, e.g. `ReadN`/`Setloc`/`GetlocP`) in the context window | Not required either way | Presence alone is NOT sufficient (per this milestone's own rule) -- must align temporally with `TARGET_BEGIN`/`TARGET_END`, not just exist somewhere in the window |
 | Position-counter lifecycle state (`gcrts.runtime_audio`) | Not required | `PLAYING` (0x01), or a `SAVE_STATE_LOADED` anchor immediately before the marker (the already-observed "t=0.0s" pattern) |
 | Muting all 24 SPU voices (manual, native SPU Debug window) | Would silence the line | Confirmed NOT to silence the line, twice, independently (`gcrts.spu_audio_path.MANUAL_MUTE_EXPERIMENTS`) |
 | System DMA channels 3 (CDROM) / 4 (SPU) | Not expected to be involved either way (voice sample delivery is a separate SPU-internal mechanism from system DMA) | Confirmed inactive during a real audible window (`gcrts.spu_audio_path.DMA_TRANSPORT_OBSERVATIONS`) |
+| Reproducible across 3 repeated runs (`correlate_runs`) | Raises confidence from MEDIUM to HIGH | Raises confidence from MEDIUM to HIGH |
 
-## 9. Current unresolved questions
+## 10. Current unresolved questions
 
 - **What is the actual save-slot-9 target line's real source?** Fully
   open again after the `XAPACK22:7` retraction (2026-08-23) -- five
@@ -222,3 +282,20 @@ would need to change.
 - **SPU-internal RAM remains confirmed uninspectable** through every
   channel this project has access to (GUI, Lua, GDB) -- re-confirmed,
   not newly discovered, this session.
+- **The 3 CD-ROM command-write sites now armed (`gcrts.cdrom_setfilter.
+  SETFILTER_CALL_SITE_ADDR`/`OTHER_COMMAND_WRITE_SITES`,
+  `gcrts.cdrom_driver_map.COMMAND_ISSUE_ROUTINE_ADDR`) previously
+  produced only Sync (`0x00`) hits from the OLD, now-superseded
+  `0x80081C00` entry point in one prior milestone -- the corrected 3
+  sites (see `gcrts.cdrom_setfilter`'s own docstring) found real,
+  varied command traffic including one live Setfilter hit. Whether
+  this new experiment's continuous, marker-anchored capture catches
+  meaningful command traffic during the actual target window is an
+  open question this milestone's live run will answer, not assumed.
+- **Live validation checklist for the FIRST real run** (see the
+  companion status report's own "Live validation result"): script
+  loads without error; heartbeat events appear in the JSONL; a marker
+  keypress produces both the diagnostic log line and a `MARK` event in
+  the file; the trace survives a save-state load without breaking;
+  timestamps stay monotonically non-decreasing throughout. All five
+  must pass before any classification from a real session is trusted.
