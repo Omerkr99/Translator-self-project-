@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 719 passed, 0 failed (`py -m pytest tests/ -q`), ~19s.
-  91 modules in `gcrts/`, 72 test files.
+- **Test count**: 731 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
+  92 modules in `gcrts/`, 73 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -291,6 +291,17 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   runtime-anchor cross-check or direct listening instead).
   `XAPACK08:7` is now the project's first persisted confirmed semantic
   label (`DIALOGUE`, `USER_LISTENING`).
+  **Follow-up (`FANDUB_REPLACEMENT_TEMPLATE.md`)**: the fourth
+  (product access) layer's first real piece — `gcrts.audio_replacement`
+  builds a `FandubEntry` template (original audio metadata pre-filled,
+  translation/replacement fields empty) and rules-only
+  `validate_replacement()` (format/clipping/silence/duration checks,
+  never resampling or re-encoding). Gated on a confirmed semantic
+  label — refuses to scaffold a project for anything not already
+  `USER_LISTENING`/`RUNTIME_EVIDENCE` confirmed, including a bare
+  `HEURISTIC` guess. `XAPACK08:7` has the project's first real
+  scaffolded template. No injection/encoding implemented — explicitly
+  out of scope until this foundation is exercised on more assets.
 
 ## Key current distinctions (do not lose these)
 

@@ -71,6 +71,10 @@ classification plus human-in-the-loop confirmed-label persistence and
 a per-pack review-folder pipeline, `review.html` included; caught and
 fixed a real classifier bug — regular loops vs. genuinely irregular
 speech bursts — against the one already-confirmed asset) →
+`FANDUB_REPLACEMENT_TEMPLATE.md` (the product-access layer's first
+piece — a translation/dub template + rules-only validation preview,
+gated on a confirmed semantic label, no injection/encoding
+implemented) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 
