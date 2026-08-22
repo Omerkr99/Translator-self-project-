@@ -17,6 +17,6 @@
   "replacement_channels": null,
   "validation_status": "NOT_STARTED",
   "validation_notes": "",
-  "notes": "Draft translation, not yet reviewed/approved by the user -- pending confirmation before use.",
+  "notes": "Draft translation, not yet reviewed/approved by the user -- pending confirmation before use. | RETRACTED 2026-08-23: this asset's identity as the save-slot-9 voice line is now in doubt (user retraction after reviewing fresh live candidates) -- treat this entire template, including the exported subtitle.srt, as provisional pending re-verification.",
   "created_at": "2026-08-22T18:41:46.586033+00:00"
 }

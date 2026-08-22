@@ -32,8 +32,8 @@
     "sample_rate_hz": 37800,
     "channels": 2,
     "semantic_type": "DIALOGUE",
-    "semantic_confirmed": true,
-    "semantic_verification_source": "USER_LISTENING",
+    "semantic_confirmed": false,
+    "semantic_verification_source": "UNVERIFIED",
     "character": "Yukari",
     "japanese_transcript": "ユカリ：・・・・あ、そうだ",
     "transcript_verified": false,
@@ -48,10 +48,32 @@
       "User confirmed by direct listening to the decoded WAV (XAPACK22_ch7.wav).",
       "Real on-screen Japanese transcript captured via user screenshot (speaker: Yukari) -- not yet confirmed to be the EXACT line for this asset vs. the preceding screen.",
       "Automated live script-buffer text capture attempted 5 times (varying speed/resolution/timing) -- all failed (SCRIPT_CONTEXT_UNKNOWN), confirmed closed dead end, not a timing issue.",
-      "User live-gameplay observation (2026-08-22): the voice line begins immediately after the screen/scene changes (no delay), and the speech spans the ENTIRE ~5.39s clip duration, not just an initial ~1.5s. Confirms the single-cue subtitle timing (00:00:00.000-00:00:05.387) is correct as exported, and is real corroborating evidence (though not yet a full confirmation) that the screenshot-captured transcript belongs to this exact audio moment, since it occurs right at the same screen transition the screenshot was taken from."
+      "User live-gameplay observation (2026-08-22): the voice line begins immediately after the screen/scene changes (no delay), and the speech spans the ENTIRE ~5.39s clip duration, not just an initial ~1.5s. Confirms the single-cue subtitle timing (00:00:00.000-00:00:05.387) is correct as exported, and is real corroborating evidence (though not yet a full confirmation) that the screenshot-captured transcript belongs to this exact audio moment, since it occurs right at the same screen transition the screenshot was taken from.",
+      "RETRACTED 2026-08-23: user cast doubt on this asset's identity as the save-slot-9 voice line after reviewing a fresh batch of live-captured candidates that did not match what they actually hear. semantic_confirmed downgraded to False pending re-verification."
     ],
     "scene_notes": null,
     "notes": "Cleaned 2026-08-22: translation field previously duplicated the speaker prefix (\"Yukari: ...\"), which is already carried separately in character -- normalized to just the dialogue text.",
-    "updated_at": "2026-08-22T19:41:39.160073+00:00"
+    "updated_at": "2026-08-22T21:07:33.432852+00:00"
+  },
+  "XAPACK40:0": {
+    "asset_id": "XAPACK40:0",
+    "pack_path": "DAT/XA2/XAPACK40.BIN",
+    "channel_number": 0,
+    "duration_seconds": 1.3866666666666667,
+    "sample_rate_hz": 37800,
+    "channels": 2,
+    "semantic_type": "UNKNOWN",
+    "semantic_confirmed": false,
+    "semantic_verification_source": "UNVERIFIED",
+    "character": null,
+    "japanese_transcript": null,
+    "transcript_verified": false,
+    "translation": null,
+    "translation_approved": false,
+    "workflow_status": "DETECTED",
+    "evidence": [],
+    "scene_notes": null,
+    "notes": "",
+    "updated_at": "2026-08-22T19:49:43.132529+00:00"
   }
 }

@@ -9,8 +9,8 @@
   "XAPACK22:7": {
     "asset_id": "XAPACK22:7",
     "semantic_type": "DIALOGUE",
-    "verification_source": "USER_LISTENING",
-    "notes": "Confirmed for save slot 9 (a reproducible pre-voiced-dialogue state): a live LBA capture during a real, confirmed dialogue trigger landed on XAPACK22.BIN channel 7. The heuristic classifier top candidate (82%, cv_z outlier) and the highest runtime-anchor relative-activity channel DISAGREED for this pack (heuristic favored ch7; activity-window favored ch0, 2.74x). The user listened to the heuristic pick (ch7) first and confirmed it directly -- ch0 was never needed. A separate candidate for this same save slot (XAPACK23:1, where heuristic AND activity-window had agreed) was tested first and explicitly rejected by direct listening -- a reminder that even agreeing automated signals are not a substitute for listening, and a disagreement between signals does not mean either one is wrong.",
-    "verified_at": "2026-08-22T18:41:36.655299+00:00"
+    "verification_source": "UNVERIFIED",
+    "notes": "Confirmed for save slot 9 (a reproducible pre-voiced-dialogue state): a live LBA capture during a real, confirmed dialogue trigger landed on XAPACK22.BIN channel 7. The heuristic classifier top candidate (82%, cv_z outlier) and the highest runtime-anchor relative-activity channel DISAGREED for this pack (heuristic favored ch7; activity-window favored ch0, 2.74x). The user listened to the heuristic pick (ch7) first and confirmed it directly -- ch0 was never needed. A separate candidate for this same save slot (XAPACK23:1, where heuristic AND activity-window had agreed) was tested first and explicitly rejected by direct listening -- a reminder that even agreeing automated signals are not a substitute for listening, and a disagreement between signals does not mean either one is wrong. | RETRACTED 2026-08-23: user re-examined a batch of fresh live candidates from the same save-slot-9 area (XAPACK40:0, XAPACK22 channels 0/1/2) and stated NONE of them matched what they actually hear, then explicitly said this original XAPACK22:7 confirmation is ALSO now in doubt. Downgraded from USER_LISTENING to UNVERIFIED pending re-verification -- do not treat as settled. Original evidence preserved above for history.",
+    "verified_at": "2026-08-22T21:07:33.414334+00:00"
   }
 }
