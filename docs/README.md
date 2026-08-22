@@ -83,6 +83,10 @@ ahead workflow status) →
 into a live `NOW PLAYING: <asset_id>` panel in the Visual Inspector;
 never overwrites an existing entry's hand-added evidence; live-verified
 against the actually-running emulator) →
+`SUBTITLE_EXPORT.md` (the first product-access deliverable, text-only
+subtitles before dubbing — a real `.srt` for the confirmed save-slot-9
+voice line, plus a real speaker-prefix duplication bug caught and fixed
+at the source) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

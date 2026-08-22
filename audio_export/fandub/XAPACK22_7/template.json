@@ -1,0 +1,22 @@
+{
+  "original_asset_id": "XAPACK22:7",
+  "original_pack_path": "DAT/XA1/XAPACK22.BIN",
+  "original_channel_number": 7,
+  "original_duration_seconds": 5.386666666666667,
+  "original_sample_rate_hz": 37800,
+  "original_channels": 2,
+  "japanese_transcript": "ユカリ：・・・・あ、そうだ",
+  "translation": "....Oh, right.",
+  "speaker": "Yukari",
+  "caption_notes": "Real on-screen text captured by the user via screenshot -- this is the screen shown immediately BEFORE the confirmed XAPACK22:7 audio moment (user's own clarification), not independently confirmed to be the exact spoken content of this specific audio line itself. Recorded honestly as the preceding dialogue-box text, not fabricated or guessed. Automated live script-buffer capture (gcrts.script_audio_association) was attempted 3 times for this exact moment and failed each time (SCRIPT_CONTEXT_UNKNOWN) -- this transcript came from direct user observation instead, the more reliable path.",
+  "replacement_file": null,
+  "replacement_actor": null,
+  "replacement_language": "en",
+  "replacement_duration_seconds": null,
+  "replacement_sample_rate_hz": null,
+  "replacement_channels": null,
+  "validation_status": "NOT_STARTED",
+  "validation_notes": "",
+  "notes": "Draft translation, not yet reviewed/approved by the user -- pending confirmation before use.",
+  "created_at": "2026-08-22T18:41:46.586033+00:00"
+}

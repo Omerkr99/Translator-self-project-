@@ -1,0 +1,22 @@
+{
+  "original_asset_id": "XAPACK08:7",
+  "original_pack_path": "DAT/XA1/XAPACK08.BIN",
+  "original_channel_number": 7,
+  "original_duration_seconds": 20.373333333333335,
+  "original_sample_rate_hz": 37800,
+  "original_channels": 2,
+  "japanese_transcript": null,
+  "translation": null,
+  "speaker": null,
+  "caption_notes": null,
+  "replacement_file": null,
+  "replacement_actor": null,
+  "replacement_language": "en",
+  "replacement_duration_seconds": null,
+  "replacement_sample_rate_hz": null,
+  "replacement_channels": null,
+  "validation_status": "NOT_STARTED",
+  "validation_notes": "",
+  "notes": "",
+  "created_at": "2026-08-22T18:27:06.882714+00:00"
+}

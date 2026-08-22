@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 766 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
-  94 modules in `gcrts/`, 75 test files.
+- **Test count**: 781 passed, 0 failed (`py -m pytest tests/ -q`), ~22s.
+  95 modules in `gcrts/`, 76 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -342,6 +342,24 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   emulator this session**: 10 consecutive real polls all resolved to
   `XAPACK22:7`, correctly showing its real `DIALOGUE`/`TRANSLATION_DRAFT`
   entry. 13 new tests; full suite 766 passed, no regressions.
+  **Follow-up (`SUBTITLE_EXPORT.md`)**: the first real product-access
+  deliverable, deliberately text-only (subtitles before dubbing, per
+  request). `gcrts.subtitle_export` builds a standard `.srt` from a
+  `DialogueDatabaseEntry`'s real translation, timed against the asset's
+  own real `duration_seconds`; refuses to export anything without a
+  translation already present, and a JSON sidecar carries an honest
+  `transcript_verified`/`translation_approved` caveat rather than
+  silently upgrading confidence. Caught and fixed a real data bug in
+  the process: `XAPACK22:7`'s stored `translation` field already had
+  the speaker prefix baked in from an earlier session, which duplicated
+  once the separate `character` field was also prefixed for the
+  subtitle line (`"ユカリ (Yukari): Yukari: ....Oh, right."`) — fixed at
+  the source (both the Fandub template and the database entry), not
+  papered over in the formatter; a note documenting the cleanup was
+  added to the entry itself. Real output produced this session:
+  `audio_export/fandub/XAPACK22_7/subtitle.srt` (`"Yukari: ....Oh,
+  right."`, timed `00:00:00,000 --> 00:00:05,387`, the asset's own real
+  duration). 15 new tests; full suite 781 passed, no regressions.
 
 ## Key current distinctions (do not lose these)
 

@@ -34,10 +34,10 @@
     "semantic_type": "DIALOGUE",
     "semantic_confirmed": true,
     "semantic_verification_source": "USER_LISTENING",
-    "character": "ユカリ (Yukari)",
+    "character": "Yukari",
     "japanese_transcript": "ユカリ：・・・・あ、そうだ",
     "transcript_verified": false,
-    "translation": "Yukari: ....Oh, right.",
+    "translation": "....Oh, right.",
     "translation_approved": false,
     "workflow_status": "TRANSLATION_DRAFT",
     "evidence": [
@@ -50,7 +50,7 @@
       "Automated live script-buffer text capture attempted 5 times (varying speed/resolution/timing) -- all failed (SCRIPT_CONTEXT_UNKNOWN), confirmed closed dead end, not a timing issue."
     ],
     "scene_notes": null,
-    "notes": "",
-    "updated_at": "2026-08-22T19:13:42.013212+00:00"
+    "notes": "Cleaned 2026-08-22: translation field previously duplicated the speaker prefix (\"Yukari: ...\"), which is already carried separately in character -- normalized to just the dialogue text.",
+    "updated_at": "2026-08-22T19:36:20.614165+00:00"
   }
 }
