@@ -75,6 +75,10 @@ speech bursts — against the one already-confirmed asset) →
 piece — a translation/dub template + rules-only validation preview,
 gated on a confirmed semantic label, no injection/encoding
 implemented) →
+`DIALOGUE_DATABASE.md` (the unified per-asset workbench record —
+combines physical identity, confirmed semantic label, and Fandub
+template into one `DialogueDatabaseEntry` with a derived, never-jumps-
+ahead workflow status) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

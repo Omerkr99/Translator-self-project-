@@ -1,0 +1,56 @@
+{
+  "XAPACK08:7": {
+    "asset_id": "XAPACK08:7",
+    "pack_path": "DAT/XA1/XAPACK08.BIN",
+    "channel_number": 7,
+    "duration_seconds": 20.373333333333335,
+    "sample_rate_hz": 37800,
+    "channels": 2,
+    "semantic_type": "DIALOGUE",
+    "semantic_confirmed": true,
+    "semantic_verification_source": "USER_LISTENING",
+    "character": null,
+    "japanese_transcript": null,
+    "transcript_verified": false,
+    "translation": null,
+    "translation_approved": false,
+    "workflow_status": "DETECTED",
+    "evidence": [
+      "KNOWN_CUE_SOURCES[127]: live LBA 126921 falls exactly inside this stream (xa_channel=7).",
+      "Decoder verified 100.0000% sample-identical against FFmpeg adpcm_xa (XA_DECODER_VERIFICATION.md).",
+      "User confirmed by direct listening: real, identifiable speech (train station announcer / PA-style line)."
+    ],
+    "scene_notes": null,
+    "notes": "",
+    "updated_at": "2026-08-22T19:13:42.006855+00:00"
+  },
+  "XAPACK22:7": {
+    "asset_id": "XAPACK22:7",
+    "pack_path": "DAT/XA1/XAPACK22.BIN",
+    "channel_number": 7,
+    "duration_seconds": 5.386666666666667,
+    "sample_rate_hz": 37800,
+    "channels": 2,
+    "semantic_type": "DIALOGUE",
+    "semantic_confirmed": true,
+    "semantic_verification_source": "USER_LISTENING",
+    "character": "ユカリ (Yukari)",
+    "japanese_transcript": "ユカリ：・・・・あ、そうだ",
+    "transcript_verified": false,
+    "translation": "Yukari: ....Oh, right.",
+    "translation_approved": false,
+    "workflow_status": "TRANSLATION_DRAFT",
+    "evidence": [
+      "Live LBA capture #1 (save slot 9): reproducible sweep landed on XAPACK22, heuristic top candidate 82%.",
+      "Live LBA capture #2: XAPACK22:7 revisited naturally without a manual trigger.",
+      "Live LBA capture #3 (0.2s resolution): XAPACK22:7 hit twice within one natural sweep.",
+      "Live LBA capture #4: XAPACK22:7 appeared at t=0.0s, immediately after save-state load -- strongest timing evidence.",
+      "User confirmed by direct listening to the decoded WAV (XAPACK22_ch7.wav).",
+      "Real on-screen Japanese transcript captured via user screenshot (speaker: Yukari) -- not yet confirmed to be the EXACT line for this asset vs. the preceding screen.",
+      "Automated live script-buffer text capture attempted 5 times (varying speed/resolution/timing) -- all failed (SCRIPT_CONTEXT_UNKNOWN), confirmed closed dead end, not a timing issue."
+    ],
+    "scene_notes": null,
+    "notes": "",
+    "updated_at": "2026-08-22T19:13:42.013212+00:00"
+  }
+}

@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 731 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
-  92 modules in `gcrts/`, 73 test files.
+- **Test count**: 753 passed, 0 failed (`py -m pytest tests/ -q`), ~22s.
+  93 modules in `gcrts/`, 74 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -302,6 +302,29 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   `HEURISTIC` guess. `XAPACK08:7` has the project's first real
   scaffolded template. No injection/encoding implemented — explicitly
   out of scope until this foundation is exercised on more assets.
+  A second confirmed asset, `XAPACK22:7`, was added via real live LBA
+  captures (including one at `t=0.0s`, a strong timing anchor) plus
+  direct listening confirmation; its Fandub template carries a real
+  screenshot-sourced Japanese transcript and a draft (unreviewed)
+  translation, with an honest caveat that the transcript's exact
+  moment-of-belonging (this line vs. the preceding screen) is not yet
+  human-verified.
+  **Follow-up (`DIALOGUE_DATABASE.md`)**: built the unified
+  `gcrts.dialogue_database` module — the project's own prioritized
+  "Fandub Management Layer" Phase 1 — combining physical identity
+  (`gcrts.xapack.AudioAsset`), the confirmed/unconfirmed semantic label,
+  and any scaffolded Fandub template into one `DialogueDatabaseEntry`
+  per asset, with a `DialogueWorkflowStatus` that is always *derived*
+  from which fields are actually filled in (never asserted ahead of
+  real progress) and never regresses past `RECORDED`/`AUDIO_VALIDATED`/
+  `READY_FOR_INJECTION` once a caller sets one of those (external
+  actions this module can't infer on its own). Evidence is a plain,
+  additive list of real factual strings, never auto-generated. Both
+  confirmed assets are now real entries: `XAPACK08:7` at `DETECTED`
+  (no transcript/translation filled in yet), `XAPACK22:7` at
+  `TRANSLATION_DRAFT` (real transcript + draft translation, neither
+  verified nor approved). 22 new tests; full suite 753 passed, no
+  regressions.
 
 ## Key current distinctions (do not lose these)
 
