@@ -87,6 +87,16 @@ against the actually-running emulator) →
 subtitles before dubbing — a real `.srt` for the confirmed save-slot-9
 voice line, plus a real speaker-prefix duplication bug caught and fixed
 at the source) →
+**retraction (2026-08-23)**: 5 fresh live candidates for the
+save-slot-9 line were all rejected on listening, including the
+previously-confirmed `XAPACK22:7` — downgraded to `UNVERIFIED`,
+evidence preserved, not deleted →
+`SPU_PLAYBACK_TRACE.md` (the methodology shift this forced:
+playback-first, not CD-first, identification — a structured SPU
+Key-write/heartbeat/marker trace schema, a PCSX-Redux Lua tracer
+verified against the emulator's real FFI source, and a classifier
+naming `SPU_VOICE_PLAYBACK`/`CD_AUDIO_INPUT`/`OTHER_OR_UNKNOWN` with
+cited evidence — not yet live-tested, the natural next experiment) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

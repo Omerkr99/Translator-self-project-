@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 781 passed, 0 failed (`py -m pytest tests/ -q`), ~22s.
-  95 modules in `gcrts/`, 76 test files.
+- **Test count**: 815 passed, 0 failed (`py -m pytest tests/ -q`), ~20s.
+  97 modules in `gcrts/`, 79 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -360,6 +360,48 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   `audio_export/fandub/XAPACK22_7/subtitle.srt` (`"Yukari: ....Oh,
   right."`, timed `00:00:00,000 --> 00:00:05,387`, the asset's own real
   duration). 15 new tests; full suite 781 passed, no regressions.
+  **Retraction (2026-08-23)**: a fresh round of live save-slot-9
+  captures produced 5 candidates (`XAPACK40:0`, `XAPACK22` channels
+  0/1/2, and `XAPACK22:7` itself); direct listening rejected all 5,
+  including `XAPACK22:7` -- its earlier confirmation was retracted
+  (downgraded `USER_LISTENING` -> `UNVERIFIED` in the label store,
+  `semantic_confirmed` set `False` on the database entry), with the
+  original evidence preserved in the notes, not deleted. `XAPACK08:7`
+  is unaffected (different investigation thread). This directly
+  motivated the methodology shift below: current-LBA polling was
+  retired as this project's primary identification technique.
+  **Follow-up (`SPU_PLAYBACK_TRACE.md`) -- playback-first, not
+  CD-first identification**: built `gcrts.spu_playback_trace` (a
+  structured JSONL event schema: `SPU_KEY_WRITE`/`SPUCNT_WRITE`/
+  `HEARTBEAT`/`SAVE_STATE_LOADED`/`MARK`, plus the full, psx-spx-
+  verified per-voice SPU register map, internally cross-checked
+  against this project's own already-verified `OFFSET_MAIN_VOL_L`)
+  and `gcrts.spu_trace_analyzer` (marker-window filtering, voice-mask
+  decode, and a `classify_playback_from_trace()` that names exactly
+  one of `SPU_VOICE_PLAYBACK`/`CD_AUDIO_INPUT`/`OTHER_OR_UNKNOWN`/
+  `NOT_YET_CLASSIFIED` with cited evidence, never a bare guess).
+  Re-verified PCSX-Redux's real Lua API against its actual FFI source
+  (`src/core/pcsxffi.lua`, `src/core/eventslua.cc`, fetched fresh this
+  session) rather than trusting prior notes -- confirmed
+  `PCSX.addBreakpoint`/`PCSX.getRegisters`/
+  `PCSX.Events.createEventListener("Keyboard"/"GPU::Vsync"/
+  "ExecutionFlow::SaveStateLoaded")` are real, and that the Lua memory
+  API still has no SPU RAM/register accessor -- re-confirming, with a
+  stronger primary-source evidence class, the already-established
+  `spu_internal_ram_directly_inspectable() -> False` conclusion (not
+  new information, independent corroboration). Built
+  `pcsx_lua/spu_playback_trace.lua`, arming all 8 known writer sites
+  from `gcrts.spu_audio_path` (cross-drift-tested against the Python
+  constants) plus a marker via a real Lua `"Keyboard"` event listener
+  -- genuinely different from the already-confirmed-broken "synthetic
+  input into the emulated game controller" problem, since it only
+  needs the host application to see a real physical keypress. **Not
+  yet live-tested**: no tool available to this project can load/run a
+  Lua script inside PCSX-Redux's GUI without a human action -- the
+  first real run is the next experiment. 34 new tests (event
+  schema/JSONL round-trips, marker-window filtering, voice-mask
+  decode, classification logic per taxonomy value, a Lua/Python
+  writer-site drift guard); full suite 815 passed, no regressions.
 
 ## Key current distinctions (do not lose these)
 

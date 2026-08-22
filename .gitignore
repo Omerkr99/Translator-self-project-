@@ -39,3 +39,11 @@ workflow_full_tmp/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# SPU Playback Trace: ephemeral per-session JSONL capture output
+# produced by pcsx_lua/spu_playback_trace.lua while it's running
+# against a live PCSX-Redux instance -- regeneratable by re-running the
+# capture, never source. A specific capture kept as real evidence for
+# a documented finding gets force-added explicitly, same precedent as
+# audio_export/semantic_labels.json.
+spu_playback_trace*.jsonl
