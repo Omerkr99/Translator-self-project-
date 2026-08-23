@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 903 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
-  99 modules in `gcrts/`, 82 test files.
+- **Test count**: 912 passed, 0 failed (`py -m pytest tests/ -q`), ~19s.
+  100 modules in `gcrts/`, 83 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -488,6 +488,50 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   running `dump_ram.lua` live (not yet done this session). 46 new
   tests, none depending on the real (gitignored) disc image; full suite
   903 passed, no regressions.
+  **Follow-up -- the actual live run, five internal-instrumentation
+  angles, then a pivot that resolved it**: ran `dump_ram.lua` for real
+  (3 target runs + 1 control); all 4 cross-run-stable RAM candidates
+  turned out to be either generic per-frame buffers (identical to
+  control) or ISO9660 directory-scan/pointer tables, not audio payload
+  -- verified against the real disc's own `XA1`/`XA2` directory records
+  byte-for-byte. Built a real GDB remote-protocol breakpoint/watchpoint
+  client (`scripts/gdb_cdinit_trigger_capture.py`, since PCSX-Redux's
+  own in-process Lua `addBreakpoint` never fired despite a
+  byte-verified-correct target) and used it for four more angles, each
+  reaching a real, disciplined conclusion: CD-ROM command tracing
+  (`ReadS` never observed even during the exact target line), an SPU
+  Sound RAM upload pattern that turned out identical at boot
+  (`SYSTEMIC_SPU_ACTIVITY`, not target-specific), a full-coverage
+  linear data-flow static scanner for the CD-ROM Data FIFO
+  (`gcrts.cdrom_fifo_scanner`, 97,280 instructions across all of
+  `CAP0.EXE`, zero genuine reads found -- catching and fixing a real
+  bug in its own tag-propagation ordering along the way, 9 new tests),
+  and a statistical PC-sampling runtime profiler (`sample_pc_profile`,
+  built after arming 890 simultaneous exec breakpoints was found to
+  slow the interpreter to a crawl -- a real, useful negative finding
+  about this project's own tooling limits) whose top target-window-
+  specific candidates all resolved to generic UI/rendering code.
+  **Then the pivot** (`OUTPUT_AUDIO_CAPTURE.md`): stopped trying to
+  infer which internal subsystem produces the voice and instead
+  captured the emulator's real digital output directly via WASAPI
+  loopback (`gcrts.output_audio_capture`, PyAudioWPatch -- no built-in
+  PCSX-Redux recording facility or Lua audio API exists, confirmed
+  against the real upstream source). Localized the target line from
+  the waveform's own RMS-energy shape (no live timestamp markers
+  needed), then found a real, load-bearing distinction: a naive whole-
+  clip fingerprint match's top score was a **duration artifact**
+  (matching against fragments 5-50x shorter than the query), and even
+  a duration-filtered top candidate showed an unstable offset between
+  crops -- a genuine false lead, caught before being trusted. The real
+  signal came from a sliding-window offset-continuity search: 7
+  consecutive 1.5s windows where `XAPACK22:7`'s matched offset advanced
+  almost exactly 1:1 with real time, sharply distinct from the
+  incoherent matches around it. User-confirmed by direct listening
+  (content: a hand-washing sound effect then "onee-chan") --
+  `XAPACK22:7` reconfirmed `USER_LISTENING`, independently, by a
+  completely different method than its original (and later retracted)
+  confirmation. 9 new tests (`gcrts.cdrom_fifo_scanner`); full suite
+  912 passed, no regressions.
 
 ## Key current distinctions (do not lose these)
 

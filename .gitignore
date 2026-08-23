@@ -47,3 +47,30 @@ __pycache__/
 # a documented finding gets force-added explicitly, same precedent as
 # audio_export/semantic_labels.json.
 spu_playback_trace*.jsonl
+
+# Audio Data Trace / CD Target Trace / Output Audio Capture: raw
+# 2MB RAM snapshots (pcsx_lua/dump_ram.lua), GDB capture JSON logs
+# (scripts/gdb_cdinit_trigger_capture.py), the regenerable audio
+# fingerprint database, and this session's exploratory audio captures
+# and extracted candidate WAVs -- all bulk, regeneratable by re-running
+# the live capture, never source. Same precedent as audio_export/ and
+# spu_playback_trace*.jsonl above.
+artifacts/
+audio_fingerprints.json
+run0*_before.bin
+run0*_during.bin
+run0*_after.bin
+control_before.bin
+control_during.bin
+control_after.bin
+sanity.bin
+watchpoint_lba_trigger.bin
+cdinit_gdb_trigger.bin
+watchpoint_sequence*.json
+cd_command_sequence.json
+spu_mmio_sequence.json
+spu_transfer_fifo_sequence.json
+spu_upload_run01.json
+spu_dma_candidate.bin
+test_loopback*.wav
+test_profile*.json

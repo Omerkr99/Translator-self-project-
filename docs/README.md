@@ -104,7 +104,17 @@ what was changed, with `GPU::Vsync` proven to keep firing throughout →
 `AUDIO_DATA_TRACE.md` (the resulting pivot: control-flow tracing →
 data tracing — offline RAM-snapshot diffing, multi-signal candidate
 scoring, format heuristics, and a real, validated audio fingerprint
-matcher against the existing `AudioAsset` catalog) →
+matcher against the existing `AudioAsset` catalog) → five more internal
+angles each pursued to a real, disciplined negative (CD command/DMA/SPU
+MMIO tracing, a full-coverage static CD Data FIFO scanner
+`gcrts.cdrom_fifo_scanner`, and a statistical PC-sampling runtime
+profiler after 890 simultaneous breakpoints were found to slow the
+interpreter to a crawl) → `OUTPUT_AUDIO_CAPTURE.md` (the pivot that
+resolved it: WASAPI loopback capture of the emulator's real digital
+output, `gcrts.output_audio_capture`, localized by the waveform's own
+acoustic shape, matched via a sliding-window offset-continuity search —
+`XAPACK22:7` reconfirmed `USER_LISTENING` after its earlier retraction,
+independently, by a completely different method) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

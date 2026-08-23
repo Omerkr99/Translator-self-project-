@@ -189,6 +189,17 @@ it exists specifically so a fresh session doesn't have to.
    scripts from this session, or `PCSX_REDUX_CAPTURE_PROTOCOL.md`
    section 2.
 
+## RESOLVED — the save-slot-9 line's source asset
+
+See `OUTPUT_AUDIO_CAPTURE.md` for the full account. After five more
+internal-instrumentation angles each reached a real, disciplined
+negative, the resolution came from capturing the emulator's actual
+digital audio output (WASAPI loopback, `gcrts.output_audio_capture`)
+and fingerprint-matching it with an offset-continuity sliding-window
+search — never LBA proximity alone. `XAPACK22:7` is user-confirmed
+(`USER_LISTENING`), independently reconfirmed after its earlier
+retraction, by a completely different method.
+
 ## The actual next task
 
 The stream-format question (`classify_stream_format()` → `XA_ADPCM`)
