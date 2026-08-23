@@ -12,5 +12,12 @@
     "verification_source": "USER_LISTENING",
     "notes": "RE-VERIFIED 2026-08-23 via a fundamentally new, independent method after the 2026-08-23 retraction above: a WASAPI loopback capture of PCSX-Redux's actual digital audio output (not a RAM/LBA inference) during a real save-slot-9 playthrough, fingerprinted against the full 343-asset reference database via a sliding-window search (gcrts.audio_fingerprint). XAPACK22:7 showed a coherent offset-continuity match: across 7 consecutive 1.5s windows (runtime t=7.50-9.00s), the matched asset offset advanced from 2.34s to 3.84s -- almost exactly 1:1 with real time (each 0.25s runtime step advancing the asset offset by ~0.25s), with consistently high similarity (0.93-0.97), sharply distinct from the incoherent, erratic matches immediately before and after. The user then listened to the extracted candidate (first a partial excerpt, then the full asset from its own start) and explicitly confirmed both the content (a character saying \"onee-chan\" preceded by a hand-washing sound effect) and exact match (\"zeh bul zeh\" -- \"this is exactly it\"). This closes the multi-session investigation into this save-slot-9 line's source asset. Original heuristic-classifier evidence and the full retraction history are preserved above for the audit trail.",
     "verified_at": "2026-08-23T14:02:30.035216+00:00"
+  },
+  "XAPACK20:4": {
+    "asset_id": "XAPACK20:4",
+    "semantic_type": "DIALOGUE",
+    "verification_source": "USER_LISTENING",
+    "notes": "Confirmed 2026-08-23 as the second independent generalization test of the output-audio-capture identification method (gcrts.output_audio_match), for a different scene (save slot 7, a distinct target line from the original save-slot-9/XAPACK22:7 case). WASAPI loopback capture of PCSX-Redux real digital output, auto-localized via the formalized workflow (energy-shape burst detection found BEGIN=8.0s/END=16.0s), matched via sliding-window offset-continuity search: 5-6 consecutive 1.0s windows showed the matched asset offset advancing almost exactly 1:1 with real time (offset_advance_error ~0.016s), mean similarity 0.96-0.98. The full asset (5.92s) was extracted from its own start and the user directly confirmed the match by listening. This is the second real save-state/line this method has been validated against, independent of the original XAPACK22:7 case.",
+    "verified_at": "2026-08-23T16:36:57.317274+00:00"
   }
 }

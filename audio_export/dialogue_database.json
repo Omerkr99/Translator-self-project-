@@ -65,5 +65,26 @@
     "scene_notes": null,
     "notes": "",
     "updated_at": "2026-08-22T19:49:43.132529+00:00"
+  },
+  "XAPACK20:4": {
+    "asset_id": "XAPACK20:4",
+    "pack_path": "DAT/XA1/XAPACK20.BIN",
+    "channel_number": 4,
+    "duration_seconds": 5.92,
+    "sample_rate_hz": 37800,
+    "channels": 2,
+    "semantic_type": "DIALOGUE",
+    "semantic_confirmed": true,
+    "semantic_verification_source": "USER_LISTENING",
+    "character": null,
+    "japanese_transcript": null,
+    "transcript_verified": false,
+    "translation": null,
+    "translation_approved": false,
+    "workflow_status": "DETECTED",
+    "evidence": [],
+    "scene_notes": null,
+    "notes": "",
+    "updated_at": "2026-08-23T16:37:08.370665+00:00"
   }
 }
