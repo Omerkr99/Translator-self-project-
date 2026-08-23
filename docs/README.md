@@ -96,7 +96,15 @@ playback-first, not CD-first, identification — a structured SPU
 Key-write/heartbeat/marker trace schema, a PCSX-Redux Lua tracer
 verified against the emulator's real FFI source, and a classifier
 naming `SPU_VOICE_PLAYBACK`/`CD_AUDIO_INPUT`/`OTHER_OR_UNKNOWN` with
-cited evidence — not yet live-tested, the natural next experiment) →
+cited evidence) → the live run found `CAP0.EXE` (not `PROG.EXE`) is
+the executable actually resident during the save-slot-9 scene — real
+signatures for every overlay executable now live in `gcrts.overlay_
+identity` — but the trace itself kept stopping early regardless of
+what was changed, with `GPU::Vsync` proven to keep firing throughout →
+`AUDIO_DATA_TRACE.md` (the resulting pivot: control-flow tracing →
+data tracing — offline RAM-snapshot diffing, multi-signal candidate
+scoring, format heuristics, and a real, validated audio fingerprint
+matcher against the existing `AudioAsset` catalog) →
 `AUDIO_INVESTIGATION_RESUME.md` (the actionable "pick up here" page for
 the next session).
 

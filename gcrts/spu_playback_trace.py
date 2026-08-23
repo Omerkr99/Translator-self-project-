@@ -172,6 +172,7 @@ class TraceEventType(str, Enum):
     HEARTBEAT = "HEARTBEAT"
     SAVE_STATE_LOADED = "SAVE_STATE_LOADED"
     MARK = "MARK"
+    EXECUTABLE_ACTIVE = "EXECUTABLE_ACTIVE"
 
 
 # Standard, publicly-documented PS1 CD-ROM command byte values (psx-spx /
@@ -284,6 +285,26 @@ class CdCommandEvent:
 
 
 @dataclass
+class ExecutableActiveEvent:
+    """A real, signature-verified overlay identity change
+    (`gcrts.overlay_identity.identify_overlay`) -- NOT inferred from
+    address range alone (see that module's own docstring for why this
+    milestone's own 11 writer-site addresses turned out to require
+    this: they don't even fall inside PROG.EXE's own range, only the
+    CAP*.EXE variants'). `name` is `None` when no known signature
+    matched (a genuinely unidentified or mid-transition overlay state)
+    -- reported honestly rather than guessed."""
+
+    t: float
+    name: str | None
+    frame: int | None = None
+    event: str = TraceEventType.EXECUTABLE_ACTIVE.value
+
+    def to_dict(self) -> dict:
+        return {"event": self.event, "t": self.t, "name": self.name, "frame": self.frame}
+
+
+@dataclass
 class HeartbeatEvent:
     """A periodic (per-vsync, or per-poll) snapshot of the already-known,
     already-reliable CD-audio-lifecycle CPU RAM fields
@@ -341,7 +362,9 @@ class MarkEvent:
         return {"event": self.event, "t": self.t, "label": self.label, "frame": self.frame}
 
 
-TraceEvent = SpuKeyWriteEvent | SpucntWriteEvent | CdCommandEvent | HeartbeatEvent | SaveStateLoadedEvent | MarkEvent
+TraceEvent = (
+    SpuKeyWriteEvent | SpucntWriteEvent | CdCommandEvent | HeartbeatEvent | SaveStateLoadedEvent | MarkEvent | ExecutableActiveEvent
+)
 
 _EVENT_CLASSES: dict[str, type] = {
     TraceEventType.SPU_KEY_WRITE.value: SpuKeyWriteEvent,
@@ -350,6 +373,7 @@ _EVENT_CLASSES: dict[str, type] = {
     TraceEventType.HEARTBEAT.value: HeartbeatEvent,
     TraceEventType.SAVE_STATE_LOADED.value: SaveStateLoadedEvent,
     TraceEventType.MARK.value: MarkEvent,
+    TraceEventType.EXECUTABLE_ACTIVE.value: ExecutableActiveEvent,
 }
 
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from gcrts.cdrom_driver_map import COMMAND_ISSUE_ROUTINE_ADDR
 from gcrts.cdrom_setfilter import OTHER_COMMAND_WRITE_SITES, SETFILTER_CALL_SITE_ADDR
+from gcrts.overlay_identity import KNOWN_OVERLAYS
 from gcrts.spu_audio_path import KEY_WRITER_SITES, SPUCNT_WRITER_SITES
 
 LUA_PATH = Path(__file__).resolve().parent.parent / "pcsx_lua" / "spu_playback_trace.lua"
@@ -50,4 +51,28 @@ def test_lua_cd_command_sites_match_already_verified_python_constants():
     assert lua_pcs == python_pcs, (
         f"pcsx_lua/spu_playback_trace.lua's CD_COMMAND_SITES ({[hex(x) for x in sorted(lua_pcs)]}) does not match "
         f"gcrts.cdrom_setfilter/gcrts.cdrom_driver_map's already-verified sites ({[hex(x) for x in sorted(python_pcs)]})"
+    )
+
+
+def _lua_known_overlays() -> dict[str, tuple[int, str]]:
+    text = LUA_PATH.read_text(encoding="utf-8")
+    m = re.search(r"KNOWN_OVERLAYS\s*=\s*\{(.*?)\n\}", text, re.DOTALL)
+    assert m is not None, "KNOWN_OVERLAYS table not found in the Lua script"
+    rows = re.findall(r'name\s*=\s*"([^"]+)",\s*pc0\s*=\s*(0x[0-9A-Fa-f]+),\s*sig\s*=\s*"([0-9a-f]+)"', m.group(1))
+    return {name: (int(pc0, 16), sig) for name, pc0, sig in rows}
+
+
+def test_lua_known_overlays_matches_python_overlay_identity_exactly():
+    lua_overlays = _lua_known_overlays()
+    python_overlays = {p.name: (p.pc0, p.signature.hex()) for p in KNOWN_OVERLAYS}
+    assert lua_overlays == python_overlays, (
+        "pcsx_lua/spu_playback_trace.lua's KNOWN_OVERLAYS has drifted from gcrts.overlay_identity.KNOWN_OVERLAYS -- "
+        f"lua={lua_overlays} python={python_overlays}"
+    )
+
+
+def test_lua_has_safe_baseline_only_flag():
+    text = LUA_PATH.read_text(encoding="utf-8")
+    assert re.search(r"local\s+SAFE_BASELINE_ONLY\s*=", text), (
+        "pcsx_lua/spu_playback_trace.lua must define a SAFE_BASELINE_ONLY flag guarding the overlay-dependent breakpoints"
     )

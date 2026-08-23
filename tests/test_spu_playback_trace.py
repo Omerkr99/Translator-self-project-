@@ -2,6 +2,7 @@ import pytest
 
 from gcrts.spu_playback_trace import (
     CdCommandEvent,
+    ExecutableActiveEvent,
     HeartbeatEvent,
     MarkEvent,
     SaveStateLoadedEvent,
@@ -159,6 +160,29 @@ def test_cd_command_event_round_trips(tmp_path):
     with open(path, "w", encoding="utf-8") as f:
         write_event(e, f)
     assert load_trace(path) == [e]
+
+
+# --- ExecutableActiveEvent --------------------------------------------------------
+
+
+def test_executable_active_event_round_trips(tmp_path):
+    path = str(tmp_path / "trace.jsonl")
+    e = ExecutableActiveEvent(t=2.5, name="CAP0.EXE")
+    with open(path, "w", encoding="utf-8") as f:
+        write_event(e, f)
+    assert load_trace(path) == [e]
+
+
+def test_executable_active_event_none_name_round_trips(tmp_path):
+    """An honestly-unidentified overlay -- must round-trip as None,
+    never coerced into a placeholder string."""
+    path = str(tmp_path / "trace.jsonl")
+    e = ExecutableActiveEvent(t=2.5, name=None)
+    with open(path, "w", encoding="utf-8") as f:
+        write_event(e, f)
+    loaded = load_trace(path)
+    assert loaded == [e]
+    assert loaded[0].name is None
 
 
 # --- merge_traces ---------------------------------------------------------------

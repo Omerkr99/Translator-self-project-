@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 843 passed, 0 failed (`py -m pytest tests/ -q`), ~20s.
-  97 modules in `gcrts/`, 79 test files.
+- **Test count**: 903 passed, 0 failed (`py -m pytest tests/ -q`), ~21s.
+  99 modules in `gcrts/`, 82 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -434,6 +434,60 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   established constraint (synthetic input into the game has been
   confirmed broken since early in this investigation). 28 new tests;
   full suite 843 passed, no regressions.
+  **Follow-up -- the live experiment ran, found a major independent
+  discovery, then hit a wall the tooling itself couldn't explain**: a
+  live `SAFE_BASELINE_ONLY` run confirmed `CAP0.EXE` -- not `PROG.EXE`
+  -- is the executable actually resident during the save-slot-9 scene
+  (verified two ways: real PS-X EXE headers parsed directly from the
+  disc image, AND a live 16-byte signature match at `CAP0.EXE`'s own
+  entry point). This also surfaced a real, live-discovered correction:
+  the project's own 11 writer-site addresses (`gcrts.spu_audio_path`)
+  do not even fall inside `PROG.EXE`'s own address range (which ends at
+  `0x8006a800`) -- they were always validated against one of
+  `CAP0.EXE`-`CAP4.EXE`/`CAPX.EXE` instead, six near-identical "chapter/
+  scene" overlays sharing the same address window, alongside a separate
+  movie-player family (`MPRO`/`MOVER`/`MKUBI`/`MNINO`/`MOP`/`MRIKA`/
+  `MYOKO.EXE`) at a completely different range. New module
+  `gcrts.overlay_identity` records real signatures for all of these,
+  with `identify_overlay()` doing live, signature-based identification
+  -- never guessed from address range alone. **The trace itself,
+  however, reliably stopped growing after 2-9 real seconds across
+  every variant tried**: with all 11 breakpoints disabled
+  (`SAFE_BASELINE_ONLY`), with the new overlay-identity check both
+  enabled and fully disabled, at both 60 Hz and 10 Hz write rates,
+  across save slots 6/7/9, with and without a mid-recording reload. A
+  live diagnostic (a second, disposable `GPU::Vsync` listener created
+  ad hoc in the Lua Console) proved vsync itself kept firing long after
+  the real tracer's own listener had gone silent -- real, reproducible
+  evidence the instability is environmental/focus-related, not a logic
+  bug in this project's own control-flow instrumentation. 14 new tests
+  (`gcrts.overlay_identity`, plus 2 new Lua/Python sync tests); full
+  suite 857 passed, no regressions.
+  **Follow-up -- pivot from control-flow tracing to data tracing**:
+  given repeated, reproducible instability in the live capture loop
+  itself (not fixable by further breakpoint work), built
+  `gcrts.audio_data_trace` (offline BEFORE/DURING/AFTER RAM-snapshot
+  diffing, contiguous-region clustering, multi-signal candidate scoring
+  that deliberately never uses entropy alone, and SPU-ADPCM/XA-ADPCM-
+  like/PCM16 format heuristics) and `gcrts.audio_fingerprint` (RMS+ZCR
+  frame fingerprinting, z-score normalized, sliding cross-correlation
+  matching against the existing `AudioAsset` catalog with offset
+  detection) plus `pcsx_lua/dump_ram.lua` (a minimal, on-demand-only
+  2MB RAM dump -- no continuous loop, applying the same session's own
+  "don't do expensive work inside the emulator" lesson). **Real,
+  manually-run validation** (not synthetic): a genuine 2-second fragment
+  extracted from `XAPACK08:7`'s own middle correctly matched itself at
+  0.945 similarity with a near-exact detected offset (10.18s vs. an
+  expected 10.19s), clearly outranking a different real asset (0.660).
+  Both new modules ship full CLIs
+  (`python -m gcrts.audio_data_trace diff/analyze-run`,
+  `python -m gcrts.audio_fingerprint build-db/match`). Phase 7/8 (trace
+  a candidate region's writer/consumer via new, executable-tagged
+  breakpoints) is deliberately not started -- gated on a real,
+  reproducible candidate region existing first, which requires actually
+  running `dump_ram.lua` live (not yet done this session). 46 new
+  tests, none depending on the real (gitignored) disc image; full suite
+  903 passed, no regressions.
 
 ## Key current distinctions (do not lose these)
 
