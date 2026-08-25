@@ -42,11 +42,14 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   15 on the disc; the registry (`mips_patch_profiles.json`) marks the
   rest `unverified`. Nothing here is a code defect — it's unfinished
   per-overlay onboarding.
-- **Biggest reverse-engineering gap**: how `.STR` movie playback is
-  actually triggered and driven. This blocks Stage B/E/F of the
-  backlog (movie detection, subtitles, pause-to-subtitle workflow) as a
-  single dependency chain; the audio side (Stage D) now has a real,
-  live-verified lifecycle for one cue, independent of movie detection.
+- **Biggest reverse-engineering gap (resolved for detection, open for
+  selection)**: how `.STR` movie playback is triggered and driven.
+  *Detection* is resolved (next bullet). What remains open is chapter-
+  level movie *selection*: `CAPX.EXE`'s real runtime selector is
+  disproven-not-replaced (see `MOVIE_LOADER_ARCHITECTURE.md`), and
+  `CAP2.EXE`/`CAP3.EXE` have no known trigger mechanism at all. This is
+  a narrower gap than it once was, not the single blocking dependency
+  chain it used to be.
 - **Movie runtime detection: RESOLVED** (`MOVIE_DETECTION.md`) — not
   by retargeting the DMA trace (movies use a completely separate
   overlay family from `CAP*.EXE`), but by reusing `gcrts.overlay_
@@ -576,10 +579,19 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ### Repository / test health — LIVE_VERIFIED
 
-- 400 tests passing, 0 failing, full suite in ~15s
-  (`py -m pytest tests/ -q --basetemp .test-tmp`; use `--basetemp` inside
-  the workspace if the default Windows temp root lacks permissions).
-- 70 modules in `gcrts/`; the great majority have dedicated test files.
+- 981 tests passing, 0 failing, full suite in ~27s (`py -m pytest
+  tests/ -q`; use `--basetemp` inside the workspace if the default
+  Windows temp root lacks permissions). This subsection previously
+  cited a stale 400/~15s figure left over from an earlier point in the
+  project; corrected during the toolkit-readiness audit
+  (`TOOLKIT_READINESS_AUDIT.md`) after the headline count above had
+  moved on without this detail section being updated.
+- 111 modules in `gcrts/`+`scripts/`; the great majority have dedicated
+  test files. Per the same audit: ~97.6% of tests are synthetic
+  fixtures, a small remainder touches real (pre-extracted) game asset
+  bytes, and none touch a running emulator — the suite is a strong
+  regression net over recorded findings, not a live re-verification
+  harness. See `TOOLKIT_READINESS_AUDIT.md` §14 for the full breakdown.
 - Git: repository has commits on `main`; large numbers of session/runtime
   artifacts (PCSX-Redux save states, memory card images, emulator
   config/shaders, Ghidra/debug scratch docs) live alongside the `gcrts`
@@ -1188,15 +1200,21 @@ only perceptual (by-ear) confirmation remains open. See
   `PROGVAB.CDB` holds the sample data these records point to is
   unconfirmed.
 
-### Subtitles — UNSUPPORTED (not started)
+### Subtitles — PARTIAL (file export done; in-game rendering not started)
 
-No implementation, no investigation started. Explicitly blocked on
-Stage B (movie detection) and Stage C (audio source resolution —
-partially done, see above) both producing stable, addressable event
-IDs before a subtitle cue can reference "at this point in this movie."
-`RuntimeSnapshot` already carries always-empty placeholder fields for
-this, added deliberately ahead of time per the project's own workflow
-instructions, not as a sign of partial implementation.
+Corrected during the toolkit-readiness audit (`TOOLKIT_READINESS_AUDIT.md`):
+this section previously said "not started," which had gone stale.
+`gcrts.subtitle_export` (see the `SUBTITLE_EXPORT.md` follow-up above)
+already builds a real `.srt` file from a confirmed
+`DialogueDatabaseEntry` — real output exists on disk this session
+(`audio_export/fandub/XAPACK22_7/subtitle.srt`). What's still genuinely
+unstarted is anything rendered through the game's own graphics path or
+an emulator overlay during a movie ("Demo A" in
+`TOOLKIT_READINESS_AUDIT.md` §13) — that specific goal remains blocked
+on `RuntimeSnapshot.active_movie`'s coverage (still only 2 of 7 movie
+files `CONFIRMED_LIVE`) and on unstarted questions (movie-time source,
+VRAM write path) that have nothing to do with the `.srt`-export layer
+already built.
 
 ### Persistent build (disc-level, non-temporary edits) — LIVE_VERIFIED (PCSX-Redux only)
 
@@ -1242,6 +1260,6 @@ instructions, not as a sign of partial implementation.
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
 | Movies / `.STR` | PARTIAL | Yes (`RuntimeSnapshot.active_movie`) | `MOP.EXE`/`OP.STR` and `MPRO.EXE` (via `CAP0.EXE`) `CONFIRMED_LIVE`; `MKUBI.EXE`, `MRIKA.EXE`, `MNINO.EXE` predicted via static disassembly (`STATIC_CODE_MATCH`, not yet witnessed live); `MOVER.EXE` pairing and `CAPX.EXE`'s runtime selector still open |
-| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is confirmed unreliable, but PCSX-Redux's own native SPU debugger (`gcrts.pcsx_spu_observer`) is validated as a working replacement channel and shows CD Audio Enable genuinely, persistently set on real hardware (reversing the earlier "write does not persist" finding); a manual all-voices-muted experiment (native SPU Debug's per-channel Mute controls) found dialogue audio survives every regular SPU voice being muted, reproduced in two independent scenes (`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()` → `True`) — the audio bypasses the SPU's 24-voice mixing engine entirely and enters via the CD input path; `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT` (not `XA_ADPCM_CONFIRMED` — that specific stream format was not independently re-verified); a virtual XInput gamepad (vgamepad/ViGEmBus) was validated at the Windows/XInput level but never got the game itself to respond, so automated dialogue-triggering remains unreliable and further live-correlation work still needs a human trigger |
-| Subtitles | UNSUPPORTED | No | Not started; blocked on Movies + Audio |
+| Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is confirmed unreliable, but PCSX-Redux's own native SPU debugger (`gcrts.pcsx_spu_observer`) is validated as a working replacement channel and shows CD Audio Enable genuinely, persistently set on real hardware (reversing the earlier "write does not persist" finding); a manual all-voices-muted experiment (native SPU Debug's per-channel Mute controls) found dialogue audio survives every regular SPU voice being muted, reproduced in two independent scenes (`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()` → `True`) — the audio bypasses the SPU's 24-voice mixing engine entirely and enters via the CD input path; `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT` — this answers the *routing* question (bypasses the SPU's voice engine), a separate question from physical *stream format*, which the later `classify_stream_format()` function (see above, `→ XA_ADPCM`) and `XA_DECODER_VERIFICATION.md`'s `REFERENCE_VERIFIED` decode already resolved; this row previously read as if the format itself were still unconfirmed, corrected during the toolkit-readiness audit (`TOOLKIT_READINESS_AUDIT.md`); a virtual XInput gamepad (vgamepad/ViGEmBus) was validated at the Windows/XInput level but never got the game itself to respond, so automated dialogue-triggering remains unreliable and further live-correlation work still needs a human trigger |
+| Subtitles | PARTIAL | Yes (`.srt` export only, `gcrts.subtitle_export`) | In-game/overlay rendering not started; a real `.srt` already exists for one confirmed asset |
 | Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |

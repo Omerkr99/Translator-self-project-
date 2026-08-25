@@ -173,8 +173,15 @@ Point-in-time investigation records and planning documents:
 
 ### [`status/`](status/) — top-level project status and summaries
 `CURRENT_SYSTEM_STATUS.md` (the canonical one — start there),
-`GCRTS_CHANGES_SINCE_1200.md`, `GCRTS_COMPLETE_WORK_SUMMARY_HE.md`,
-`GCRTS_FULL_SYSTEM_AUDIT.md`, `NOTES.md`.
+`TOOLKIT_READINESS_AUDIT.md` (a full evidence-based readiness audit
+performed before any move toward a reusable, game-agnostic toolkit —
+confirmed capabilities, partial/unknown items, disproven claims,
+game-specific leakage, test-validation quality, and a go/no-go
+decision). `GCRTS_CHANGES_SINCE_1200.md`, `GCRTS_COMPLETE_WORK_SUMMARY_HE.md`,
+`GCRTS_FULL_SYSTEM_AUDIT.md`, `NOTES.md` are **dated, frozen snapshots**
+from a single earlier day (2026-08-09), not current state — only
+`CURRENT_SYSTEM_STATUS.md` and `TOOLKIT_READINESS_AUDIT.md` should be
+treated as live.
 
 ### [`current-system-snapshot/`](current-system-snapshot/) — generated evidence snapshot
 A separately-maintained generated snapshot (screenshots + evidence),
