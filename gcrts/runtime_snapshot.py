@@ -12,9 +12,13 @@ or closed entirely. That is the whole point of this milestone -- per its
 own wording, "allow the user to inspect a saved snapshot even after
 gameplay resumes. Do not require the emulator to remain frozen."
 
-`active_movie` is still always empty -- this project has no movie runtime
-detection yet (see CURRENT_SYSTEM_STATUS.md). `active_audio` is no longer
-a placeholder: the Runtime Audio Tracker milestone (gcrts.runtime_audio)
+`active_movie` is no longer an always-empty placeholder: the Movie/.STR
+Runtime Detection milestone (gcrts.movie_detection) resolved it by
+identifying the movie-player overlay family's residency directly
+(gcrts.overlay_identity), rather than tracing internal DMA arguments --
+only populated while that overlay family is actually resident, `None`
+otherwise. `active_audio` was the earlier case of the same idea: the
+Runtime Audio Tracker milestone (gcrts.runtime_audio)
 gave `RuntimeVisualProvider` a real, live-verified audio-event capture
 (`_audio_event`, called every `scan()`, result cached on
 `provider.last_audio_event` the same way `last_renderer1_validation`
@@ -149,6 +153,7 @@ def capture_runtime_snapshot(provider, frame: int, objects: list) -> RuntimeSnap
     audio_caption = getattr(provider, "last_audio_caption", None)
     audio_stream_source = getattr(provider, "last_audio_stream_source", None)
     cdrom_driver_map = getattr(provider, "last_cdrom_driver_map", None)
+    movie_detection = getattr(provider, "last_movie_detection", None)
     active_audio = []
     if audio_event is not None and audio_event.state in (AudioLifecycleState.STARTING, AudioLifecycleState.PLAYING):
         entry = audio_event.to_dict()
@@ -226,6 +231,13 @@ def capture_runtime_snapshot(provider, frame: int, objects: list) -> RuntimeSnap
         KNOWN_SETFILTER_OBSERVATIONS[-1].to_dict() if KNOWN_SETFILTER_OBSERVATIONS else None
     )
 
+    # Movie/.STR Runtime Detection milestone (gcrts.movie_detection):
+    # active_movie is real data now, not an always-empty placeholder --
+    # only populated while the movie-player overlay family is actually
+    # resident (never guessed, never left stale once movie_detection
+    # reports no movie active).
+    active_movie = movie_detection.to_dict() if movie_detection is not None and movie_detection.movie_active else None
+
     return RuntimeSnapshot(
         snapshot_id=frame,
         captured_at=time.time(),
@@ -233,6 +245,7 @@ def capture_runtime_snapshot(provider, frame: int, objects: list) -> RuntimeSnap
         tracker_instances=[_instance_to_dict(i) for i in provider.tracker.instances.values()],
         renderer1_profile=SLPS00102_BASE_PROFILE.profile_name,
         renderer1_validation=provider.last_renderer1_validation,
+        active_movie=active_movie,
         active_audio=active_audio,
         cdrom_driver=cdrom_driver,
         last_known_setfilter=last_known_setfilter,

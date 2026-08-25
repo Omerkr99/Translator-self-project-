@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 942 passed, 0 failed (`py -m pytest tests/ -q`), ~28s.
-  102 modules in `gcrts/`, 85 test files.
+- **Test count**: 952 passed, 0 failed (`py -m pytest tests/ -q`), ~28s.
+  103 modules in `gcrts/`, 86 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -47,11 +47,16 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
   backlog (movie detection, subtitles, pause-to-subtitle workflow) as a
   single dependency chain; the audio side (Stage D) now has a real,
   live-verified lifecycle for one cue, independent of movie detection.
-- **Recommended next milestone**: identify which overlay executable is
-  actually resident during movie playback (concretely: retarget the
-  `dma_channel_start` live trace at a `CAP*.EXE` address instead of
-  `PROG.EXE`, or trace the boot/overlay-loader chain itself) — this is
-  the one open question blocking the movie/subtitle backlog thread.
+- **Movie runtime detection: RESOLVED** (`MOVIE_DETECTION.md`) — not
+  by retargeting the DMA trace (movies use a completely separate
+  overlay family from `CAP*.EXE`), but by reusing `gcrts.overlay_
+  identity`'s existing movie-player signatures directly: that family's
+  residency IS the movie-playback signal, live-confirmed against a
+  real `OP.STR` opening-movie playthrough. **Recommended next
+  milestone**: distinguish the remaining ambiguous file-pairing groups
+  (shared code signatures currently only narrow to 2-4 candidate files
+  each) by checking real `.STR` sector content, the same way audio
+  identification was ultimately resolved.
   Separately, for audio: the causal source-selection mechanism is now
   **fully resolved and triple-cross-validated** (`AUDIO_CONTEXT_RESOLUTION.md`,
   `XA_STREAM_RESOLUTION.md`) — three independent live mechanisms (playback
@@ -838,7 +843,24 @@ section) rather than being a data-model-only proof.
   merged into `gcrts.script_decoder`'s own control-code tables or into
   a working `source="disk"` implementation for `script_unit`).
 
-### Movies / `.STR` — PARTIAL (format known, runtime detection blocked)
+### Movies / `.STR` — PARTIAL (format known, runtime detection now real)
+
+**RESOLVED — runtime detection** (`MOVIE_DETECTION.md`): the planned
+DMA-argument retrace at a `CAP*.EXE` address turned out to target the
+wrong overlay family entirely — movies are played by a completely
+separate movie-player group (`MPRO`/`MOVER`/`MKUBI`/`MNINO`/`MOP`/
+`MRIKA`/`MYOKO.EXE`) already cataloged in `gcrts.overlay_identity`, not
+`CAP*.EXE`. Since that family's whole purpose is playing movies, its
+mere residency (real code-signature match, no DMA tracing) is itself
+the movie-playback signal. Live-confirmed: `MOP.EXE` detected resident
+for the full duration of a real, user-confirmed `OP.STR` (opening
+movie) playthrough. `gcrts.movie_detection` maps the real 7-file
+`DAT/MOVIE/` catalog to overlay results, honestly reporting `AMBIGUOUS`
+candidate groups (2-4 files) where shared code signatures can't
+distinguish individual executables, rather than guessing. Wired into
+`RuntimeSnapshot.active_movie`, no longer an always-empty placeholder.
+10 new tests (including a regression guard for a dead-code mapping bug
+caught before it shipped); full suite 952 passed.
 
 - Container format is standard, confirmed PS1: `.STR` files use
   textbook 7:1 Form1:Form2 video:audio sector interleaving. No custom
@@ -1173,7 +1195,7 @@ instructions, not as a sign of partial implementation.
 | Renderer 2 | BLOCKED | No | Full trace never reproduced after 1 hit |
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
-| Movies / `.STR` | PARTIAL | No | Runtime trigger unidentified; wrong overlay assumed so far |
+| Movies / `.STR` | PARTIAL | Yes (`RuntimeSnapshot.active_movie`) | 6 of 7 files only narrowed to a 2-4-candidate ambiguous group, not a single confirmed file |
 | Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is confirmed unreliable, but PCSX-Redux's own native SPU debugger (`gcrts.pcsx_spu_observer`) is validated as a working replacement channel and shows CD Audio Enable genuinely, persistently set on real hardware (reversing the earlier "write does not persist" finding); a manual all-voices-muted experiment (native SPU Debug's per-channel Mute controls) found dialogue audio survives every regular SPU voice being muted, reproduced in two independent scenes (`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()` → `True`) — the audio bypasses the SPU's 24-voice mixing engine entirely and enters via the CD input path; `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT` (not `XA_ADPCM_CONFIRMED` — that specific stream format was not independently re-verified); a virtual XInput gamepad (vgamepad/ViGEmBus) was validated at the Windows/XInput level but never got the game itself to respond, so automated dialogue-triggering remains unreliable and further live-correlation work still needs a human trigger |
 | Subtitles | UNSUPPORTED | No | Not started; blocked on Movies + Audio |
 | Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |

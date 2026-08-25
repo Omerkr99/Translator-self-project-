@@ -133,7 +133,11 @@ GPU primitives: `FRAME_RENDER_MODES.md`, `GPU_ASSET_CORRELATION.md`,
 `MASTER_RENDER_MODE_MAP.md`, `MODE3_TRIGGER_INVESTIGATION.md`,
 `RENDERER_1_RUNTIME_DRIVER.md`, `RENDERER_ASSET_INTEGRATION.md`,
 `RENDERER_LIVE_PROOF.md`, `RENDERER_SYSTEM_STATUS.md`,
-`VRAM_PROVENANCE_TRACKING.md`.
+`VRAM_PROVENANCE_TRACKING.md` → `MOVIE_DETECTION.md` (resolved the
+long-blocked movie-runtime-detection question by reusing
+`gcrts.overlay_identity`'s movie-player family directly — no DMA
+tracing needed — live-confirmed against a real `OP.STR` playthrough;
+wired into `RuntimeSnapshot.active_movie`).
 
 ### [`text-engine/`](text-engine/) — dialogue text, script decoding, translation
 The alternative text engine investigation, script bytecode, and where

@@ -77,3 +77,4 @@ test_profile*.json
 test_realtek_now.wav
 live_screenshot_test.png
 script_audio_watch_run1.json
+overlay_watch_opening.json

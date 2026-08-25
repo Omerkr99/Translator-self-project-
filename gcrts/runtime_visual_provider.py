@@ -16,6 +16,8 @@ from gcrts.audio_caption import caption_for_association
 from gcrts.audio_stream_source import resolve_audio_stream_source
 from gcrts.cdrom_driver_map import resolve_cdrom_driver_map
 from gcrts.live_audio_inspector import inspect_live_audio
+from gcrts.overlay_identity import identify_overlay
+from gcrts.movie_detection import classify_movie_state
 from gcrts.screen_objects import *
 from gcrts.vram_asset_detector import VramAssetDetector
 
@@ -48,7 +50,7 @@ class RuntimeVisualProvider:
     per-call correlation can't answer on its own."""
     def __init__(self,projects,event_path=r"C:\tmp\gcrts-runtime-events.tsv",base_url="http://127.0.0.1:8080",tracker:RuntimeAssetTracker|None=None,disc_image_path:str|Path|None=None):
         self.projects=tuple(projects);self.event_path=Path(event_path);self.base_url=base_url.rstrip("/")
-        self.tracker=tracker if tracker is not None else RuntimeAssetTracker();self._instance_by_asset_id={};self.last_renderer1_validation=ValidationResult.REIDENTIFICATION_REQUIRED.value;self.last_audio_event=None;self.last_script_association=None;self.last_audio_context=None;self.last_audio_caption=None;self.last_audio_stream_source=None;self.last_cdrom_driver_map=None;self.last_live_audio_inspection=None
+        self.tracker=tracker if tracker is not None else RuntimeAssetTracker();self._instance_by_asset_id={};self.last_renderer1_validation=ValidationResult.REIDENTIFICATION_REQUIRED.value;self.last_audio_event=None;self.last_script_association=None;self.last_audio_context=None;self.last_audio_caption=None;self.last_audio_stream_source=None;self.last_cdrom_driver_map=None;self.last_live_audio_inspection=None;self.last_movie_detection=None
         # Optional: only needed for xa_channel resolution (gcrts.xa_disc_index
         # read_sector_meta needs real sector bytes, not just the static LBA
         # table). Loaded once, lazily -- most callers never touch audio at
@@ -144,6 +146,17 @@ class RuntimeVisualProvider:
         whether an audio event is currently active -- same reasoning as
         `_audio_stream_source`."""
         return resolve_cdrom_driver_map(lambda addr,length:_ram_slice(ram,addr,length))
+    def _movie_detection(self,ram):
+        """Movie/`.STR` runtime detection milestone (gcrts.movie_detection):
+        identifies whether the movie-player overlay family is currently
+        resident (never guessed from address range -- real 16-byte code
+        signature match via gcrts.overlay_identity, same RAM buffer this
+        scan already fetched, no second live read). A static,
+        code-identity fact, not per-audio-event, so always attempted
+        regardless of audio state -- same reasoning as
+        `_cdrom_driver_map`."""
+        overlay=identify_overlay(lambda addr,length:_ram_slice(ram,addr,length))
+        return classify_movie_state(overlay)
     def _live_audio_inspection(self,audio_event):
         """Live Audio Inspector milestone (gcrts.live_audio_inspector):
         the display layer over the already-working LBA resolver +
@@ -164,6 +177,7 @@ class RuntimeVisualProvider:
         self.last_audio_caption=self._audio_caption(self.last_script_association)
         self.last_audio_stream_source=self._audio_stream_source(ram)
         self.last_cdrom_driver_map=self._cdrom_driver_map(ram)
+        self.last_movie_detection=self._movie_detection(ram)
         objects=self._renderer1_objects(ram,snapshot_id)
         if not roots:return snapshot_id,objects
         vram=urllib.request.urlopen(self.base_url+"/api/v1/gpu/vram/raw",timeout=5).read();primitives=[]
