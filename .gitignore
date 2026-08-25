@@ -79,6 +79,6 @@ live_screenshot_test.png
 script_audio_watch_run1.json
 overlay_watch_opening.json
 overlay_watch_slot6*.json
-overlay_watch_console.json
+overlay_watch_console*.json
 movie_overlay_snapshot_*.bin
 current_screen.png
