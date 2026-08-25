@@ -7,6 +7,8 @@ from gcrts.movie_detection import (
     MovieMatchConfidence,
     classify_movie_state,
     get_movie_file,
+    parse_exec_load_name,
+    resolve_ambiguous_group_via_console_text,
 )
 from gcrts.overlay_identity import KNOWN_OVERLAYS, OverlayProfile
 
@@ -81,3 +83,35 @@ def test_every_confirmed_or_named_file_exists_in_catalog():
 
     for file_name, _confidence in OVERLAY_TO_MOVIE_FILE.values():
         assert get_movie_file(file_name) is not None, f"{file_name} missing from MOVIE_CATALOG"
+
+
+def test_parse_exec_load_name_from_real_captured_console_text():
+    """The exact console line captured live this session (via GDB
+    breakpoint at the movie overlay's entry PC, save slot 6)."""
+    assert parse_exec_load_name(r"MovieLoad Exec : \MPRO.EXE;1") == "MPRO.EXE"
+
+
+def test_parse_exec_load_name_plain_load_exec():
+    assert parse_exec_load_name(r"Load Exec : \PROG.EXE;1") == "PROG.EXE"
+
+
+def test_parse_exec_load_name_returns_none_for_unrelated_text():
+    assert parse_exec_load_name("CD_init:addr=800a3108") is None
+
+
+def test_resolve_ambiguous_group_confirms_mpro_not_myoko():
+    result = resolve_ambiguous_group_via_console_text("MPRO.EXE (or MYOKO.EXE)", "MPRO.EXE")
+    assert result == ("MPRO.EXE", "PRO.STR")
+
+
+def test_resolve_ambiguous_group_rejects_name_outside_the_group():
+    """MKUBI.EXE is a real exe name, but not a member of the MPRO/MYOKO
+    group -- must not be resolved against the wrong group."""
+    assert resolve_ambiguous_group_via_console_text("MPRO.EXE (or MYOKO.EXE)", "MKUBI.EXE") is None
+
+
+def test_resolve_ambiguous_group_returns_none_for_mrika_no_name_correlation():
+    """MRIKA.EXE is a real member of its group but has no name-correlated
+    movie file at all -- must not be guessed."""
+    result = resolve_ambiguous_group_via_console_text("MKUBI.EXE (or MNINO.EXE/MRIKA.EXE)", "MRIKA.EXE")
+    assert result is None

@@ -47,9 +47,31 @@ mapped all 5 name-correlated executables individually and would have
 silently never matched anything for 4 of them (dead code, caught by a
 test asserting against the real `KNOWN_OVERLAYS` values before this
 was committed).
+
+## A second, better disambiguation signal found this session
+
+`RAM`-diffing two overlay snapshots (the originally planned next step)
+turned out not to be necessary. The PS1 kernel prints its own literal
+"Load Exec : \\NAME.EXE;1" (or, for this movie-player family,
+"MovieLoad Exec : \\NAME.EXE;1") debug line every time it loads an
+executable -- forwarded live over GDB's asynchronous 'O' console
+packets. Arming a GDB breakpoint at the movie overlay's real entry PC
+(0x80102654, read directly off this same console trace) while save
+slot 6's movie triggered caught this exact text:
+"MovieLoad Exec : \\MPRO.EXE;1" -- naming `MPRO.EXE`, not `MYOKO.EXE`,
+directly and unambiguously, at the very moment `identify_overlay()`
+itself could only report the combined "MPRO.EXE (or MYOKO.EXE)" for
+the same resident overlay. `parse_exec_load_name()` and
+`resolve_ambiguous_group_via_console_text()` below formalize this as a
+reusable secondary confirmation path. It doesn't change what
+`identify_overlay()` can report from RAM signature alone (that
+architectural ambiguity is real and permanent), but it lets any live
+capture session that's already watching the GDB console stream resolve
+the ambiguity for whichever specific instance it observes.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 
@@ -113,6 +135,67 @@ AMBIGUOUS_GROUPS: dict[str, tuple[str, ...]] = {
 }
 
 MOVIE_PLAYER_OVERLAY_NAMES = frozenset(OVERLAY_TO_MOVIE_FILE) | frozenset(AMBIGUOUS_GROUPS)
+
+# The literal, individual executable filenames folded into each ambiguous
+# combined overlay.name string above (identify_overlay() itself can never
+# return these standalone -- see the module docstring -- but the PS1
+# kernel's own boot/overlay-load debug trace names them directly, see
+# parse_exec_load_name() below).
+AMBIGUOUS_GROUP_MEMBERS: dict[str, tuple[str, ...]] = {
+    "MPRO.EXE (or MYOKO.EXE)": ("MPRO.EXE", "MYOKO.EXE"),
+    "MKUBI.EXE (or MNINO.EXE/MRIKA.EXE)": ("MKUBI.EXE", "MNINO.EXE", "MRIKA.EXE"),
+}
+
+# Filename-correlation hypothesis (prefix match against MOVIE_CATALOG),
+# same one documented in the module docstring -- kept separate from
+# OVERLAY_TO_MOVIE_FILE because identify_overlay() can never key on these
+# individual exe names live; this table only exists to be looked up once
+# a literal exe name has been recovered some other way (e.g. console text).
+EXE_NAME_TO_MOVIE_FILE: dict[str, str] = {
+    "MPRO.EXE": "PRO.STR",
+    "MYOKO.EXE": "YOKO.STR",
+    "MKUBI.EXE": "KUBI.STR",
+    "MNINO.EXE": "NINO.STR",
+}
+
+# The PS1 kernel prints this exact debug line (forwarded live over GDB 'O'
+# console packets) every time it loads an executable from disc, e.g.
+# "Load Exec : \PROG.EXE;1" or, for the movie-player family specifically,
+# "MovieLoad Exec : \MPRO.EXE;1" -- confirmed live this session by arming a
+# GDB breakpoint at the movie overlay's real entry PC (0x80102654) while
+# save slot 6's movie triggered: identify_overlay() itself could only
+# report the ambiguous combined "MPRO.EXE (or MYOKO.EXE)" for that same
+# resident overlay, but the console text named "MPRO.EXE" directly and
+# unambiguously. This is genuine ground truth from the game's own loader,
+# not a guess -- unlike RAM-diffing (which would need a fair like-for-like
+# comparison point this session's single capture didn't have), it needs no
+# baseline at all.
+_LOAD_EXEC_PATTERN = re.compile(r"(?:Movie)?Load Exec\s*:\s*\\(\w+\.EXE);1")
+
+
+def parse_exec_load_name(console_text: str) -> str | None:
+    """Extract the literal executable filename from one line of the
+    kernel's own "(Movie)Load Exec : \\NAME.EXE;1" debug trace, or None if
+    the text doesn't contain that pattern."""
+    match = _LOAD_EXEC_PATTERN.search(console_text)
+    return match.group(1) if match else None
+
+
+def resolve_ambiguous_group_via_console_text(overlay_name: str, console_exec_name: str) -> tuple[str, str] | None:
+    """Given the ambiguous combined name identify_overlay() returned (e.g.
+    "MPRO.EXE (or MYOKO.EXE)") and a literal exe filename recovered from
+    the kernel's own console trace (parse_exec_load_name()), confirm which
+    specific member of that group it actually is. Returns
+    (confirmed_exe_name, candidate_movie_file) only when console_exec_name
+    is a real member of that group AND has a known name-correlated movie
+    file; returns None otherwise (never guesses)."""
+    members = AMBIGUOUS_GROUP_MEMBERS.get(overlay_name)
+    if members is None or console_exec_name not in members:
+        return None
+    movie_file = EXE_NAME_TO_MOVIE_FILE.get(console_exec_name)
+    if movie_file is None:
+        return None
+    return console_exec_name, movie_file
 
 
 @dataclass

@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 952 passed, 0 failed (`py -m pytest tests/ -q`), ~28s.
+- **Test count**: 958 passed, 0 failed (`py -m pytest tests/ -q`), ~26s.
   103 modules in `gcrts/`, 86 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -862,6 +862,18 @@ distinguish individual executables, rather than guessing. Wired into
 10 new tests (including a regression guard for a dead-code mapping bug
 caught before it shipped); full suite 952 passed.
 
+**Follow-up — console-text disambiguation** (`MOVIE_DETECTION.md`): a
+GDB breakpoint armed at the movie overlay's real entry PC (found by
+reading the kernel's own console trace), fired against save slot 6's
+movie, caught the kernel's own literal `MovieLoad Exec : \MPRO.EXE;1`
+debug line — naming `MPRO.EXE`, not `MYOKO.EXE`, directly, at the
+exact moment `identify_overlay()` could only report the combined
+ambiguous name. `parse_exec_load_name()` / `resolve_ambiguous_group_via_console_text()`
+formalize this as a reusable secondary confirmation path (doesn't
+replace the RAM-signature match, which stays permanently ambiguous on
+its own — adds a way to resolve it when a live console stream is also
+being watched). 6 new tests; full suite 958 passed.
+
 - Container format is standard, confirmed PS1: `.STR` files use
   textbook 7:1 Form1:Form2 video:audio sector interleaving. No custom
   container reverse-engineering was needed.
@@ -1195,7 +1207,7 @@ instructions, not as a sign of partial implementation.
 | Renderer 2 | BLOCKED | No | Full trace never reproduced after 1 hit |
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
-| Movies / `.STR` | PARTIAL | Yes (`RuntimeSnapshot.active_movie`) | 6 of 7 files only narrowed to a 2-4-candidate ambiguous group, not a single confirmed file |
+| Movies / `.STR` | PARTIAL | Yes (`RuntimeSnapshot.active_movie`) | 2 of 7 files exe-identity-confirmed via console text (`MOP.EXE`/`OP.STR` live, `MPRO.EXE`→`PRO.STR` name-matched); 5 of 7 still only narrowed to a 2-4-candidate ambiguous group |
 | Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is confirmed unreliable, but PCSX-Redux's own native SPU debugger (`gcrts.pcsx_spu_observer`) is validated as a working replacement channel and shows CD Audio Enable genuinely, persistently set on real hardware (reversing the earlier "write does not persist" finding); a manual all-voices-muted experiment (native SPU Debug's per-channel Mute controls) found dialogue audio survives every regular SPU voice being muted, reproduced in two independent scenes (`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()` → `True`) — the audio bypasses the SPU's 24-voice mixing engine entirely and enters via the CD input path; `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT` (not `XA_ADPCM_CONFIRMED` — that specific stream format was not independently re-verified); a virtual XInput gamepad (vgamepad/ViGEmBus) was validated at the Windows/XInput level but never got the game itself to respond, so automated dialogue-triggering remains unreliable and further live-correlation work still needs a human trigger |
 | Subtitles | UNSUPPORTED | No | Not started; blocked on Movies + Audio |
 | Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |

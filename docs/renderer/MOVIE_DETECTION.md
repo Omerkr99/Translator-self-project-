@@ -91,16 +91,73 @@ above (`test_every_confirmed_or_named_file_exists_in_catalog`, plus the
 individual `MKUBI.EXE`-style standalone-name tests that now correctly
 fail if reintroduced). Full suite: 952 passed, no regressions.
 
+## Disambiguating the ambiguous groups: console text, not RAM-diffing
+
+The planned next step was to capture the movie-player overlay's own
+RAM during two different movies and diff them to find the
+distinguishing data. That turned out to be unnecessary. Save slot 6
+was reloaded (via the same `/api/v1/state/load` call already used
+throughout this project) with a GDB breakpoint pre-armed at the movie
+overlay's real entry PC (`0x80102654`, read directly off the console
+trace below) so the capture would land exactly on the movie's load,
+not sometime after. It fired within a fraction of a second of the
+reload -- this session's earlier 90s/240s/240s polling-based
+`live_overlay_watch.py` windows had all missed the movie for exactly
+that reason: it loads and reverts fast enough that a 0.5s poll
+interval can straddle it entirely.
+
+The PS1 kernel prints its own literal debug line every time it loads
+an executable -- forwarded live over GDB's asynchronous `O` console
+packets, the same mechanism this project's GDB tooling already skips
+around when reading replies (`docs/audio/...` -- see
+`_read_reply_skip_console`). For a regular load it's
+`Load Exec : \NAME.EXE;1`; for this movie-player family specifically
+it's `MovieLoad Exec : \NAME.EXE;1`. The captured text for slot 6's
+movie:
+
+```
+MovieLoad Exec : \MPRO.EXE;1
+CD_init:addr=800a3108
+pc = 80102654
+t_addr = 80100000
+t_size = 0002c800
+EXEC!
+```
+
+This names `MPRO.EXE` directly and unambiguously -- at the very same
+moment `identify_overlay()` itself could only report the combined
+`"MPRO.EXE (or MYOKO.EXE)"` string for the resident overlay's code
+signature. `gcrts.movie_detection.parse_exec_load_name()` extracts the
+literal filename from this text, and
+`resolve_ambiguous_group_via_console_text()` cross-checks it against
+`AMBIGUOUS_GROUP_MEMBERS`/`EXE_NAME_TO_MOVIE_FILE` to confirm which
+specific file within an ambiguous group is loaded, never guessing when
+the parsed name doesn't actually belong to the group being asked about
+or has no name-correlated file at all (e.g. `MRIKA.EXE`).
+
+This doesn't remove the underlying architectural ambiguity --
+`identify_overlay()`'s RAM-signature match still can't distinguish
+`MPRO.EXE` from `MYOKO.EXE` on its own, and `RuntimeSnapshot.
+active_movie` (populated purely from that signature match during
+normal play) still reports the combined name. What it adds is a real,
+tested, reusable secondary confirmation path for any live capture
+session that's also watching the GDB console stream: this session's
+own use of it confirms `MPRO.EXE` (not `MYOKO.EXE`) triggers from save
+slot 6, and per the filename-correlation hypothesis that points to
+`PRO.STR` (not `YOKO.STR`) -- one confidence step above the group's
+prior undifferentiated `AMBIGUOUS` state, though not yet
+`CONFIRMED_LIVE`, since the movie reverted before any `.STR` sector
+data was actually observed streaming.
+
 ## What's next
 
-- **Distinguish within the ambiguous groups.** The most direct next
-  signal: the actual `.STR` sector data being read while one of these
-  overlays is resident (reusing this project's own established LBA
-  resolution work) would immediately disambiguate all three groups,
-  the same way audio identification was ultimately resolved by
-  checking real content, not just code identity.
-- **Confirm `MOVER.EXE`/`MRIKA.EXE`'s file pairing** (`GAI.STR` vs.
-  `KIKU.STR`) specifically, since those are the only two files with no
-  name-correlation hypothesis at all yet.
+- **Apply the same console-text technique to the remaining two
+  groups** -- `"MKUBI.EXE (or MNINO.EXE/MRIKA.EXE)"` and
+  `MOVER.EXE`/`GAI.STR`/`KIKU.STR` -- once a save state that triggers
+  each of them is available.
+- **Confirm the actual `.STR` file content**, not just the exe name,
+  by reading real sector data during one of these movies (reusing this
+  project's own established LBA resolution work) -- the same standard
+  audio identification was ultimately held to.
 - This directly unblocks the Subtitles thread's dependency on Movies
   having a stable, addressable event ID.
