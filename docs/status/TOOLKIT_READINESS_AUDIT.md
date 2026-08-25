@@ -675,18 +675,29 @@ the text pipeline does.
 1. **Prove one real text modification survives the full reinjection
    cycle**: decode a real line → edit it → re-encode → inject live →
    reboot/reload → confirm on screen it rendered correctly. This is
-   the toolkit's entire value proposition (§5.3, §8). **Half proven,
-   half still open** (`docs/overlay_engine/GROUNDING_ANALYSIS.md`
-   Stage 4): a live experiment against real active dialogue (save slot
-   4, `CAP1.EXE`) confirmed the "renders correctly" half for the first
-   time in this project's history — an injected English sentence
-   rendered legibly through the game's own renderer and font
-   (`evidence/stage4_text_injection_proof/after.png`), using the
-   already-existing `gcrts.live_injection` pipeline, not a new
-   mechanism. The "reboot/reload" half remains **fully open**: this
-   was a live GDB RAM write, wiped by any reload — no disc/executable
-   patching subsystem (SRS PAT-001..007) exists yet, and building one
-   is real new engineering, not a wrapper over anything already proven.
+   the toolkit's entire value proposition (§5.3, §8). **Both halves now
+   have real, working mechanisms; one detail remains open** (full
+   account: `docs/overlay_engine/GROUNDING_ANALYSIS.md` Stage 4):
+   - *Renders correctly*: `CONFIRMED_LIVE`. An injected English
+     sentence rendered legibly through the game's own renderer and
+     font in real active dialogue (`evidence/stage4_text_injection_proof/after.png`),
+     using the already-existing `gcrts.live_injection` pipeline.
+   - *Survives reboot/reload*: a static disc-patching mechanism was
+     found, built, and independently verified — a live dialogue line's
+     exact raw bytes were located byte-for-byte inside the chapter's
+     own `K1LINK.CDB` resource (stored as an uncompressed CDB-codec
+     literal run), and a same-word-count translated replacement was
+     written into a **copy** of the disc image
+     (`gcrts.disc_text_patch`, `scripts/patch_disc_dialogue_text.py`).
+     Re-reading that patched copy completely offline (no live emulator
+     involved) correctly produced the translated line with the rest of
+     the ISO untouched. **What's not yet confirmed**: that the running
+     emulator, booted fresh from this copy, shows the translation
+     during actual play — a save-state reload restores frozen RAM
+     rather than re-reading disc, so this needs a genuine cold boot
+     through real menu navigation, which needs controller input this
+     project has never gotten working programmatically. That check
+     needs a human at the controls.
 2. ~~Fix `CURRENT_SYSTEM_STATUS.md`'s internal contradictions~~ —
    **done** (same pass that produced this audit): the Subtitles matrix
    row, the stale test/module counts, the movies headline redundant
@@ -1128,10 +1139,15 @@ produced this audit and in the immediate overlay-engine follow-up,
 
 1. Run one real edit through decode→encode→inject→boot→visual
    confirmation, end to end, and record the result honestly whichever
-   way it comes out. **Half done**: decode→encode→inject→render
-   confirmed live (`evidence/stage4_text_injection_proof/`); the
-   →reboot→still-visible half needs a disc/executable patching
-   subsystem that doesn't exist yet. **Still open** for that half.
+   way it comes out. **Nearly done**: decode→encode→inject→render
+   confirmed live (`evidence/stage4_text_injection_proof/`); a static
+   disc-patching mechanism for the →reboot→ half was found, built, and
+   verified offline (`gcrts.disc_text_patch`) — a translated line
+   correctly persists in a patched disc-image copy, independently
+   re-read with no live emulator involved. **Still open**: confirming
+   the running emulator shows it after an actual cold boot, which
+   needs real controller navigation this project has no automated way
+   to do — a human-in-the-loop step, not further engineering.
 2. ~~Correct `CURRENT_SYSTEM_STATUS.md`'s five identified internal
    contradictions (§7).~~ **Done.**
 3. ~~Split `gcrts/live_extract.py`'s generic `GdbClient` out of its

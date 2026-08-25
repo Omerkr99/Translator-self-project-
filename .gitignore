@@ -89,3 +89,10 @@ current_screen.png
 # of Stage 2's exit criterion, force-added explicitly as a real
 # milestone artifact -- same precedent as audio_export/semantic_labels.json.
 evidence/
+
+# Patched disc-image copies built by gcrts.disc_text_patch -- multi-
+# hundred-MB build artifacts, regenerable by re-running the patch
+# script against the user's own disc image, and never the copyrighted
+# source disc itself (which lives outside the repo entirely, under
+# קיבצי דמה/). Never committed under any circumstance.
+build_workspace/

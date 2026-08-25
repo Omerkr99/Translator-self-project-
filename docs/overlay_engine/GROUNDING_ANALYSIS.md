@@ -185,11 +185,59 @@ Stage 4 (= SDD's O2-O4) — Internal gameplay payload (STARTED this session; rea
   patching (SRS PAT-001..007), a distinct subsystem that doesn't exist
   in this project at all yet, and is real new engineering, not a
   wrapper over anything built so far.
+
+  **Follow-up, same session: the persistence half found a real,
+  working path, static rather than a runtime hook.** A live-captured
+  dialogue line's exact raw word-codes were searched for directly
+  inside `DAT/CAP1/K1LINK.CDB` (the chapter's own script resource) and
+  found byte-exact at logical offset 3,174,457 (14 words) -- confirming
+  at least some lines are stored as CDB-codec literal runs (copied
+  verbatim, not compressed; see `gcrts.cdb_codec`'s format docstring),
+  which means a same-word-count translated replacement
+  (`gcrts.script_encoder.encode_segment`, control codes like
+  `pause_flag_b`/`set_mode_ce4` preserved in their original positions)
+  can be written directly over those exact bytes in a **copy** of the
+  disc image with zero changes to the surrounding compressed
+  structure. Built and verified: `gcrts/disc_text_patch.py` (the
+  reusable find/convert/patch primitives, 6 tests against synthetic
+  data plus the real confirmed offset-math values) and
+  `scripts/patch_disc_dialogue_text.py` (the full live-capture ->
+  disc-patch -> offline-reread pipeline). Ran it for real: patched a
+  copy of the actual disc image, then re-read that copy completely
+  offline (fresh file open, fresh ISO9660 parse, fresh file
+  extraction, fresh script decode -- no live emulator involved in the
+  verification) and got back exactly `"See you soon"` where the
+  original Japanese line had been, with the rest of the ISO structure
+  (root directory, `PROG.EXE`, etc.) unchanged.
+
+  A real methodological trap was hit and fixed along the way: the
+  first attempt to reuse this pipeline captured a *different* unit
+  each run (12 words vs. 19 words for what looked like the same
+  on-screen line) because the capture didn't pause the emulator first
+  -- the same auto-advancing-dialogue race `prove_live_text_injection.py`
+  already had to solve for the rendering half. Fixed the same way:
+  pause immediately after the state load, then capture, for a
+  deterministic snapshot.
+
+  **What remains open, stated precisely**: this proves the *disc copy*
+  is correctly, persistently patched -- verified independent of any
+  live process. It does **not** yet prove the running emulator, booted
+  fresh from this copy, shows the translation during actual play: a
+  save-state reload restores frozen RAM rather than re-reading from
+  disc (confirmed this session -- repeated reloads of the same slot
+  reliably reproduce the exact same starting dialogue, regardless of
+  real elapsed time, which is the signature of a frozen snapshot, not
+  a live re-read), so that specific check needs a genuine cold boot
+  reaching the target scene through real menu navigation -- which
+  needs controller input this project has never gotten working
+  programmatically (`docs/status/CURRENT_SYSTEM_STATUS.md`'s own audio
+  narrative: a virtual XInput gamepad was validated at the Windows/
+  XInput level but never got the game itself to respond). That last
+  check needs a human at the controls, not automation.
   Exit criterion (SRS acceptance criteria 3-5, i.e. survives a real
-  patched-image reboot): NOT YET MET -- this stage proved the
-  rendering mechanism works at all, which was itself unproven and a
-  necessary prerequisite; the patch/rebuild/persistence subsystem is
-  the remaining, larger piece of Stage 4.
+  patched-image reboot): **static persistence mechanism found, built,
+  and offline-verified; live in-game confirmation still requires
+  manual navigation from the user.**
 
 Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   Explicitly gated (SRS §12, SDD §19) behind movie-time source and
