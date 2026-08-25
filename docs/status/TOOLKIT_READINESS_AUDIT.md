@@ -695,9 +695,15 @@ the text pipeline does.
      emulator, booted fresh from this copy, shows the translation
      during actual play — a save-state reload restores frozen RAM
      rather than re-reading disc, so this needs a genuine cold boot
-     through real menu navigation, which needs controller input this
-     project has never gotten working programmatically. That check
-     needs a human at the controls.
+     through real menu navigation. **The controller-input blocker for
+     this was resolved in the same session** (`docs/tooling/PCSX_KEYBOARD_INPUT.md`):
+     PCSX-Redux's own keyboard bindings, driven via hardware-level
+     `SendInput` (not the virtual-XInput-gamepad approach that never
+     worked before), produce a real, confirmed response in the running
+     game. `gcrts/pcsx_keyboard_input.py`. The actual cold-boot-and-
+     navigate confirmation run itself is still pending as of this
+     writing, but is no longer blocked on missing capability — only on
+     performing it.
 2. ~~Fix `CURRENT_SYSTEM_STATUS.md`'s internal contradictions~~ —
    **done** (same pass that produced this audit): the Subtitles matrix
    row, the stale test/module counts, the movies headline redundant
@@ -1144,10 +1150,11 @@ produced this audit and in the immediate overlay-engine follow-up,
    disc-patching mechanism for the →reboot→ half was found, built, and
    verified offline (`gcrts.disc_text_patch`) — a translated line
    correctly persists in a patched disc-image copy, independently
-   re-read with no live emulator involved. **Still open**: confirming
-   the running emulator shows it after an actual cold boot, which
-   needs real controller navigation this project has no automated way
-   to do — a human-in-the-loop step, not further engineering.
+   re-read with no live emulator involved; programmatic controller
+   input (`gcrts.pcsx_keyboard_input`, `docs/tooling/PCSX_KEYBOARD_INPUT.md`)
+   now works, resolving what would have been the last blocker. **Still
+   open**: actually performing the cold-boot-and-navigate confirmation
+   run itself — capability exists, the run hasn't been done yet.
 2. ~~Correct `CURRENT_SYSTEM_STATUS.md`'s five identified internal
    contradictions (§7).~~ **Done.**
 3. ~~Split `gcrts/live_extract.py`'s generic `GdbClient` out of its

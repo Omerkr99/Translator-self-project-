@@ -164,7 +164,11 @@ object mapping, the Visual Inspector, snapshots, and user-defined pages:
 ### [`tooling/`](tooling/) — reusable methodology and infrastructure
 How live captures are actually taken, and shared decoding tools:
 `MIPS_JAL_DECODER.md`, `PCSX_REDUX_CAPTURE_PROTOCOL.md`,
-`BREAKPOINT_GENERATION_LOG.md`.
+`BREAKPOINT_GENERATION_LOG.md`, `PCSX_KEYBOARD_INPUT.md` (programmatic
+controller input via simulated keyboard/`SendInput` -- resolves a
+limitation recorded repeatedly throughout this project's history; an
+earlier virtual-XInput-gamepad attempt never got the game to respond,
+this is a different, working mechanism).
 
 ### [`overlay_engine/`](overlay_engine/) — external/internal overlay subsystem
 The staged plan for a shared external (host-side, emulator-synchronized)

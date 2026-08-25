@@ -228,16 +228,28 @@ Stage 4 (= SDD's O2-O4) — Internal gameplay payload (STARTED this session; rea
   reliably reproduce the exact same starting dialogue, regardless of
   real elapsed time, which is the signature of a frozen snapshot, not
   a live re-read), so that specific check needs a genuine cold boot
-  reaching the target scene through real menu navigation -- which
-  needs controller input this project has never gotten working
-  programmatically (`docs/status/CURRENT_SYSTEM_STATUS.md`'s own audio
-  narrative: a virtual XInput gamepad was validated at the Windows/
-  XInput level but never got the game itself to respond). That last
-  check needs a human at the controls, not automation.
+  reaching the target scene through real menu navigation.
+
+  **Follow-up, same session: this exact limitation was resolved.**
+  `docs/tooling/PCSX_KEYBOARD_INPUT.md` -- PCSX-Redux's own configured
+  keyboard bindings, driven via Windows' hardware-level `SendInput` API
+  (not the virtual-XInput-gamepad approach that never worked before),
+  produced an unambiguous, large, real response (a system menu opened)
+  after two real, non-obvious fixes: genuine foreground focus requires
+  `AttachThreadInput` (plain `SetForegroundWindow` from an unrelated
+  process is silently blocked by Windows), and `SendKeys`-style
+  message-queue input is not picked up by the game at all -- only
+  hardware-level `SendInput` is. `gcrts/pcsx_keyboard_input.py` is the
+  reusable module. This removes the "needs a human at the controls"
+  blocker for Stage 4's final check, and for any other part of this
+  project that hit the same wall (including the still-open movie-loader
+  ambiguous groups from earlier this session).
   Exit criterion (SRS acceptance criteria 3-5, i.e. survives a real
   patched-image reboot): **static persistence mechanism found, built,
-  and offline-verified; live in-game confirmation still requires
-  manual navigation from the user.**
+  and offline-verified; the programmatic-navigation blocker for live
+  in-game confirmation is now resolved. The actual cold-boot-and-navigate
+  confirmation run itself has not yet been performed as of this
+  writing.**
 
 Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   Explicitly gated (SRS §12, SDD §19) behind movie-time source and
