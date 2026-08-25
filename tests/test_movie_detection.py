@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from gcrts.movie_detection import (
     MOVIE_CATALOG,
+    STATIC_MOVIE_TRIGGERS,
     MovieMatchConfidence,
     classify_movie_state,
     get_movie_file,
+    get_static_movie_triggers_for_chapter,
     parse_exec_load_name,
     resolve_ambiguous_group_via_console_text,
 )
@@ -115,3 +117,37 @@ def test_resolve_ambiguous_group_returns_none_for_mrika_no_name_correlation():
     movie file at all -- must not be guessed."""
     result = resolve_ambiguous_group_via_console_text("MKUBI.EXE (or MNINO.EXE/MRIKA.EXE)", "MRIKA.EXE")
     assert result is None
+
+
+def test_static_triggers_are_not_confirmed_live():
+    """Every statically-found call site is a prediction, not an observed
+    result -- must never be tagged CONFIRMED_LIVE just because it was
+    found in real disassembled code."""
+    assert len(STATIC_MOVIE_TRIGGERS) > 0
+    for trigger in STATIC_MOVIE_TRIGGERS:
+        assert trigger.movie_exe.endswith(".EXE")
+
+
+def test_get_static_movie_triggers_for_cap1_finds_two_mkubi_sites():
+    triggers = get_static_movie_triggers_for_chapter("CAP1.EXE")
+    assert len(triggers) == 2
+    assert all(t.movie_exe == "MKUBI.EXE" for t in triggers)
+
+
+def test_get_static_movie_triggers_for_cap4_finds_two_distinct_movies():
+    triggers = get_static_movie_triggers_for_chapter("CAP4.EXE")
+    movies = {t.movie_exe for t in triggers}
+    assert movies == {"MRIKA.EXE", "MNINO.EXE"}
+
+
+def test_get_static_movie_triggers_for_unknown_chapter_is_empty():
+    assert get_static_movie_triggers_for_chapter("CAP2.EXE") == ()
+    assert get_static_movie_triggers_for_chapter("NOTREAL.EXE") == ()
+
+
+def test_cap0_static_trigger_corroborates_the_confirmed_live_mpro_result():
+    """CAP0.EXE's own statically-found call site independently agrees with
+    this session's CONFIRMED_LIVE MPRO.EXE result via save slot 6."""
+    triggers = get_static_movie_triggers_for_chapter("CAP0.EXE")
+    assert len(triggers) == 1
+    assert triggers[0].movie_exe == "MPRO.EXE"

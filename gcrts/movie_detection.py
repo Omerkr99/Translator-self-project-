@@ -100,6 +100,7 @@ MOVIE_CATALOG: tuple[MovieFileEntry, ...] = (
 
 class MovieMatchConfidence(str, Enum):
     CONFIRMED_LIVE = "CONFIRMED_LIVE"  # this session actually watched this pairing play
+    STATIC_CODE_MATCH = "STATIC_CODE_MATCH"  # a hardcoded call site found via disassembly, not yet observed live (see STATIC_MOVIE_TRIGGERS)
     NAME_MATCH = "NAME_MATCH"  # direct filename correlation, not yet independently live-confirmed
     AMBIGUOUS = "AMBIGUOUS"  # overlay's own code signature is shared by 2-3 executables
     NONE = "NONE"  # no movie-player overlay resident at all
@@ -196,6 +197,77 @@ def resolve_ambiguous_group_via_console_text(overlay_name: str, console_exec_nam
     if movie_file is None:
         return None
     return console_exec_name, movie_file
+
+
+@dataclass(frozen=True)
+class StaticMovieTrigger:
+    """One real, disassembly-verified call site: `chapter_exe`'s own code
+    calls its local copy of the generic movie-dispatch function (the same
+    one that prints "MovieLoad Exec : %s") with `movie_id` as a hardcoded
+    immediate constant, which that dispatcher's own local pointer table
+    resolves to `movie_exe`. `caller_ram` is the exact call-site address,
+    kept for audit -- this is not a guess, every field here was read
+    directly from the real disc image's compiled code and its own local
+    string/pointer tables, cross-checked against each other (see
+    docs/renderer/MOVIE_DETECTION.md for the full method and the checks
+    that caught two of this module author's own wrong assumptions along
+    the way: an unverified pointer-table ordering, and an unverified
+    identical-across-files ordering)."""
+
+    chapter_exe: str
+    movie_id: int
+    movie_exe: str
+    caller_ram: int
+
+
+# Every CAP*.EXE embeds an identical 10-entry table of every movie-player
+# executable name (including three -- MCAVE.EXE, MSB.EXE, MGOKI.EXE -- that
+# don't exist as real files on disc, presumably cut content) and its own
+# copy of a generic "load movie by index" dispatcher function. The
+# per-chapter choice of *which* index to call it with is genuinely
+# hardcoded as a compile-time constant for some chapters -- found by
+# locating each file's own copy of the "MovieLoad Exec : %s" format string,
+# walking backward to that dispatcher function's entry point, then
+# scanning the whole file for JAL call sites targeting it with an
+# immediate constant in the branch-delay slot.
+#
+# CAP0.EXE's result (movie_id=8 -> MPRO.EXE) matches this session's own
+# CONFIRMED_LIVE result for save slot 6 exactly -- slot 6 loads directly
+# into CAP0.EXE (confirmed via identify_overlay()), which then hands off
+# execution to CAPX.EXE (a shared movie-launch front-end used by multiple
+# chapters) to perform the actual disc load. That corroboration is strong
+# real evidence, but this table still reports STATIC_CODE_MATCH rather
+# than CONFIRMED_LIVE for every other entry, since none of them have
+# actually been watched playing -- per this whole project's standing
+# rule, a static/structural match is not the same as a human-witnessed
+# result, and is never promoted to CONFIRMED_LIVE on its own.
+#
+# CAPX.EXE itself also has exactly one such hardcoded call site
+# (movie_id=9 -> MYOKO.EXE) -- deliberately NOT included below. It
+# contradicts the live-confirmed MPRO.EXE result for the same CAPX.EXE
+# residency window, meaning CAPX.EXE's real per-invocation movie_id must
+# come from a runtime value (most likely written by whichever chapter
+# handed off to it) for at least the slot-6 case, not always this one
+# hardcoded constant -- an honest, unresolved limitation of this method
+# for CAPX.EXE specifically, not a value to trust.
+#
+# CAP2.EXE and CAP3.EXE had zero such call sites found at all -- either
+# they don't trigger a movie via this path, or (like CAPX.EXE) they do so
+# through a runtime-computed index this method can't statically resolve.
+STATIC_MOVIE_TRIGGERS: tuple[StaticMovieTrigger, ...] = (
+    StaticMovieTrigger("CAP0.EXE", 8, "MPRO.EXE", 0x8006CCB0),
+    StaticMovieTrigger("CAP1.EXE", 1, "MKUBI.EXE", 0x8005DBE4),
+    StaticMovieTrigger("CAP1.EXE", 1, "MKUBI.EXE", 0x8005E700),
+    StaticMovieTrigger("CAP4.EXE", 4, "MRIKA.EXE", 0x8004CB00),
+    StaticMovieTrigger("CAP4.EXE", 2, "MNINO.EXE", 0x8005033C),
+)
+
+
+def get_static_movie_triggers_for_chapter(chapter_exe: str) -> tuple[StaticMovieTrigger, ...]:
+    """All statically-found movie triggers belonging to one chapter
+    executable (e.g. "CAP1.EXE"), in no particular order. Empty if none
+    were found for that chapter -- never guesses."""
+    return tuple(t for t in STATIC_MOVIE_TRIGGERS if t.chapter_exe == chapter_exe)
 
 
 @dataclass

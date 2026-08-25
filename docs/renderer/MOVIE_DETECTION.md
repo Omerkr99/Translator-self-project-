@@ -149,12 +149,91 @@ prior undifferentiated `AMBIGUOUS` state, though not yet
 `CONFIRMED_LIVE`, since the movie reverted before any `.STR` sector
 data was actually observed streaming.
 
+## Finding all trigger points efficiently: static disassembly
+
+Live-triggering every remaining movie by luck doesn't scale --  a full
+sweep of all 10 existing save slots against the two remaining
+ambiguous groups found zero instant triggers, and letting each one run
+freely for 30s after load didn't catch anything either (unlike save
+slot 6, which happened to be saved right at the trigger boundary).
+Rather than requiring a human to stumble into each trigger point live,
+this session went looking for the selection logic itself, directly in
+the disc's own executables.
+
+Every `CAP*.EXE`/`CAPX.EXE` chapter executable embeds an **identical**
+10-entry table of movie-player executable names (`gcrts.iso9660` read
+each file directly off the real disc), plus its own copy of a generic
+"load movie by index" dispatcher function -- found by locating each
+file's own copy of the `"MovieLoad Exec : %s"` format string (the
+exact debug text captured live earlier), then walking backward to that
+function's own entry point (its `addiu $sp, $sp, -N` prologue). The
+table itself holds three names that don't exist as real files on disc
+at all (`MCAVE.EXE`, `MSB.EXE`, `MGOKI.EXE`) -- presumably cut
+content, left in the shared table but never shipped as files.
+
+Scanning each chapter file's own code for `jal` call sites targeting
+its own dispatcher, with an immediate constant loaded into the second
+argument in the branch-delay slot, found real, hardcoded per-chapter
+choices:
+
+| Chapter | movie_id | Resolves to |
+|---|---|---|
+| `CAP0.EXE` | 8 | `MPRO.EXE` |
+| `CAP1.EXE` | 1 (two call sites) | `MKUBI.EXE` |
+| `CAP4.EXE` | 4 | `MRIKA.EXE` |
+| `CAP4.EXE` | 2 | `MNINO.EXE` |
+
+`CAP0.EXE`'s result independently corroborates this session's own
+`CONFIRMED_LIVE` result: save slot 6 loads directly into `CAP0.EXE`
+(confirmed via `identify_overlay()`), which hands off execution to
+`CAPX.EXE` (a shared movie-launch front-end other chapters also route
+through) to perform the actual disc load -- explaining why the earlier
+live capture saw `CAPX.EXE` resident at the moment `MPRO.EXE` printed,
+even though `CAPX.EXE` isn't the chapter that decided which movie to
+play.
+
+**Two mistakes caught and corrected before trusting this result:**
+first, the pointer table the dispatcher indexes into was assumed to
+list names in the same order as the string table right next to it --
+reading the table's actual pointer values against each string's real
+address showed it's the *reverse* order, which would have silently
+mapped every `movie_id` to the wrong file. Second, that corrected
+per-index mapping was assumed to hold identically across every
+chapter file without checking -- it does (verified independently per
+file), but that was confirmed, not assumed.
+
+**A real, honest limitation, not papered over:** `CAPX.EXE` has
+exactly one such hardcoded call site too (`movie_id=9` ->
+`MYOKO.EXE`) -- deliberately *not* added to
+`gcrts.movie_detection.STATIC_MOVIE_TRIGGERS`, because it contradicts
+the live-confirmed `MPRO.EXE` result for that same `CAPX.EXE`
+residency window. `CAPX.EXE`'s real per-invocation `movie_id` for the
+slot-6 case must come from a runtime value written by whichever
+chapter handed off to it, not always this one constant. `CAP2.EXE` and
+`CAP3.EXE` had zero such call sites at all -- either they don't
+trigger a movie this way, or (like `CAPX.EXE`) they resolve it at
+runtime. Per this whole project's standing rule, none of this --
+including the corroborated `CAP0.EXE` result -- gets marked
+`CONFIRMED_LIVE`; `STATIC_CODE_MATCH` is a distinct, honest confidence
+tier, a prediction from real code, not a witnessed result.
+
+**Tested live, found not-instant:** loading save slots 4 and 8 (both
+independently confirmed resident in `CAP1.EXE` via `identify_overlay()`)
+and watching for 30s each did not trigger `MKUBI.EXE` -- unlike slot
+6, these saves aren't positioned right at the trigger boundary, so
+reaching it needs real navigation forward within that chapter, not
+just time passing.
+
 ## What's next
 
-- **Apply the same console-text technique to the remaining two
-  groups** -- `"MKUBI.EXE (or MNINO.EXE/MRIKA.EXE)"` and
-  `MOVER.EXE`/`GAI.STR`/`KIKU.STR` -- once a save state that triggers
-  each of them is available.
+- **Play slots 4/8 (or any other `CAP1.EXE`/`CAP4.EXE` save) forward**
+  to their actual trigger point with the console-text listener armed,
+  to upgrade the `CAP1.EXE`->`MKUBI.EXE` and `CAP4.EXE`->`MRIKA.EXE`/
+  `MNINO.EXE` predictions from `STATIC_CODE_MATCH` to `CONFIRMED_LIVE`.
+- **Find `CAPX.EXE`'s runtime selector** -- the memory location whichever
+  calling chapter writes into before handing off to `CAPX.EXE` --
+  which would let every `CAPX.EXE`-routed movie be predicted the same
+  way, including `MOVER.EXE`'s pairing.
 - **Confirm the actual `.STR` file content**, not just the exe name,
   by reading real sector data during one of these movies (reusing this
   project's own established LBA resolution work) -- the same standard
