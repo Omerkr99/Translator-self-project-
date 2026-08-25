@@ -12,9 +12,11 @@ from gcrts.output_audio_match import (
     ContinuityRun,
     MatchClassification,
     WindowMatch,
+    build_known_candidate_db,
     classify_match,
     compute_energy_profile,
     crop_excerpt,
+    fast_match_with_known_candidates,
     filter_duration_plausible,
     find_speech_burst_region,
     normalize_for_matching,
@@ -167,3 +169,47 @@ def test_classify_no_match_when_runs_too_weak():
 
 def test_classify_no_match_for_empty_runs():
     assert classify_match([]) == MatchClassification.NO_MATCH_IN_CURRENT_ASSET_DB
+
+
+def test_build_known_candidate_db_filters_to_confirmed_ids():
+    rng = np.random.default_rng(3)
+    full_db = {
+        f"XAPACK{i:02d}:0": compute_fingerprint(f"a{i}", rng.uniform(-8000, 8000, SR * 5).astype(np.int16).tobytes(), SR, 1)
+        for i in range(5)
+    }
+    known = build_known_candidate_db(full_db, ["XAPACK01:0", "XAPACK03:0", "XAPACK99:0"])
+    assert set(known.keys()) == {"XAPACK01:0", "XAPACK03:0"}  # unknown id silently dropped, not KeyError
+
+
+def test_fast_match_finds_strong_match_in_known_candidates_without_touching_full_db():
+    rng = np.random.default_rng(7)
+    target_signal = rng.uniform(-8000, 8000, SR * 20).astype(np.int16)
+    known_db = {"confirmed_asset": compute_fingerprint("confirmed_asset", target_signal.tobytes(), SR, 1)}
+    # full_db deliberately contains only unrelated noise -- if the fast
+    # path works, it should never need to fall back to this at all
+    full_db = {
+        f"unrelated_{i}": compute_fingerprint(f"u{i}", rng.uniform(-8000, 8000, SR * 8).astype(np.int16).tobytes(), SR, 1)
+        for i in range(5)
+    }
+    candidate = target_signal[int(5.0 * SR):int(5.0 * SR) + SR * 6].reshape(-1, 1)
+
+    result = fast_match_with_known_candidates(candidate, SR, 1, known_db, full_db, window_sizes=(1.5,), hop_ratio=0.5)
+    assert result.search_path == "known_candidates"
+    assert result.classification == MatchClassification.VOICE_ASSET_MATCH_FOUND
+    assert result.runs[0].asset_id == "confirmed_asset"
+
+
+def test_fast_match_falls_back_to_full_db_when_known_candidates_dont_match():
+    rng = np.random.default_rng(11)
+    known_signal = rng.uniform(-8000, 8000, SR * 8).astype(np.int16)
+    known_db = {"confirmed_asset": compute_fingerprint("confirmed_asset", known_signal.tobytes(), SR, 1)}
+
+    real_target = rng.uniform(-8000, 8000, SR * 20).astype(np.int16)
+    full_db = {"real_target": compute_fingerprint("real_target", real_target.tobytes(), SR, 1)}
+    # candidate is actually a slice of real_target, NOT of the known signal
+    candidate = real_target[int(5.0 * SR):int(5.0 * SR) + SR * 6].reshape(-1, 1)
+
+    result = fast_match_with_known_candidates(candidate, SR, 1, known_db, full_db, window_sizes=(1.5,), hop_ratio=0.5)
+    assert result.search_path == "full_database"
+    assert result.classification == MatchClassification.VOICE_ASSET_MATCH_FOUND
+    assert result.runs[0].asset_id == "real_target"

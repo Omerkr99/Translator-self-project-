@@ -14,8 +14,8 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 912 passed, 0 failed (`py -m pytest tests/ -q`), ~19s.
-  100 modules in `gcrts/`, 83 test files.
+- **Test count**: 942 passed, 0 failed (`py -m pytest tests/ -q`), ~28s.
+  102 modules in `gcrts/`, 85 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an

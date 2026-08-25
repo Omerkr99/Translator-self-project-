@@ -86,5 +86,26 @@
     "scene_notes": null,
     "notes": "",
     "updated_at": "2026-08-23T16:37:08.370665+00:00"
+  },
+  "XAPACK08:3": {
+    "asset_id": "XAPACK08:3",
+    "pack_path": "DAT/XA1/XAPACK08.BIN",
+    "channel_number": 3,
+    "duration_seconds": 22.88,
+    "sample_rate_hz": 37800,
+    "channels": 2,
+    "semantic_type": "DIALOGUE",
+    "semantic_confirmed": true,
+    "semantic_verification_source": "USER_LISTENING",
+    "character": null,
+    "japanese_transcript": null,
+    "transcript_verified": false,
+    "translation": null,
+    "translation_approved": false,
+    "workflow_status": "DETECTED",
+    "evidence": [],
+    "scene_notes": null,
+    "notes": "",
+    "updated_at": "2026-08-23T20:45:24.610423+00:00"
   }
 }

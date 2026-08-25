@@ -158,3 +158,103 @@ label instead of an unverified one. The same output-capture ->
 fingerprint -> offset-continuity -> listen pipeline built here is
 reusable for any other still-unverified save-slot line this project
 returns to.
+
+## Follow-up: generalization testing, and a genuine gap found
+
+The method was formalized into `gcrts.output_audio_match` (pure,
+independently-testable functions: energy-shape localization,
+duration-plausible filtering, sliding-window search, offset-continuity
+scoring/classification, plus a CLI) and then run against three more
+independent lines, across two more save slots:
+
+- `XAPACK20:4` (slot 7) — 0.96-0.98 similarity, 0.016s continuity error.
+- `XAPACK08:3` (slot 9, a different line) — a genuinely short (~2s)
+  line that only produced 2 consecutive sliding windows, below the
+  classifier's own conservative 3-window threshold for
+  `VOICE_ASSET_MATCH_FOUND` — a real, honest limitation for short
+  lines, not a failure of the underlying match. Confirmed by direct
+  listening despite the automated classifier calling it
+  `NO_MATCH_IN_CURRENT_ASSET_DB`.
+- One further attempt in a scene with continuous background music
+  returned a genuine `NO_MATCH_IN_CURRENT_ASSET_DB` with zero coherent
+  runs at all, even after trying an alternate manually-chosen window.
+  This is the real boundary the method has hit so far: **RMS+ZCR
+  fingerprinting struggles when dialogue is layered under continuous
+  music/ambience**, not when the capture or localization is at fault.
+
+## Follow-up: Live Scene Identification
+
+Built `gcrts.live_scene_identification` to add a second,
+overlay-independent evidence source: a direct VRAM screenshot via
+PCSX-Redux's own Web API (`gcrts.screen_capture`, already existing
+from earlier work), read directly (by a human or a multimodal model)
+rather than through OCR. A first attempt to instead read the game's
+internal script-cursor RAM address for deterministic scene tracking
+was tried and abandoned once it was confirmed those addresses only
+apply to `PROG.EXE`, not the `CAP*.EXE` family actually resident
+during real gameplay (`identify_overlay()` confirmed `CAP1.EXE` active
+at the time) — exactly the kind of overlay dependency this whole
+pivot was meant to avoid.
+
+A combined screenshot+audio capture on save slot 9 caught a chapter
+title screen ("第二の噂 / 音楽室のM.F" — "The Second Rumor" / "Music
+Room M.F.") at the same moment the audio pipeline found a strong,
+continuity-validated match (`XAPACK13:6`, 3 windows, 0.956 similarity,
+0.016s continuity error) — confirmed by direct listening. This is the
+first case combining independent visual and audio evidence into one
+`HIGH_CONFIDENCE` classification, per the confidence model below.
+
+Two earlier capture attempts in this same session returned pure
+silence and pure black frames for their entire 90-second windows — not
+a bug, but the same PCSX-Redux focus-loss auto-pause behavior
+documented much earlier in this project, confirmed by immediately
+re-checking the same screenshot/audio mechanisms in isolation right
+after (both worked instantly). Keeping the emulator window focused for
+the capture's full duration is a real operational requirement, not
+optional.
+
+### Confidence model
+
+`gcrts.live_scene_identification.classify_confidence()` never confirms
+from one strong signal alone:
+
+| State | Requires |
+|---|---|
+| `DETECTED` | Some capture exists; no strong signal yet |
+| `CANDIDATE` | Fingerprint *or* continuity strong, not both |
+| `HIGH_CONFIDENCE` | Fingerprint >= 0.9 *and* continuity >= 3 windows *and* independent visual context |
+| `USER_VERIFIED` | A human listened and confirmed — always the final gate |
+| `REJECTED` | No speech-shaped region found at all |
+
+### Fast path: known candidates before the full database
+
+`gcrts.output_audio_match.fast_match_with_known_candidates()` checks a
+small set of already-confirmed assets first, and only falls back to
+the full ~340-asset database if nothing strong turns up there — the
+direct answer to "skip the full search when we already have relevant
+information." The known set grows automatically as more lines get
+`USER_LISTENING`-confirmed (`build_known_candidate_db()` pulls it
+straight from `gcrts.semantic_label_store`). `gcrts.live_scene_
+identification.identify_event_from_capture()` is the one-call,
+streamlined version of the whole workflow (localize -> fast-match ->
+continuity -> classify -> build the event record), reusing this fast
+path automatically.
+
+### Tests
+
+30 new tests across `test_output_audio_match.py` and `test_live_
+scene_identification.py` (fast-match hit/fallback behavior, the
+orchestration function's REJECTED/DETECTED/HIGH_CONFIDENCE paths, all
+synthetic). Full suite: 942 passed, no regressions.
+
+### What's next
+
+The gap is now precisely scoped: not another overlay or RAM address to
+chase, but one layer to strengthen — extracting a confident voice
+signal from a continuous music/ambience mix (progressively:
+channel-split, mono-center mix, speech-band-pass filtering, spectral
+fingerprints beyond RMS/ZCR, shorter sliding windows, multi-window
+continuity, source separation only as a last resort), and letting
+visual evidence (speaker, scene, visible text, known chapter) rank
+audio candidates directly instead of requiring audio to carry the
+whole identification alone.

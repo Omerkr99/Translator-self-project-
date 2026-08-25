@@ -74,3 +74,6 @@ spu_upload_run01.json
 spu_dma_candidate.bin
 test_loopback*.wav
 test_profile*.json
+test_realtek_now.wav
+live_screenshot_test.png
+script_audio_watch_run1.json

@@ -285,6 +285,61 @@ def classify_match(runs: list[ContinuityRun], min_run_windows: int = 3) -> Match
 
 
 # ---------------------------------------------------------------------------
+# Fast path: check known/confirmed candidates before the full database
+# ---------------------------------------------------------------------------
+
+@dataclass
+class FastMatchResult:
+    runs: list[ContinuityRun]
+    classification: MatchClassification
+    search_path: str  # "known_candidates" or "full_database"
+
+
+def fast_match_with_known_candidates(
+    samples: np.ndarray,
+    sample_rate: int,
+    channels: int,
+    known_db: dict[str, Fingerprint],
+    full_db: dict[str, Fingerprint],
+    window_sizes: tuple[float, ...] = (1.0,),
+    hop_ratio: float = 0.5,
+    min_run_windows: int = 3,
+) -> FastMatchResult:
+    """Checks a small, already-known candidate set first (e.g. assets
+    already confirmed by a human, or ones tied to the current
+    chapter/scene context) -- a handful of fingerprints instead of the
+    full ~340-asset database. If a strong, unambiguous match turns up
+    there, returns immediately without ever touching the full
+    database. Falls back to the full search only when the fast path
+    comes up empty. This is the direct answer to "save us the full
+    search when we already have relevant information for this event" --
+    the growing set of USER_LISTENING-confirmed assets (or a
+    chapter-tagged subset of the full database) is exactly that
+    information, and it only grows as more lines get confirmed."""
+    known_matches = sliding_window_search(samples, sample_rate, channels, known_db, window_sizes=window_sizes, hop_ratio=hop_ratio)
+    known_runs = score_offset_continuity(known_matches)
+    known_classification = classify_match(known_runs, min_run_windows=min_run_windows)
+    if known_classification == MatchClassification.VOICE_ASSET_MATCH_FOUND:
+        return FastMatchResult(runs=known_runs, classification=known_classification, search_path="known_candidates")
+
+    full_matches = sliding_window_search(samples, sample_rate, channels, full_db, window_sizes=window_sizes, hop_ratio=hop_ratio)
+    full_runs = score_offset_continuity(full_matches)
+    full_classification = classify_match(full_runs, min_run_windows=min_run_windows)
+    return FastMatchResult(runs=full_runs, classification=full_classification, search_path="full_database")
+
+
+def build_known_candidate_db(
+    full_db: dict[str, Fingerprint], confirmed_asset_ids: list[str]
+) -> dict[str, Fingerprint]:
+    """Pure filter -- pulls just the confirmed subset out of the full
+    fingerprint database. Callers with live access should get
+    `confirmed_asset_ids` from `gcrts.semantic_label_store` (every
+    asset with a USER_LISTENING/RUNTIME_EVIDENCE label), kept separate
+    here so this stays testable without that store."""
+    return {aid: full_db[aid] for aid in confirmed_asset_ids if aid in full_db}
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 

@@ -19,5 +19,19 @@
     "verification_source": "USER_LISTENING",
     "notes": "Confirmed 2026-08-23 as the second independent generalization test of the output-audio-capture identification method (gcrts.output_audio_match), for a different scene (save slot 7, a distinct target line from the original save-slot-9/XAPACK22:7 case). WASAPI loopback capture of PCSX-Redux real digital output, auto-localized via the formalized workflow (energy-shape burst detection found BEGIN=8.0s/END=16.0s), matched via sliding-window offset-continuity search: 5-6 consecutive 1.0s windows showed the matched asset offset advancing almost exactly 1:1 with real time (offset_advance_error ~0.016s), mean similarity 0.96-0.98. The full asset (5.92s) was extracted from its own start and the user directly confirmed the match by listening. This is the second real save-state/line this method has been validated against, independent of the original XAPACK22:7 case.",
     "verified_at": "2026-08-23T16:36:57.317274+00:00"
+  },
+  "XAPACK08:3": {
+    "asset_id": "XAPACK08:3",
+    "semantic_type": "DIALOGUE",
+    "verification_source": "USER_LISTENING",
+    "notes": "Confirmed 2026-08-23 as the third independent generalization test of the output-audio-capture identification method (gcrts.output_audio_match), for a new line in save slot 9 (distinct from the original XAPACK22:7 line in the same slot). WASAPI loopback capture, auto-localized via energy-shape burst detection (BEGIN=71.9s/END=74.0s -- a genuinely short, ~2s line). Sliding-window match found only 2 consecutive windows (below the workflow_s conservative 3-window VOICE_ASSET_MATCH_FOUND threshold -- classified NO_MATCH_IN_CURRENT_ASSET_DB by the automated classifier), but those 2 windows showed strong evidence: similarity 0.947-0.984, offset_advance_error 0.012s. This is a real, honest limitation of the automated classifier for very short lines (too few sliding windows fit), not a failure of the underlying match -- the user listened to the candidate excerpt directly and confirmed it. Persisted on human confirmation, not automated classification alone, per this whole method's own governing rule.",
+    "verified_at": "2026-08-23T20:45:15.211350+00:00"
+  },
+  "XAPACK13:6": {
+    "asset_id": "XAPACK13:6",
+    "semantic_type": "DIALOGUE",
+    "verification_source": "USER_LISTENING",
+    "notes": "Confirmed 2026-08-25 as the fourth generalization test of the output-audio-capture method, and the first found via the new Live Scene Identification workflow (gcrts.live_scene_identification): a combined screenshot+audio capture on save slot 9 caught a chapter-title screen (第二の噪 = \"The Second Rumor\", 音楽室のM.F = \"Music Room M.F.\") at t=50s, with the audio match landing at t=58-62s (XAPACK13:6, 3 consecutive 1.0s windows, similarity 0.956, offset_advance_error 0.016s -- HIGH_CONFIDENCE per the combined visual+audio+continuity model). User listened to the full extracted asset (11.3s) and confirmed it matches the chapter-transition audio. Scene/chapter context: \"第二の噪 / 音楽室のM.F\" (Second Rumor / Music Room M.F).",
+    "verified_at": "2026-08-25T08:02:55.865405+00:00"
   }
 }
