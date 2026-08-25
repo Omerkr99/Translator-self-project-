@@ -1,14 +1,22 @@
-"""Stage 2 live smoke test: the SRS's "generic gameplay sentence" demo,
-run for real against a live PCSX-Redux instance.
+"""Live smoke test for the overlay engine's external backend, run for
+real against a live PCSX-Redux instance.
 
-Exit criterion this proves (`docs/overlay_engine/GROUNDING_ANALYSIS.md`
-Stage 2 / SDD §18's O0): PCSX-Redux attach + context resolution + a
-timed English sentence shown via a real transparent overlay window +
-a host screenshot + an emulator VRAM screenshot + a saved
-EvidenceBundle.
+As of Stage 3 (`docs/overlay_engine/GROUNDING_ANALYSIS.md`), the
+scenario itself is defined as data -- an `OverlayAction` -- and run
+through the generic `gcrts.overlay_action_runner.run_overlay_action`,
+not a hand-written per-scenario function. This is the concrete proof
+of Stage 3's own exit criterion: the same scenario, expressed as data,
+produces the same `EvidenceBundle` shape Stage 2's hand-written version
+did.
+
+Exit criterion this proves (SDD §18's O0/O1): PCSX-Redux attach +
+context resolution + a timed English sentence shown via a real
+transparent overlay window + a host screenshot + an emulator VRAM
+screenshot + a saved EvidenceBundle -- driven by an OverlayAction, not
+ad hoc script code.
 
 Usage:
-    python -m scripts.run_overlay_smoke_test --out-dir evidence/stage2_smoke
+    python -m scripts.run_overlay_smoke_test --out-dir evidence/stage3_smoke
 """
 from __future__ import annotations
 
@@ -18,13 +26,14 @@ import os
 from PIL import ImageGrab
 
 from gcrts.external_overlay_renderer import ExternalOverlayRenderer
-from gcrts.live_test_runner import run_generic_gameplay_sentence_scenario
+from gcrts.overlay_action import OverlayAction, TextPayload
+from gcrts.overlay_action_runner import run_overlay_action
 from gcrts.pcsx_redux_adapter import PCSXReduxAdapter
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out-dir", default="evidence/stage2_smoke")
+    parser.add_argument("--out-dir", default="evidence/stage3_smoke")
     parser.add_argument("--text", default="TOOLKIT TEST")
     parser.add_argument("--duration", type=float, default=4.0)
     parser.add_argument("--gdb-port", type=int, default=3334)
@@ -35,14 +44,19 @@ def main(argv: list[str] | None = None) -> int:
     emulator_path = os.path.join(args.out_dir, "emulator_screenshot.png")
     bundle_path = os.path.join(args.out_dir, "evidence.json")
 
+    action = OverlayAction(
+        id="generic_gameplay_sentence",
+        payload=TextPayload(text=args.text),
+        duration_seconds=args.duration,
+    )
+
     adapter = PCSXReduxAdapter(gdb_port=args.gdb_port)
     renderer = ExternalOverlayRenderer(position=(120, 120))
     try:
-        bundle = run_generic_gameplay_sentence_scenario(
+        bundle = run_overlay_action(
+            action,
             adapter,
             renderer,
-            text=args.text,
-            duration_seconds=args.duration,
             screenshot_host=lambda: ImageGrab.grab(),
             save_host_screenshot=lambda img, path: img.save(path),
             save_emulator_screenshot=lambda img, path: img.save(path),

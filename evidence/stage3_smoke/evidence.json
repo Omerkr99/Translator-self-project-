@@ -1,0 +1,55 @@
+{
+  "scenario_name": "generic_gameplay_sentence",
+  "timestamp": "2026-08-25T18:43:17.063547+00:00",
+  "backend": "EXTERNAL_HOST",
+  "result": "PASS",
+  "runtime_context": {
+    "game_id": "twilight_syndrome",
+    "executable_id": "PROG.EXE",
+    "mode": "MENU",
+    "chapter_id": null,
+    "scene_id": null,
+    "dialogue_id": null,
+    "movie_id": null,
+    "audio_asset_id": null,
+    "renderer_profile": null,
+    "frame_counter": null,
+    "claims": [
+      {
+        "claim": "resident executable is PROG.EXE",
+        "confidence": "CONFIRMED_LIVE",
+        "evidence": [
+          {
+            "kind": "CODE_SIGNATURE",
+            "detail": {
+              "pc0": "0x8004718c",
+              "t_addr": "0x80035000"
+            },
+            "note": ""
+          }
+        ]
+      },
+      {
+        "claim": "mode is MENU while PROG.EXE is resident",
+        "confidence": "INFERRED",
+        "evidence": [
+          {
+            "kind": "OBSERVED_SCREENSHOT",
+            "detail": {},
+            "note": "based on one observed session screenshot, not a systematic study"
+          }
+        ]
+      }
+    ]
+  },
+  "host_screenshot_path": "evidence/stage3_smoke\\host_screenshot.png",
+  "emulator_screenshot_path": "evidence/stage3_smoke\\emulator_screenshot.png",
+  "event_log": [
+    "resolved runtime context: executable='PROG.EXE' mode=MENU",
+    "overlay shown: 'TOOLKIT TEST'",
+    "host screenshot captured",
+    "emulator screenshot captured",
+    "overlay hidden"
+  ],
+  "notes": ""
+}

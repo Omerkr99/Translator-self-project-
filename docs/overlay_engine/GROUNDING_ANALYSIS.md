@@ -134,11 +134,24 @@ Stage 2 (= SDD's O0) — External overlay rendering + smoke test (DONE this sess
   project's own established boundary between tested orchestration
   logic and manually-verified live/GUI behavior.
 
-Stage 3 (= SDD's O1) — Shared OverlayAction model
-  Formalize the OverlayAction dataclass (SRS §8) so a test scenario is
-  data, not ad hoc script code; re-run Stage 2's scenario through it.
+Stage 3 (= SDD's O1) — Shared OverlayAction model (DONE this session)
+  Built gcrts/overlay_action.py (OverlayAction + all 6 payload kinds
+  from SRS §8 -- only TextPayload has a real runner; the other five
+  are declared but report UNSUPPORTED if run, never silently
+  approximated) and gcrts/overlay_action_runner.py (the one generic
+  executor). gcrts/live_test_runner.py's Stage 2 function is now a
+  thin wrapper that builds an OverlayAction and delegates to it --
+  existing Stage 2 tests pass unchanged, proving the refactor is
+  behavior-preserving. scripts/run_overlay_smoke_test.py now
+  constructs the scenario as an OverlayAction directly.
   Exit criterion: the same scenario definition produces the same
-  EvidenceBundle shape as Stage 2's hand-written version.
+  EvidenceBundle shape as Stage 2's hand-written version. -- MET:
+  re-ran the live smoke test (now data-driven) against the same
+  running PCSX-Redux instance. Result: PASS, with an EvidenceBundle
+  structurally identical to Stage 2's (same runtime_context resolution,
+  same event_log pattern, same screenshot pair) -- saved to
+  evidence/stage3_smoke/. 14 new tests (overlay_action,
+  overlay_action_runner), all against fakes; full suite 1030 passed.
 
 Stage 4 (= SDD's O2-O4) — Internal gameplay payload
   Only after Stage 2/3 are real and repeatable. Requires new reverse
@@ -156,11 +169,10 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   overclaiming.
 ```
 
-Stage 1 and Stage 2 are both complete as of this document, the latter
-with a real, live, once-run proof rather than just passing tests.
-Stage 3 (formalizing the shared `OverlayAction` model so a test
-scenario is data rather than hand-written script code) is the next
-concrete piece of work. Stage 4 (an internal, game-resident payload)
-remains real new reverse-engineering territory, not a wrapper over
-existing modules — it should stay its own dedicated pass, gated behind
-Stage 3, not attempted early.
+Stages 1, 2, and 3 are all complete as of this document, each with a
+real, live, once-run proof rather than just passing tests. Stage 4 (an
+internal, game-resident payload) is the next concrete piece of work,
+and is real new reverse-engineering territory (a real hook point in a
+patched executable), not a wrapper over existing modules like Stages
+1–3 were — it should stay its own dedicated pass, not attempted as an
+extension of the plumbing above.
