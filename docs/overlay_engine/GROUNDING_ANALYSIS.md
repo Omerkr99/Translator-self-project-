@@ -153,13 +153,43 @@ Stage 3 (= SDD's O1) — Shared OverlayAction model (DONE this session)
   evidence/stage3_smoke/. 14 new tests (overlay_action,
   overlay_action_runner), all against fakes; full suite 1030 passed.
 
-Stage 4 (= SDD's O2-O4) — Internal gameplay payload
-  Only after Stage 2/3 are real and repeatable. Requires new reverse
-  engineering (a real hook point in one confirmed executable) --
-  Renderer 1's own live-confirmed hook (renderer1_runtime.py) is the
-  most credible starting candidate, per the readiness audit's own Demo
-  B assessment (Medium readiness).
-  Exit criterion: SRS acceptance criteria 3-5.
+Stage 4 (= SDD's O2-O4) — Internal gameplay payload (STARTED this session; real, honest, partial progress)
+  A first assumption here was wrong and caught before building on it:
+  `renderer1_runtime.py` was assumed to be the render hook, but reading
+  its actual code shows it only REPOSITIONS records the game is
+  already drawing (moves existing characters' X/Y) -- it has no
+  mechanism to inject NEW content. The real candidate turned out to be
+  the already-existing script-buffer pipeline
+  (`gcrts.live_injection.inject_units_live`, built for the text-editor
+  workbench, never previously proven to render anything) -- exactly
+  `docs/status/TOOLKIT_READINESS_AUDIT.md` blocker #1's own subject.
+
+  Live experiment against save slot 4 (`CAP1.EXE`, real active
+  dialogue): the dialogue auto-advances in real time once a state
+  loads, fast enough that a naive read-modify-write sequence races the
+  game and lands on the wrong line. Pausing the CPU immediately after
+  load (`EmulatorAdapter.pause()`) removes the race entirely -- inject
+  while frozen, resume, screenshot shortly after. Result, reproduced
+  twice: the injected English text ("Morning Kimika how are you")
+  rendered legibly through the game's own renderer and font
+  (`evidence/stage4_text_injection_proof/after.png` clearly shows
+  "rning Kimika ho", a substring of the injected sentence, in the
+  actual classroom scene) -- the first time in this project's history
+  that injected text has been confirmed to actually render in-game.
+  Formalized as `scripts/prove_live_text_injection.py`.
+
+  **What this does NOT prove, stated precisely rather than implied**:
+  this is a live GDB RAM write, wiped by any save-state reload or
+  reboot -- it proves only the "renders visibly" half of blocker #1,
+  not "survives reboot." That half needs real disc/executable
+  patching (SRS PAT-001..007), a distinct subsystem that doesn't exist
+  in this project at all yet, and is real new engineering, not a
+  wrapper over anything built so far.
+  Exit criterion (SRS acceptance criteria 3-5, i.e. survives a real
+  patched-image reboot): NOT YET MET -- this stage proved the
+  rendering mechanism works at all, which was itself unproven and a
+  necessary prerequisite; the patch/rebuild/persistence subsystem is
+  the remaining, larger piece of Stage 4.
 
 Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   Explicitly gated (SRS §12, SDD §19) behind movie-time source and

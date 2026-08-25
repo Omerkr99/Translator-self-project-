@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-08-25T19:20:32.960114+00:00",
+  "slot": 4,
+  "unit_index": 0,
+  "requested_text": "Morning Kimika how are you",
+  "paused_immediately_after_load": true,
+  "original_text": "いミカ:オハヨオー、キミカー",
+  "injection_success": true,
+  "injection_error": null,
+  "injection_warnings": [],
+  "resumed": true,
+  "screenshot_path": "evidence/stage4_text_injection_proof_v2\\after_injection.png",
+  "result": "INJECTED_AND_CAPTURED",
+  "notes": "Capturing a screenshot proves the injection call succeeded and a frame was grabbed afterward -- it does NOT by itself prove the injected text is legible on screen. Read the saved image to confirm visually; this script does not run OCR. Does NOT prove persistence across reload/reboot -- see module docstring."
+}

@@ -675,8 +675,18 @@ the text pipeline does.
 1. **Prove one real text modification survives the full reinjection
    cycle**: decode a real line → edit it → re-encode → inject live →
    reboot/reload → confirm on screen it rendered correctly. This is
-   the toolkit's entire value proposition and is currently unproven
-   (§5.3, §8). **Still open.**
+   the toolkit's entire value proposition (§5.3, §8). **Half proven,
+   half still open** (`docs/overlay_engine/GROUNDING_ANALYSIS.md`
+   Stage 4): a live experiment against real active dialogue (save slot
+   4, `CAP1.EXE`) confirmed the "renders correctly" half for the first
+   time in this project's history — an injected English sentence
+   rendered legibly through the game's own renderer and font
+   (`evidence/stage4_text_injection_proof/after.png`), using the
+   already-existing `gcrts.live_injection` pipeline, not a new
+   mechanism. The "reboot/reload" half remains **fully open**: this
+   was a live GDB RAM write, wiped by any reload — no disc/executable
+   patching subsystem (SRS PAT-001..007) exists yet, and building one
+   is real new engineering, not a wrapper over anything already proven.
 2. ~~Fix `CURRENT_SYSTEM_STATUS.md`'s internal contradictions~~ —
    **done** (same pass that produced this audit): the Subtitles matrix
    row, the stale test/module counts, the movies headline redundant
@@ -1118,7 +1128,10 @@ produced this audit and in the immediate overlay-engine follow-up,
 
 1. Run one real edit through decode→encode→inject→boot→visual
    confirmation, end to end, and record the result honestly whichever
-   way it comes out. **Still open.**
+   way it comes out. **Half done**: decode→encode→inject→render
+   confirmed live (`evidence/stage4_text_injection_proof/`); the
+   →reboot→still-visible half needs a disc/executable patching
+   subsystem that doesn't exist yet. **Still open** for that half.
 2. ~~Correct `CURRENT_SYSTEM_STATUS.md`'s five identified internal
    contradictions (§7).~~ **Done.**
 3. ~~Split `gcrts/live_extract.py`'s generic `GdbClient` out of its
