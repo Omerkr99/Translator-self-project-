@@ -218,6 +218,7 @@ class StaticMovieTrigger:
     movie_id: int
     movie_exe: str
     caller_ram: int
+    confidence: MovieMatchConfidence = MovieMatchConfidence.STATIC_CODE_MATCH
 
 
 # Every CAP*.EXE embeds an identical 10-entry table of every movie-player
@@ -229,33 +230,39 @@ class StaticMovieTrigger:
 # locating each file's own copy of the "MovieLoad Exec : %s" format string,
 # walking backward to that dispatcher function's entry point, then
 # scanning the whole file for JAL call sites targeting it with an
-# immediate constant in the branch-delay slot.
+# immediate constant in the branch-delay slot. See
+# gcrts.movie_loader_scan for the general, reusable scanner this was
+# formalized into, and docs/renderer/MOVIE_LOADER_ARCHITECTURE.md for
+# the full investigation.
 #
-# CAP0.EXE's result (movie_id=8 -> MPRO.EXE) matches this session's own
-# CONFIRMED_LIVE result for save slot 6 exactly -- slot 6 loads directly
-# into CAP0.EXE (confirmed via identify_overlay()), which then hands off
-# execution to CAPX.EXE (a shared movie-launch front-end used by multiple
-# chapters) to perform the actual disc load. That corroboration is strong
-# real evidence, but this table still reports STATIC_CODE_MATCH rather
-# than CONFIRMED_LIVE for every other entry, since none of them have
-# actually been watched playing -- per this whole project's standing
-# rule, a static/structural match is not the same as a human-witnessed
-# result, and is never promoted to CONFIRMED_LIVE on its own.
+# CAP0.EXE's entry is CONFIRMED_LIVE, not just STATIC_CODE_MATCH: a GDB
+# breakpoint armed directly at CAP0.EXE's own dispatcher entry
+# (0x8006E5E4) fired during a real save-slot-6 load, with $a1 read live
+# as exactly 8, and the live pointer-table bytes at 0x8009C514 matching
+# the disc image byte-for-byte. This DISPROVED an earlier, wrong
+# assumption from this same investigation: that CAPX.EXE (seen resident
+# in an earlier console-log capture) "hands off" from CAP0.EXE to
+# perform the actual load. A breakpoint planted at CAPX.EXE's own
+# dispatcher entry (0x80062018) during the same scenario never fired at
+# all, even while the console text and the movie itself fully played --
+# proving CAPX.EXE's dispatcher plays no part in this specific load.
+# Whatever earlier adjacency was seen between a "Load Exec : \CAPX.EXE;1"
+# line and this movie's trigger in one long scrolling console capture
+# was a coincidence of two unrelated events in the same log window, not
+# a real causal handoff -- corrected here rather than left standing.
 #
-# CAPX.EXE itself also has exactly one such hardcoded call site
-# (movie_id=9 -> MYOKO.EXE) -- deliberately NOT included below. It
-# contradicts the live-confirmed MPRO.EXE result for the same CAPX.EXE
-# residency window, meaning CAPX.EXE's real per-invocation movie_id must
-# come from a runtime value (most likely written by whichever chapter
-# handed off to it) for at least the slot-6 case, not always this one
-# hardcoded constant -- an honest, unresolved limitation of this method
-# for CAPX.EXE specifically, not a value to trust.
+# CAPX.EXE itself does have exactly one hardcoded call site of its own
+# (movie_id=9 -> MYOKO.EXE) -- deliberately NOT included below, and now
+# additionally suspect: since its dispatcher was directly proven NOT to
+# fire during the one scenario this session could test against it,
+# whether this call site ever fires in any real scenario is unverified,
+# not just unconfirmed.
 #
 # CAP2.EXE and CAP3.EXE had zero such call sites found at all -- either
-# they don't trigger a movie via this path, or (like CAPX.EXE) they do so
-# through a runtime-computed index this method can't statically resolve.
+# they don't trigger a movie via this path, or they do so through a
+# runtime-computed index this static method can't resolve.
 STATIC_MOVIE_TRIGGERS: tuple[StaticMovieTrigger, ...] = (
-    StaticMovieTrigger("CAP0.EXE", 8, "MPRO.EXE", 0x8006CCB0),
+    StaticMovieTrigger("CAP0.EXE", 8, "MPRO.EXE", 0x8006CCB0, MovieMatchConfidence.CONFIRMED_LIVE),
     StaticMovieTrigger("CAP1.EXE", 1, "MKUBI.EXE", 0x8005DBE4),
     StaticMovieTrigger("CAP1.EXE", 1, "MKUBI.EXE", 0x8005E700),
     StaticMovieTrigger("CAP4.EXE", 4, "MRIKA.EXE", 0x8004CB00),

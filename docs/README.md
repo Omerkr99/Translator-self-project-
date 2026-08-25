@@ -137,7 +137,12 @@ GPU primitives: `FRAME_RENDER_MODES.md`, `GPU_ASSET_CORRELATION.md`,
 long-blocked movie-runtime-detection question by reusing
 `gcrts.overlay_identity`'s movie-player family directly — no DMA
 tracing needed — live-confirmed against a real `OP.STR` playthrough;
-wired into `RuntimeSnapshot.active_movie`).
+wired into `RuntimeSnapshot.active_movie`) → `MOVIE_LOADER_ARCHITECTURE.md`
+(maps which chapter executable selects which movie and how, via a
+reusable MIPS disassembler + scanner — `gcrts.mips_disasm` /
+`gcrts.movie_loader_scan` — including a wrong hand-off hypothesis this
+same investigation made and then disproved with a live breakpoint
+test).
 
 ### [`text-engine/`](text-engine/) — dialogue text, script decoding, translation
 The alternative text engine investigation, script bytecode, and where

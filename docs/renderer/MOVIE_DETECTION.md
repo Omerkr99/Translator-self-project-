@@ -183,14 +183,20 @@ choices:
 | `CAP4.EXE` | 4 | `MRIKA.EXE` |
 | `CAP4.EXE` | 2 | `MNINO.EXE` |
 
-`CAP0.EXE`'s result independently corroborates this session's own
-`CONFIRMED_LIVE` result: save slot 6 loads directly into `CAP0.EXE`
-(confirmed via `identify_overlay()`), which hands off execution to
-`CAPX.EXE` (a shared movie-launch front-end other chapters also route
-through) to perform the actual disc load -- explaining why the earlier
-live capture saw `CAPX.EXE` resident at the moment `MPRO.EXE` printed,
-even though `CAPX.EXE` isn't the chapter that decided which movie to
-play.
+`CAP0.EXE`'s result is now `CONFIRMED_LIVE`, upgraded from a static
+match: a GDB breakpoint planted directly at `CAP0.EXE`'s own dispatcher
+entry (`0x8006E5E4`) fired during a real save-slot-6 load, with `$a1`
+read live as exactly `8`, and the live pointer-table bytes matching the
+disc image byte-for-byte. This also **disproved an earlier wrong
+hypothesis** from this same investigation -- that `CAP0.EXE` "hands
+off" to `CAPX.EXE` to perform the actual load, based on an earlier
+console-log capture that happened to show `CAPX.EXE` resident near the
+movie trigger. A breakpoint planted at `CAPX.EXE`'s own dispatcher
+entry during the identical scenario never fired at all, even while the
+movie fully played -- proving `CAPX.EXE`'s dispatcher plays no part in
+this load. See `docs/renderer/MOVIE_LOADER_ARCHITECTURE.md` for the
+full architecture investigation this correction came out of, including
+why that earlier adjacency was a coincidence, not a real handoff.
 
 **Two mistakes caught and corrected before trusting this result:**
 first, the pointer table the dispatcher indexes into was assumed to

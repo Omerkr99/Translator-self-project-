@@ -14,7 +14,7 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 
 ## Headline
 
-- **Test count**: 963 passed, 0 failed (`py -m pytest tests/ -q`), ~29s.
+- **Test count**: 981 passed, 0 failed (`py -m pytest tests/ -q`), ~26s.
   103 modules in `gcrts/`, 86 test files.
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
@@ -881,26 +881,32 @@ identical 10-name movie table (3 of the 10 names — `MCAVE.EXE`,
 content) plus its own copy of a generic dispatch function. Scanning
 each chapter's own call sites into that function (found via its local
 copy of the `"MovieLoad Exec : %s"` string) surfaced real, hardcoded
-per-chapter constants: `CAP0.EXE`→`MPRO.EXE` (independently
-corroborates this session's `CONFIRMED_LIVE` slot-6 result — slot 6
-loads `CAP0.EXE`, which hands off to `CAPX.EXE` to perform the actual
-load), `CAP1.EXE`→`MKUBI.EXE` (2 call sites agree), `CAP4.EXE`→
-`MRIKA.EXE` and `MNINO.EXE`. Two of the author's own unverified
-assumptions were caught before trusting the result: the dispatch
-table's index order (assumed same as the adjacent string table —
-actually reversed) and whether that order holds across every chapter
-file (verified independently, not assumed). `CAPX.EXE`'s one
-hardcoded call site (`MYOKO.EXE`) was deliberately excluded — it
-contradicts the live-confirmed `MPRO.EXE` result for that same
-residency, meaning `CAPX.EXE` resolves its target from a runtime value
-in at least that case, an honest unresolved limit of this method.
-New `STATIC_MOVIE_TRIGGERS`/`get_static_movie_triggers_for_chapter()`,
-a distinct `STATIC_CODE_MATCH` confidence tier (never promoted to
-`CONFIRMED_LIVE` without an actual witnessed result). Live-tested:
-save slots 4/8 (`CAP1.EXE`) didn't trigger within 30s of loading —
-unlike slot 6, they aren't saved right at the boundary, so confirming
-the `MKUBI.EXE` prediction needs real forward navigation. 5 new tests;
-full suite 963 passed.
+per-chapter constants: `CAP0.EXE`→`MPRO.EXE`, `CAP1.EXE`→`MKUBI.EXE`
+(2 call sites agree), `CAP4.EXE`→`MRIKA.EXE` and `MNINO.EXE`. Two of
+the author's own unverified assumptions were caught before trusting
+the result: the dispatch table's index order (assumed same as the
+adjacent string table — actually reversed) and whether that order
+holds across every chapter file (verified independently, not
+assumed). New `STATIC_MOVIE_TRIGGERS`/`get_static_movie_triggers_for_chapter()`,
+a distinct `STATIC_CODE_MATCH` confidence tier. 5 new tests; full
+suite 963 passed.
+
+**Follow-up — full movie-loader architecture investigation**
+(`MOVIE_LOADER_ARCHITECTURE.md`, new `gcrts.mips_disasm` +
+`gcrts.movie_loader_scan`): built a general MIPS-I disassembler and a
+reusable scanner that finds each chapter's movie-name table,
+dispatcher function, and every call site's selector automatically —
+validated against every already-known finding above before trusting
+new results. Direct live verification then **corrected a wrong
+hypothesis this same investigation had made**: a GDB breakpoint at
+`CAP0.EXE`'s own dispatcher fired live with `$a1=8`, matching the
+static prediction exactly and upgrading it to `CONFIRMED_LIVE` — but a
+breakpoint at `CAPX.EXE`'s dispatcher, armed during the identical
+scenario, never fired at all despite the movie fully playing, proving
+`CAPX.EXE` does not "hand off" from `CAP0.EXE` as earlier claimed; that
+was a false correlation from one console-log capture, now corrected in
+both code comments and docs. 18 new tests (`gcrts.mips_disasm` +
+`gcrts.movie_loader_scan`); full suite 981 passed.
 
 - Container format is standard, confirmed PS1: `.STR` files use
   textbook 7:1 Form1:Form2 video:audio sector interleaving. No custom

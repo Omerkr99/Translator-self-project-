@@ -145,9 +145,20 @@ def test_get_static_movie_triggers_for_unknown_chapter_is_empty():
     assert get_static_movie_triggers_for_chapter("NOTREAL.EXE") == ()
 
 
-def test_cap0_static_trigger_corroborates_the_confirmed_live_mpro_result():
-    """CAP0.EXE's own statically-found call site independently agrees with
-    this session's CONFIRMED_LIVE MPRO.EXE result via save slot 6."""
+def test_cap0_trigger_is_confirmed_live_not_just_static():
+    """CAP0.EXE's dispatcher was directly hit by a live GDB breakpoint
+    with $a1 read as 8 -- a real witnessed result, not just a structural
+    match, so this one entry (and only this one) carries CONFIRMED_LIVE."""
     triggers = get_static_movie_triggers_for_chapter("CAP0.EXE")
     assert len(triggers) == 1
     assert triggers[0].movie_exe == "MPRO.EXE"
+    assert triggers[0].confidence == MovieMatchConfidence.CONFIRMED_LIVE
+
+
+def test_only_cap0_entry_is_confirmed_live():
+    """Every other statically-found trigger has NOT been witnessed live
+    -- must stay at STATIC_CODE_MATCH, never silently promoted."""
+    for trigger in STATIC_MOVIE_TRIGGERS:
+        if trigger.chapter_exe == "CAP0.EXE":
+            continue
+        assert trigger.confidence == MovieMatchConfidence.STATIC_CODE_MATCH
