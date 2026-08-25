@@ -111,13 +111,28 @@ Stage 1 — Foundation (DONE this session)
   adapter + a RuntimeContext resolver, all tested without a live
   emulator. -- MET.
 
-Stage 2 (= SDD's O0) — External overlay rendering + smoke test
-  Build ExternalOverlayRenderer (a real transparent/always-on-top
-  window) and a minimal LiveTestRunner that: resolves RuntimeContext
-  via PCSXReduxAdapter, shows "TOOLKIT TEST" for N seconds from an
-  arbitrary gameplay location, captures a screenshot, writes an
-  EvidenceBundle (JSON: context.to_dict(), screenshot path, PASS/FAIL).
-  Exit criterion: SRS VAL-001/VAL-002 satisfied, live, once.
+Stage 2 (= SDD's O0) — External overlay rendering + smoke test (DONE this session)
+  Built gcrts/evidence_bundle.py, gcrts/external_overlay_renderer.py,
+  gcrts/live_test_runner.py, and scripts/run_overlay_smoke_test.py.
+  Exit criterion: SRS VAL-001/VAL-002 satisfied, live, once. -- MET:
+  ran scripts/run_overlay_smoke_test.py against the real running
+  PCSX-Redux instance. Result: PASS. Real evidence, not a synthetic
+  test: RuntimeContextResolver correctly identified PROG.EXE resident
+  (CONFIRMED_LIVE) and mode=MENU (INFERRED, exactly as documented); a
+  real transparent Tk window displayed "TOOLKIT TEST" on screen (visible
+  in evidence/stage2_smoke/host_screenshot.png -- floating over
+  whatever window was in front, since the renderer doesn't yet track
+  the emulator window's exact position, a known, documented Stage 2
+  limitation, not a bug); a real emulator VRAM screenshot was captured
+  in parallel (evidence/stage2_smoke/emulator_screenshot.png, showing
+  the actual game content at that moment -- a chapter title card,
+  consistent with the resolved MENU mode); a full EvidenceBundle was
+  written to evidence/stage2_smoke/evidence.json. 8 new tests
+  (gcrts.evidence_bundle, gcrts.live_test_runner), all against fakes,
+  full suite 1016 passed -- none of the 8 required a live emulator or
+  display, only the one manually-run smoke test did, matching this
+  project's own established boundary between tested orchestration
+  logic and manually-verified live/GUI behavior.
 
 Stage 3 (= SDD's O1) — Shared OverlayAction model
   Formalize the OverlayAction dataclass (SRS §8) so a test scenario is
@@ -141,7 +156,11 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   overclaiming.
 ```
 
-Stage 1 is complete as of this document. Stage 2 is the next concrete
-piece of work, and is real UI/OS-integration engineering rather than a
-wrapper over existing modules — it should be scoped as its own
-dedicated pass.
+Stage 1 and Stage 2 are both complete as of this document, the latter
+with a real, live, once-run proof rather than just passing tests.
+Stage 3 (formalizing the shared `OverlayAction` model so a test
+scenario is data rather than hand-written script code) is the next
+concrete piece of work. Stage 4 (an internal, game-resident payload)
+remains real new reverse-engineering territory, not a wrapper over
+existing modules — it should stay its own dedicated pass, gated behind
+Stage 3, not attempted early.

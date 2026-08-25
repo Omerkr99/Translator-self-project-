@@ -82,3 +82,10 @@ overlay_watch_slot6*.json
 overlay_watch_console*.json
 movie_overlay_snapshot_*.bin
 current_screen.png
+
+# Overlay engine: EvidenceBundle output from scripts/run_overlay_smoke_test.py
+# -- regenerable by re-running the smoke test, never source. The one
+# exception is evidence/stage2_smoke/, the first successful live proof
+# of Stage 2's exit criterion, force-added explicitly as a real
+# milestone artifact -- same precedent as audio_export/semantic_labels.json.
+evidence/
