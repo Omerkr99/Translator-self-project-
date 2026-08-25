@@ -5,68 +5,21 @@ This is the "RAM (for validation)" half of Phase 1's extraction
 requirement. The "Disk (true source via .CDB)" half is not yet
 implemented -- the loader that fills 0x801fe800 hasn't been identified yet
 (see NOTES.md's open threads).
+
+`GdbClient` itself now lives in `gcrts.gdb_client` (a genuinely generic
+GDB remote-protocol client, no game-specific addresses) -- re-exported
+here for backward compatibility with existing callers
+(`scripts/gdb_cdinit_trigger_capture.py` and others import it from this
+module). See `docs/status/TOOLKIT_READINESS_AUDIT.md` §15 for why this
+split happened.
 """
 from __future__ import annotations
 
-import socket
-import struct
-
+from gcrts.gdb_client import GdbClient
 from gcrts.script_decoder import ScriptDocument, decode_script
 
 SCRIPT_BUF_ADDR = 0x801FE800
 DEFAULT_CAPTURE_WORDS = 2048  # generous upper bound; decode_script stops at 0xFFFF anyway
-
-
-def _checksum(data: bytes) -> str:
-    return format(sum(data) & 0xFF, "02x")
-
-
-class GdbClient:
-    """Minimal GDB remote-serial-protocol client (no external deps)."""
-
-    def __init__(self, host: str = "127.0.0.1", port: int = 3333, timeout: float = 30.0):
-        self._sock = socket.create_connection((host, port), timeout=timeout)
-        self._sock.settimeout(timeout)
-
-    def _send(self, packet: bytes) -> None:
-        self._sock.sendall(b"$" + packet + b"#" + _checksum(packet).encode())
-
-    def _read_packet(self) -> bytes:
-        buf = b""
-        while True:
-            chunk = self._sock.recv(65536)
-            if not chunk:
-                break
-            buf += chunk
-            if b"#" in buf and len(buf) >= buf.index(b"#") + 3:
-                break
-        return buf
-
-    def read_memory(self, addr: int, length: int) -> bytes | None:
-        self._send(f"m{addr:x},{length:x}".encode())
-        raw = self._read_packet()
-        text = raw.decode(errors="replace")
-        if "$" not in text or "#" not in text:
-            return None
-        inner = text[text.index("$") + 1 : text.rindex("#")]
-        if inner.startswith("E") and len(inner) <= 3:
-            return None
-        return bytes.fromhex(inner)
-
-    def write_memory(self, addr: int, data: bytes) -> bool:
-        """Write bytes via the GDB remote protocol's 'M' packet
-        (addr,length:hexdata). Returns True on an "OK" reply."""
-        payload = f"M{addr:x},{len(data):x}:".encode() + data.hex().encode()
-        self._send(payload)
-        raw = self._read_packet()
-        text = raw.decode(errors="replace")
-        if "$" not in text or "#" not in text:
-            return False
-        inner = text[text.index("$") + 1 : text.rindex("#")]
-        return inner == "OK"
-
-    def close(self) -> None:
-        self._sock.close()
 
 
 def capture_script_buffer(

@@ -676,23 +676,33 @@ the text pipeline does.
    cycle**: decode a real line → edit it → re-encode → inject live →
    reboot/reload → confirm on screen it rendered correctly. This is
    the toolkit's entire value proposition and is currently unproven
-   (§5.3, §8).
-2. **Fix `CURRENT_SYSTEM_STATUS.md`'s internal contradictions** before
-   using it as a planning baseline (§7) — specifically the Subtitles
-   matrix row, the stale test/module counts, the movies headline
-   redundant bullet, and the Audio format-confidence row.
-3. **Split `gcrts/live_extract.py`** into a generic `GdbClient` module
-   and a game-specific script-buffer module (§9, §15).
+   (§5.3, §8). **Still open.**
+2. ~~Fix `CURRENT_SYSTEM_STATUS.md`'s internal contradictions~~ —
+   **done** (same pass that produced this audit): the Subtitles matrix
+   row, the stale test/module counts, the movies headline redundant
+   bullet, and the Audio format-confidence row were all corrected in
+   place.
+3. ~~Split `gcrts/live_extract.py`~~ — **done**:
+   `gcrts/gdb_client.py` now holds the generic `GdbClient`;
+   `live_extract.py` imports it for backward compatibility. See
+   `docs/overlay_engine/GROUNDING_ANALYSIS.md`.
 4. **Give `gcrts/runtime_visual_provider.py` a real override hook**
    for its game profile instead of hardcoded `PROG.EXE`/`SLPS00102_*`
-   defaults with no parameter (§9, §15).
-5. **Adopt a minimal shared evidence/confidence type** (§16) before
-   more modules invent their own bespoke enum — not a rewrite, just
-   stopping the proliferation.
+   defaults with no parameter (§9, §15). **Still open** — a different
+   module (`gcrts.pcsx_redux_adapter`) was built as a clean, adapter-
+   ready alternative for the new overlay engine, but the pre-existing
+   `runtime_visual_provider.py` itself was not modified.
+5. ~~Adopt a minimal shared evidence/confidence type~~ — **done**:
+   `gcrts/evidence.py` (`Confidence` enum, `Evidence`/`Claim`
+   dataclasses), already adopted by the new
+   `gcrts.runtime_context.RuntimeContextResolver`. See
+   `docs/overlay_engine/GROUNDING_ANALYSIS.md`.
 
-Everything else — movie subtitle demo, `CAPX`/`CAP2`/`CAP3`/`MOVER`
-resolution, audio replacement, second-game validation — is real,
-valuable, deferrable work, not a blocker.
+Two of five blockers remain open: the text-reinjection boot proof
+(#1) and the `runtime_visual_provider.py` override hook (#4). Everything
+else — movie subtitle demo, `CAPX`/`CAP2`/`CAP3`/`MOVER` resolution,
+audio replacement, second-game validation — is real, valuable,
+deferrable work, not a blocker.
 
 ---
 
@@ -1102,19 +1112,22 @@ open items (movie selector edge cases, audio channel positioning) are
 scoped, deferrable feature work, not architecture-invalidating risks.
 
 **Exact minimum tasks to reach A** (identical to §20, restated as the
-final checklist):
+final checklist — updated to reflect work done in the same pass that
+produced this audit and in the immediate overlay-engine follow-up,
+`docs/overlay_engine/GROUNDING_ANALYSIS.md`):
 
 1. Run one real edit through decode→encode→inject→boot→visual
    confirmation, end to end, and record the result honestly whichever
-   way it comes out.
-2. Correct `CURRENT_SYSTEM_STATUS.md`'s five identified internal
-   contradictions (§7).
-3. Split `gcrts/live_extract.py`'s generic `GdbClient` out of its
-   game-specific script-buffer code.
+   way it comes out. **Still open.**
+2. ~~Correct `CURRENT_SYSTEM_STATUS.md`'s five identified internal
+   contradictions (§7).~~ **Done.**
+3. ~~Split `gcrts/live_extract.py`'s generic `GdbClient` out of its
+   game-specific script-buffer code.~~ **Done** (`gcrts/gdb_client.py`).
 4. Give `gcrts/runtime_visual_provider.py` a constructor-level profile
-   override instead of hardcoded defaults.
-5. Add one shared `Confidence`/`Evidence` type (`gcrts/evidence.py`)
-   before more ad hoc enums accumulate.
+   override instead of hardcoded defaults. **Still open.**
+5. ~~Add one shared `Confidence`/`Evidence` type (`gcrts/evidence.py`)
+   before more ad hoc enums accumulate.~~ **Done.**
 
-None of these require new reverse engineering or unsolved research —
+Two of five remain open (#1, #4). None of these require new reverse
+engineering or unsolved research —
 they are executable this week, not open-ended.

@@ -166,6 +166,19 @@ How live captures are actually taken, and shared decoding tools:
 `MIPS_JAL_DECODER.md`, `PCSX_REDUX_CAPTURE_PROTOCOL.md`,
 `BREAKPOINT_GENERATION_LOG.md`.
 
+### [`overlay_engine/`](overlay_engine/) — external/internal overlay subsystem
+The staged plan for a shared external (host-side, emulator-synchronized)
+and internal (PS1-resident, patched-into-the-game) localization overlay:
+`PS1_OVERLAY_RUNTIME_REQUIREMENTS.md` (SRS),
+`PS1_OVERLAY_RUNTIME_SYSTEM_DESIGN.md` (SDD), and
+`GROUNDING_ANALYSIS.md` — which maps every spec component against real
+`gcrts` code, distinguishes what already existed
+(`gcrts.gdb_client`/`overlay_identity`/`movie_detection`/`renderer1_runtime`,
+all `CONFIRMED_LIVE`) from what's genuinely new
+(`gcrts.evidence`, `gcrts.emulator_adapter`, `gcrts.pcsx_redux_adapter`,
+`gcrts.runtime_context` — built and tested this session, Stage 1 of the
+staged plan), and gives the concrete next stages.
+
 ### [`investigations/`](investigations/) — research logs and scoping
 Point-in-time investigation records and planning documents:
 `BACKLOG_INVESTIGATION_RESULTS.md`, `BACKLOG_INVESTIGATION_SCOPE.md`,
