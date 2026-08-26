@@ -81,6 +81,22 @@ reusing frame-count-based timing against a freshly-loaded disc image
 should verify empirically first**, exactly as this session did, rather
 than trusting the arithmetic alone.
 
+## Consolidated into a reusable tool
+
+The manual, scratchpad steps above (decode, edit one specific frame
+range, remux, encode, patch -- run by hand this session to prove the
+mechanism) are now `gcrts.movie_subtitle_burner`: `cue_to_frame_range`
+and `burn_cues_onto_frame_files` (pure, unit-tested — given a whole
+`SubtitleTrackPayload`, not just one cue, they compute each cue's own
+frame range and burn all of them onto the right frames, verified
+against exactly the live-confirmed window above) plus
+`build_burned_in_movie`/`patch_movie_into_disc` (the live orchestration
+wrapping FFmpeg + `psxavenc` + disc I/O, manually verified only, same
+convention as every other live/external-tool module in this project).
+This is what turns "one cue burned in by hand" into "burn an entire
+real subtitle track into a movie" as a single reusable call, rather
+than repeating this session's manual steps for every cue.
+
 ## What remains
 
 - **Real hardware verification** (burn to an actual CD, test on real
