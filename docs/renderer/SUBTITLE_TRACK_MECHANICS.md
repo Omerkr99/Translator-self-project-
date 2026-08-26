@@ -1,5 +1,16 @@
 # Subtitle Track Mechanics: Trigger + Per-Cue Duration
 
+**Read `docs/renderer/BURNED_IN_SUBTITLE_PIPELINE.md` first.** Direct
+user correction (2026-08-26): the real deliverable for movie subtitles
+is text burned into the disc-resident video itself, so a burned CD
+plays correctly on real PS1 hardware with no host machine involved at
+all. Everything in this document (the external, host-rendered overlay)
+is a genuinely useful **tool for testing cue timing and rehearsing
+content against a live emulator** -- it is not the shippable mechanism,
+since real hardware runs none of this project's Python code. Keep
+using this for authoring/testing; the actual translation patch needs
+the separate, still-largely-unbuilt pipeline that document describes.
+
 The first concrete building block for SDD O5 (external, host-rendered
 movie subtitle sync) -- deliberately the simplest piece that could
 work: no PS1-side hook, no VRAM write, no disc patching. It reuses

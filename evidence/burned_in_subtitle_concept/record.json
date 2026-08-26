@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-08-26T23:13:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "context": "User correction (2026-08-26): the real deliverable is subtitles burned into the disc-resident video/game data, so a burned CD plays correctly on real PS1 hardware -- a host-side overlay window (this same session's SubtitleTrackPayload/ExternalOverlayRenderer work) is a testing/timing tool, not the shippable mechanism, since real hardware runs no host tooling at all.",
+  "claim": "A real frame decoded from OP.STR can have subtitle text burned directly into its pixels, in a conventional subtitle style (white text, black outline, bottom-centered).",
+  "method": [
+    "Decoded real frames from OP.STR (t=11-13s) via FFmpeg's psxstr/mdec support, the same decode path already confirmed this session for audio extraction.",
+    "gcrts.burn_in_subtitle.burn_subtitle_onto_frame(frame, '-insert text here-') drew the text directly onto one decoded frame's pixel data using PIL."
+  ],
+  "result": "before_original_frame.png / after_burned_in_subtitle.png -- the text \"-insert text here-\" is clearly legible, correctly positioned, and does not corrupt or obscure the rest of the frame.",
+  "what_this_confirms": "The pixel-editing half of a real disc-resident subtitle pipeline works: frames CAN be decoded and text CAN be burned into them cleanly.",
+  "what_this_does_NOT_confirm": [
+    "That an edited frame sequence can be re-encoded back into a bitstream the PS1's own MDEC hardware/BIOS movie player will actually accept. FFmpeg's own mdec support is decode-only -- no PS1-compatible encoder was used or evaluated here.",
+    "Anything about patching a re-encoded .STR back into a disc image copy, or about that patched copy playing correctly on a real emulator or real hardware. Both remain unbuilt and unproven.",
+    "This is a single still frame edited as a standalone image, not a proof that per-frame subtitle burn-in works correctly across an entire moving sequence (timing, frame-to-frame consistency, compression artifacts around the text region after a real re-encode, etc.)."
+  ],
+  "next_step_if_pursued": "Evaluate a real, independent PS1 STR/MDEC encoder (e.g. psxavenc or equivalent) with a plain, unmodified round-trip first (decode OP.STR -> re-encode with NO changes -> confirm it still plays back correctly in the emulator) before attempting to add burned-in text -- the same 'prove the mechanism in isolation before using it for the real thing' discipline this project already applied to VRAM-write-path and movie-time-source."
+}

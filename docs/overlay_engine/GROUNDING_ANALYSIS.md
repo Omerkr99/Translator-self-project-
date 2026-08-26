@@ -400,6 +400,28 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   timing pipeline are both now real end-to-end; the one remaining gap
   is content — the actual translated text, which needs a human who can
   hear the audio, not more tooling.
+
+  **Sixth step, same session: a direct user correction reframes the
+  actual deliverable for movies.** The external overlay path (this
+  entire O5 line of work) is a real, live-proven *testing/authoring
+  tool*, not the shippable mechanism — a burned CD played on real PS1
+  hardware has no host machine running Python code next to it. The
+  real deliverable needs subtitle text burned into the disc-resident
+  video itself, the same disc-patching shape Stage 4 already proved
+  for regular dialogue text. Full account, including the honest,
+  currently-unbuilt gap (a real PS1 STR/MDEC *encoder* — FFmpeg's own
+  `mdec` support is decode-only):
+  `docs/renderer/BURNED_IN_SUBTITLE_PIPELINE.md`. What IS newly
+  confirmed: new `gcrts.burn_in_subtitle` burns subtitle-style text
+  directly onto a real frame decoded from `OP.STR` — clean, correctly
+  positioned, non-destructive to the rest of the frame
+  (`evidence/burned_in_subtitle_concept/`). 5 new tests, full suite
+  1072 passed. This does not replace `gcrts.audio_activity_segments`'s
+  real cue timing or `gcrts.subtitle_track_runner`'s authoring/testing
+  value — both remain useful once/if a real encoder is found — but O5
+  external composition is no longer the framing for what actually
+  ships; re-encoding to a real PS1 bitstream is the next genuine
+  unknown, and it has not been started.
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a
