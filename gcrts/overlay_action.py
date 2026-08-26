@@ -64,10 +64,57 @@ class ImagePayload:
 
 @dataclass(frozen=True)
 class SubtitleTrackPayload:
+    """A sequence of timed text cues, each relative to `reference_overlay`
+    becoming resident (per `gcrts.overlay_identity.identify_overlay`,
+    already `CONFIRMED_LIVE`) -- that residency event is this payload's
+    own t=0. Timing cues this way (host wall-clock offset from a
+    detected trigger) is the mechanism validated in
+    `docs/renderer/MOVIE_TIME_SOURCE_INVESTIGATION.md`: byte-for-byte
+    deterministic through the first ~23s of a boot/movie sequence, and
+    accurate enough after that for cues spanning multiple seconds (not
+    sensitive to the sub-second drift found in that investigation).
+    Real execution logic lives in `gcrts.subtitle_track_runner`, not
+    `gcrts.overlay_action_runner` -- a track is a sequence over a
+    potentially long window, not one bounded show/hide action, so it
+    doesn't fit `run_overlay_action`'s single-`EvidenceBundle` shape."""
+
     track_id: str
+    reference_overlay: str = ""
+    cues: tuple["SubtitleCue", ...] = ()
 
     def to_dict(self) -> dict:
-        return {"kind": PayloadKind.SUBTITLE_TRACK.value, "track_id": self.track_id}
+        return {
+            "kind": PayloadKind.SUBTITLE_TRACK.value,
+            "track_id": self.track_id,
+            "reference_overlay": self.reference_overlay,
+            "cues": [c.to_dict() for c in self.cues],
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "SubtitleTrackPayload":
+        return cls(
+            track_id=d["track_id"],
+            reference_overlay=d.get("reference_overlay", ""),
+            cues=tuple(SubtitleCue.from_dict(c) for c in d.get("cues", ())),
+        )
+
+
+@dataclass(frozen=True)
+class SubtitleCue:
+    """One timed line within a `SubtitleTrackPayload`. `t_offset_seconds`
+    is measured from the track's `reference_overlay` becoming resident,
+    not from track-load time or any other anchor."""
+
+    t_offset_seconds: float
+    text: str
+    duration_seconds: float
+
+    def to_dict(self) -> dict:
+        return {"t_offset_seconds": self.t_offset_seconds, "text": self.text, "duration_seconds": self.duration_seconds}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "SubtitleCue":
+        return cls(t_offset_seconds=d["t_offset_seconds"], text=d["text"], duration_seconds=d["duration_seconds"])
 
 
 @dataclass(frozen=True)
@@ -115,6 +162,8 @@ def _payload_from_dict(d: dict) -> Payload:
         return DebugHudPayload(fields=tuple(d.get("fields", ())))
     if cls is TextPayload:
         return TextPayload.from_dict(d)
+    if cls is SubtitleTrackPayload:
+        return SubtitleTrackPayload.from_dict(d)
     # remaining payload kinds have exactly one non-"kind" field each,
     # matching their own to_dict() shape above.
     field_name = next(k for k in d if k != "kind")

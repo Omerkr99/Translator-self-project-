@@ -10,6 +10,7 @@ from gcrts.overlay_action import (
     OverlayAction,
     OverlayBackendPreference,
     ScreenshotRequestPayload,
+    SubtitleCue,
     SubtitleTrackPayload,
     TextPayload,
 )
@@ -53,6 +54,23 @@ def test_every_declared_payload_kind_round_trips(payload):
     action = OverlayAction(id="x", payload=payload)
     restored = OverlayAction.from_dict(action.to_dict())
     assert restored.payload == payload
+
+
+def test_subtitle_track_with_cues_round_trips_through_dict():
+    payload = SubtitleTrackPayload(
+        track_id="op_intro",
+        reference_overlay="MOP.EXE",
+        cues=(
+            SubtitleCue(t_offset_seconds=5.0, text="first line", duration_seconds=3.0),
+            SubtitleCue(t_offset_seconds=12.5, text="second line", duration_seconds=4.0),
+        ),
+    )
+    action = OverlayAction(id="op_intro_track", payload=payload)
+    restored = OverlayAction.from_dict(action.to_dict())
+    assert restored.payload == payload
+    assert restored.payload.reference_overlay == "MOP.EXE"
+    assert len(restored.payload.cues) == 2
+    assert restored.payload.cues[1].text == "second line"
 
 
 def test_unknown_payload_kind_raises():

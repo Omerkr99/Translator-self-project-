@@ -341,6 +341,26 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   sub-second drift during fast content is unlikely to be perceptible),
   not yet a frame-exact PS1-side source, which O6/O7 (internal
   composition) would still need.
+
+  **Third step, same session: the first real O5 building block, built
+  and tested.** `gcrts.overlay_action.SubtitleTrackPayload` (a stub
+  since Stage 3) now has real fields — `reference_overlay` (which
+  overlay-identity name marks a track's own t=0) and `cues` (each a
+  `t_offset_seconds`/`text`/`duration_seconds` triple) — plus a new
+  `gcrts.subtitle_track_runner` that waits for the reference overlay
+  live, then fires each cue in chronological order for its own
+  duration through the already-proven `ExternalOverlayRenderer`. Tracks
+  are authored as plain JSON (`subtitle_tracks/op_intro.example.json`),
+  deliberately friendlier than the payload's own machine-facing
+  `to_dict()` shape — editing a subtitle means editing that file, not
+  Python. `scripts/run_subtitle_track.py` runs one live. 7 new tests
+  (`tests/test_subtitle_track_runner.py`, `tests/test_overlay_action.py`),
+  fake clock + fake `read_memory` exercising the real
+  `identify_overlay` code path, no live emulator required; full suite
+  1060 passed. Deliberately does NOT depend on VRAM-write-path at all
+  (cues render externally) — see `docs/renderer/SUBTITLE_TRACK_MECHANICS.md`
+  for the full design and its honest current limits (no real track
+  authored yet, no live end-to-end run performed yet).
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a

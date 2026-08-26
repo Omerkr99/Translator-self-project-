@@ -142,7 +142,16 @@ wired into `RuntimeSnapshot.active_movie`) → `MOVIE_LOADER_ARCHITECTURE.md`
 reusable MIPS disassembler + scanner — `gcrts.mips_disasm` /
 `gcrts.movie_loader_scan` — including a wrong hand-off hypothesis this
 same investigation made and then disproved with a live breakpoint
-test).
+test) → Stage 5 (movie subtitle/audio, `docs/overlay_engine/GROUNDING_ANALYSIS.md`):
+`VRAM_WRITE_PATH_INVESTIGATION.md` (negative result, including a wrong
+conclusion caught and corrected mid-investigation) and
+`MOVIE_TIME_SOURCE_INVESTIGATION.md` (partial positive: host wall-clock
+timing anchored at a detected trigger is deterministic through early
+boot/movie content) together ground `SUBTITLE_TRACK_MECHANICS.md` — the
+first real O5 building block: a JSON-authored track of
+trigger-relative, per-cue-duration subtitles
+(`gcrts.subtitle_track_runner`), reusing the external overlay renderer
+with no VRAM write needed.
 
 ### [`text-engine/`](text-engine/) — dialogue text, script decoding, translation
 The alternative text engine investigation, script bytecode, and where

@@ -1,0 +1,8 @@
+{
+  "track_id": "op_intro",
+  "reference_overlay": "MOP.EXE",
+  "cues": [
+    {"t": 5.0, "duration": 3.0, "text": "PLACEHOLDER -- replace with the real translated line"},
+    {"t": 12.5, "duration": 4.0, "text": "PLACEHOLDER -- replace with the real translated line"}
+  ]
+}
