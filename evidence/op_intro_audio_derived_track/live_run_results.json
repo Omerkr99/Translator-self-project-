@@ -1,0 +1,117 @@
+{
+  "track_id": "op_intro",
+  "results": [
+    {
+      "cue": {
+        "t_offset_seconds": 10.85,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 2.0
+      },
+      "shown_at_t": 11.711
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 22.05,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 0.5
+      },
+      "shown_at_t": 22.29
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 23.55,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 5.7
+      },
+      "shown_at_t": 23.842
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 30.0,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 4.35
+      },
+      "shown_at_t": 30.163
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 34.8,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 0.55
+      },
+      "shown_at_t": 34.977
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 36.05,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 2.45
+      },
+      "shown_at_t": 36.248
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 38.85,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 0.65
+      },
+      "shown_at_t": 39.027
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 39.85,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 2.25
+      },
+      "shown_at_t": 39.984
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 42.9,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 0.7
+      },
+      "shown_at_t": 43.092
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 43.95,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 0.6
+      },
+      "shown_at_t": 44.159
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 44.95,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 1.65
+      },
+      "shown_at_t": 45.131
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 47.0,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 0.65
+      },
+      "shown_at_t": 47.241
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 48.0,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 10.8
+      },
+      "shown_at_t": 48.223
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 59.2,
+        "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear",
+        "duration_seconds": 12.5
+      },
+      "shown_at_t": 59.342
+    }
+  ]
+}

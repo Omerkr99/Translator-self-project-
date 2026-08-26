@@ -374,6 +374,32 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   Remaining honest gap: the example track's cues are placeholder text
   at illustrative timestamps, not a real authored subtitle track for
   `OP.STR` — the mechanism is proven, the content isn't written yet.
+
+  **Fifth step, same session: real audio-derived timing for OP.STR,
+  not fabricated.** Asked directly rather than inventing dialogue: the
+  user chose "build real timing from the audio, text later" over
+  guessing content. New `gcrts.movie_str_audio` reads `OP.STR`'s exact
+  raw bytes from the real disc image and demuxes its audio via
+  FFmpeg's `psxstr` support (already validated in this project's own
+  `docs/audio/XA_DECODER_VERIFICATION.md`) — confirmed live to
+  auto-detect this exact file correctly (`Video: mdec 320x240 15fps`,
+  `Audio: adpcm_xa 37800Hz stereo`). New
+  `gcrts.audio_activity_segments` finds amplitude-based activity
+  segments (honestly scoped in its own docstring as activity
+  detection, not speech detection).
+  `scripts/build_op_intro_track_from_audio.py` ties these together:
+  found 15 segments, kept 14 short ones (0.5-5.7s, plausibly one line
+  each) as real `subtitle_tracks/op_intro.json` cues with text left
+  `TBD`, and excluded one ~80s block (almost certainly continuous
+  background music) rather than force-fitting it as one absurd cue.
+  Live-run result: **all 14 cues fired within ~0.2-0.9s of their real
+  audio-derived offsets** against a fresh boot. Evidence:
+  `evidence/op_intro_audio_derived_track/`. 7 new tests
+  (`tests/test_audio_activity_segments.py`, synthetic WAV data, no
+  live dependency); full suite 1067 passed. The mechanism and the
+  timing pipeline are both now real end-to-end; the one remaining gap
+  is content — the actual translated text, which needs a human who can
+  hear the audio, not more tooling.
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a

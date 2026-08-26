@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-08-26T23:15:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "subtitle_tracks/op_intro.json's cue timing, derived from OP.STR's real extracted audio (not fabricated or illustrative), fires correctly against a live emulator instance.",
+  "pipeline": [
+    "gcrts.movie_str_audio.read_raw_str_bytes: read OP.STR's exact raw physical bytes (lba=210720, 23287 sectors) directly from the real, unmodified source disc image -- not via iso9660.read_file(), which would strip the CD-XA subheader flags needed",
+    "gcrts.movie_str_audio.extract_str_audio_wav: demuxed via FFmpeg's psxstr input format (imageio_ffmpeg's bundled binary) -- auto-detected Video: mdec 320x240 15fps, Audio: adpcm_xa 37800Hz stereo, confirming this is a genuine, correctly-read STR container",
+    "gcrts.audio_activity_segments.find_activity_segments: amplitude-based (RMS) activity detection on the extracted WAV -- found 15 segments total",
+    "scripts/build_op_intro_track_from_audio.py: converted 14 of those 15 segments into real SubtitleCue entries (t/duration from the actual detected audio, text left as an explicit TBD placeholder); excluded the 15th (72.05s-151.85s, 79.8s duration) as implausibly long for a single line -- almost certainly continuous background music/theme song, not discrete dialogue",
+    "scripts/run_subtitle_track.py: ran the resulting real track against a fresh live boot (PCSX.hardResetEmulator()+resumeEmulator() via Lua)"
+  ],
+  "result": "All 14 cues fired, each within roughly 0.2-0.9 seconds of its intended audio-derived t_offset_seconds (see live_run_results.json for the full per-cue comparison, e.g. t_offset=10.85s -> shown_at_t=11.711s, t_offset=59.2s -> shown_at_t=59.342s) -- consistent with the reference-overlay-detection polling granularity (0.1s) plus ordinary GDB/HTTP round-trip overhead, not evidence of any timing failure.",
+  "what_this_confirms": "The full pipeline (real disc audio extraction -> real signal-processing segmentation -> real track file -> real live playback) works end-to-end with genuine data, not placeholder/illustrative content. This is real progress on 'timing from audio, text later' as directed.",
+  "what_this_does_NOT_confirm": [
+    "That the 14 segments correspond to actual spoken dialogue lines specifically (as opposed to sound effects, or the amplitude envelope of the movie's music partially overlapping speech) -- amplitude-based detection cannot make that distinction; a human listening to op_audio_extracted.wav (or re-watching OP.STR with sound) is needed to confirm which segments are real dialogue, correct their exact boundaries by ear, and write the actual text.",
+    "Anything about the excluded 79.8-second block (t=72.05s-151.85s) -- it needs separate, manual review; this pipeline deliberately did not attempt to subdivide it further.",
+    "A repeat visual screenshot catch of the overlay for THIS specific run -- the polling window used for screenshot capture this pass did not overlap any of the real show times (t_ref establishment took longer than anticipated), so this evidence bundle relies on the numeric timing log rather than a fresh screenshot. The rendering mechanism itself was already independently confirmed visually in evidence/subtitle_track_live_proof/ with the illustrative example track -- only the cue *data source* changed here, not the rendering path."
+  ]
+}

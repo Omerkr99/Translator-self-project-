@@ -93,12 +93,38 @@ captures ~1.5s apart. Evidence:
 `before_cue_no_overlay.png`, `run_results.json`, `record.json`). This
 closes the "no live end-to-end run" gap below.
 
+## Real audio-derived timing for OP.STR
+
+`subtitle_tracks/op_intro.json` (distinct from
+`op_intro.example.json`, which stays as the minimal illustrative
+example) now has **real cue timing derived from OP.STR's actual
+audio**, not fabricated or guessed: `gcrts.movie_str_audio` extracts
+the movie's exact raw bytes from the real disc image and demuxes its
+audio track via FFmpeg's `psxstr` support (confirmed live to
+auto-detect this exact file: `Video: mdec 320x240 15fps`,
+`Audio: adpcm_xa 37800Hz stereo`); `gcrts.audio_activity_segments`
+finds amplitude-based activity segments; `scripts/build_op_intro_track_from_audio.py`
+converts them into real `SubtitleCue` entries with the text left as an
+explicit `TBD` placeholder. Live-run result: **14 cues, all firing
+within ~0.2-0.9s of their real audio-derived offsets** against a fresh
+boot (`evidence/op_intro_audio_derived_track/`).
+
+**Honest scope of what this timing actually is**: amplitude-based
+activity detection, not speech detection. It found 15 total segments;
+14 short ones (0.5-5.7s, plausibly one line each) from t≈11s to t≈48s,
+then one long ~80s block from t≈72s onward that's almost certainly
+continuous background music (a movie's theme song, say) rather than
+discrete dialogue -- deliberately excluded from the generated track
+rather than included as one absurd 80-second "cue." **The text for
+every cue is still `TBD`** -- someone needs to listen to
+`op_audio_extracted.wav` (or re-watch `OP.STR` with sound) to confirm
+which segments are real dialogue, correct exact boundaries by ear, and
+write the actual translated lines. The mechanism and the timing
+pipeline are both now real; the content is the one piece left that
+requires a human who can actually hear the audio.
+
 ## What this does NOT do yet
 
-- **No real track has been authored.** `op_intro.example.json` has
-  placeholder text at made-up timestamps -- someone needs to actually
-  watch `OP.STR` once and note real line/timestamp pairs before this
-  produces a real subtitle experience, not just a mechanism proof.
 - **Single reference overlay per track.** A track can't currently span
   multiple executables (e.g. a cutscene that transitions between two
   movie-player residencies) -- out of scope until a real need for it

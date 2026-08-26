@@ -1,0 +1,76 @@
+{
+  "track_id": "op_intro",
+  "reference_overlay": "MOP.EXE",
+  "cues": [
+    {
+      "t": 10.85,
+      "duration": 2.0,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 22.05,
+      "duration": 0.5,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 23.55,
+      "duration": 5.7,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 30.0,
+      "duration": 4.35,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 34.8,
+      "duration": 0.55,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 36.05,
+      "duration": 2.45,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 38.85,
+      "duration": 0.65,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 39.85,
+      "duration": 2.25,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 42.9,
+      "duration": 0.7,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 43.95,
+      "duration": 0.6,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 44.95,
+      "duration": 1.65,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 47.0,
+      "duration": 0.65,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 48.0,
+      "duration": 10.8,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    },
+    {
+      "t": 59.2,
+      "duration": 12.5,
+      "text": "TBD -- audio-derived candidate cue, verify wording and exact boundaries by ear"
+    }
+  ]
+}

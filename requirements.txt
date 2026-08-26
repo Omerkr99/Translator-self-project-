@@ -3,3 +3,4 @@ Pillow
 capstone
 ijson
 psutil
+imageio-ffmpeg
