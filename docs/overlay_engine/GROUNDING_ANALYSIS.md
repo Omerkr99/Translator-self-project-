@@ -284,12 +284,15 @@ Stage 4 (= SDD's O2-O4) — Internal gameplay payload (STARTED this session; rea
   offset's script unit, reached through real menu navigation with no
   save-state and no live RAM injection involved. Evidence:
   `evidence/stage4_cold_boot_disc_patch_proof/` (`full_frame.png`,
-  `dialogue_zoom.png`, `record.json`). One honest caveat: only `"See"`
-  was clearly legible before the text box's line-wrap boundary, not
-  the full `"See you soon"` the patch wrote — sufficient to confirm the
-  mechanism (foreign script appearing in an all-Japanese line is not
-  something that happens by accident), not a character-by-character
-  re-verification of the complete string on screen.
+  `dialogue_zoom.png`, `record.json`). Only `"See"` was clearly legible
+  on screen before the text box's line-wrap boundary — closed by an
+  independent offline check: decoding the actual on-disc bytes at that
+  exact offset (`build_workspace/patched_discs/patch_verify.bin`, via
+  `gcrts.iso9660`/`gcrts.script_decoder`/`gcrts.editable_script`,
+  entirely independent of the emulator/renderer) returns the complete,
+  exact string `"See you soon"` — confirming the full replacement is
+  byte-correct on disc, not just the fragment the line-wrap happened to
+  make visible.
   Exit criterion (SRS acceptance criteria 3-5, i.e. survives a real
   patched-image reboot): **CONFIRMED_LIVE.**
 

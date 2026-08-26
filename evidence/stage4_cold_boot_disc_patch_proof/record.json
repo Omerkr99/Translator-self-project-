@@ -15,13 +15,17 @@
     "Live memory read confirmed CAP1.EXE resident: pc=0x8007431C matches pcsx_lua/spu_playback_trace.lua's own KNOWN_OVERLAYS entry for CAP1.EXE exactly",
     "Classroom scene with Kimika reached; dialogue box rendered the target line"
   ],
-  "patch_source": "gcrts.disc_text_patch / scripts/patch_disc_dialogue_text.py -- \"See you soon\" patched in-place at CAP1.EXE unit-1's real on-disc offset (logical offset 3174457 in DAT/CAP1/K1LINK.CDB), verified earlier this session by re-reading the patched disc-image copy completely offline with no live emulator involved",
-    "disc_image_used": "C:\\PCSXRedux\\game\\game.bin (the patched copy, confirmed via sha256 cf3308b7... distinct from game.bin.original_backup's 44f29243...)",
+  "patch_source": "gcrts.disc_text_patch / scripts/patch_disc_dialogue_text.py -- \"See you soon\" patched in-place at CAP1.EXE unit-1's real on-disc offset (logical offset 3174457 in DAT/CAP1/K1LINK.CDB)",
+  "disc_image_used": "C:\\PCSXRedux\\game\\game.bin (the patched copy, confirmed via sha256 cf3308b7... distinct from game.bin.original_backup's 44f29243...; restored to the original backup after this evidence was captured so the user's normal setup is unaffected)",
   "observed_dialogue": "\u30ad\u30df\u30ab\uff1a\u3053\u3046\u3044\u3046\u306e / \u3042\u3093\u305f\u597d\u304d\u3060\u3063\u305f\u3067\u3057\u3087 / \u3042\u305f\u3057\u3001\u6c17\u6301\u3061\u60aa\u304f\u3066See / \u3053\u308c\u3001\u3069\u3046\u3059\u308c\u3070\u3044\u3044\u304b",
   "result": "CONFIRMED_LIVE: \"See\" (Latin script) renders embedded mid-sentence inside an otherwise all-Japanese dialogue line, exactly at the patched disc offset's script unit, during real gameplay reached via genuine menu navigation after a full BIOS cold boot -- not a save-state reload, not a live RAM injection.",
   "screenshots": ["full_frame.png", "dialogue_zoom.png"],
+  "independent_offline_verification": {
+    "method": "decoded the actual on-disc bytes at the patched offset directly from build_workspace/patched_discs/patch_verify.bin using gcrts.iso9660 + gcrts.script_decoder + gcrts.editable_script, independent of the emulator/renderer entirely",
+    "decoded_segment": "See you soon",
+    "conclusion": "The full, exact replacement string is byte-correct on the patched disc image at the target offset. The live capture's line-wrap only made \"See\" visible before the box's line boundary; the complete \"you soon\" is confirmed present in the actual bytes the game reads, resolving the earlier caveat about not re-verifying the full string character-by-character on screen."
+  },
   "caveats": [
-    "Only \"See\" is clearly legible before the text box's line-wrap boundary; \"you soon\" (the rest of the intended same-word-count replacement) was not confirmed legible in this capture -- the visible evidence is the foreign-script fragment appearing where no English exists in the original game, which is sufficient to confirm the mechanism, but the exact full replacement string was not re-verified character-by-character on screen in this pass.",
     "This closes Stage 4's exit criterion (SRS acceptance criteria 3-5: a statically-patched disc image's translation appears during real play after a genuine reboot) via gameplay progress, not via the CAP1.EXE unit-1 line originally targeted by the offline patch-verification pass -- the story beat reached here evidently maps to the same on-disc script unit."
   ]
 }

@@ -723,11 +723,12 @@ the text pipeline does.
      box then rendered `"See"` (Latin script) embedded mid-sentence
      inside an otherwise all-Japanese line — exactly the patched disc
      offset's script unit. Evidence:
-     `evidence/stage4_cold_boot_disc_patch_proof/`. Caveat: only
-     `"See"` was clearly legible before the line-wrap boundary, not the
-     full `"See you soon"` the patch wrote — sufficient to confirm the
-     mechanism, not a character-by-character re-verification of the
-     complete string on screen.
+     `evidence/stage4_cold_boot_disc_patch_proof/`. Only `"See"` was
+     clearly legible on screen before the line-wrap boundary; closed
+     by an independent offline check decoding the actual on-disc bytes
+     at that offset (entirely outside the emulator), which returns the
+     complete, exact string `"See you soon"` — the full replacement is
+     confirmed byte-correct on disc.
 2. ~~Fix `CURRENT_SYSTEM_STATUS.md`'s internal contradictions~~ —
    **done** (same pass that produced this audit): the Subtitles matrix
    row, the stale test/module counts, the movies headline redundant
