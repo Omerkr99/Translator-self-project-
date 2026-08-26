@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-08-26T21:44:00+00:00",
+  "confidence": "DISPROVEN",
+  "claim_tested": "Writing to the GPU's GP0 command/data port (0x1F801810) via GdbClient.write_memory produces an observable change in VRAM/display content.",
+  "method": "Paused via GdbClient.interrupt() at a confirmed-real-content frame, screenshotted, issued a standard GP0(A0h) CPU-to-VRAM copy-rectangle command sequence (command word, dest coord (20,20), size 16x16, 128 solid-white data words), screenshotted again immediately, CPU still paused throughout.",
+  "result": "sony_before.png and sony_after.png are byte-identical (verified by hashing the actual files, not by eye). A second, earlier attempt (vram_baseline.png / vram_after_write.png, against an all-black early-boot frame) was also byte-identical.",
+  "self_correction": "An earlier pass at this same experiment initially concluded the opposite (that the write caused visible framebuffer corruption), based on eyeballing dissimilar screenshots taken across a longer before-write/after-write/resume/wait sequence. A hash comparison caught that the 'before' and 'after' shots taken immediately around the write were themselves already identical -- the visual difference in the earlier, wrongly-interpreted sequence came from ordinary game rendering that happened during the resume-and-wait gap, not from the write. This was corrected before being committed anywhere.",
+  "conclusion": "No evidence that this write path has any effect. Consistent with the already-documented finding that GDB writes to the 0x1F801xxx MMIO range don't reliably reach real hardware-emulation side effects (previously shown for SPU registers), now also checked for the GPU GP0 port specifically.",
+  "screenshots": {
+    "vram_baseline.png / vram_after_write.png": "early-boot black-frame test, byte-identical",
+    "check_content.png": "confirmed real content (Sony logo) shortly before the second test, for context",
+    "sony_before.png / sony_after.png": "second test, paused on a frame known to reflect real display content, byte-identical"
+  },
+  "open_question": "Whether GDB-issued writes to this address are dispatched to the GPU core at all in PCSX-Redux's own implementation, versus landing in a plain memory buffer with no listener -- not investigated via source reading in this pass."
+}

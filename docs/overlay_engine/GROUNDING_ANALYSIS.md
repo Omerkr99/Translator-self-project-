@@ -302,6 +302,23 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   Not attempted until those specific prerequisites are individually
   proven, matching this whole project's standing rule against
   overclaiming.
+
+  **First investigation, same session: VRAM-write-path checked, still
+  open.** `src/core/pcsxlua.cc`'s real `REGISTER` list confirms no
+  VRAM write function is exposed to Lua at all (only `takeScreenShot`
+  touches the GPU class). The one other candidate — writing the GPU's
+  hardware GP0 port (`0x1F801810`) directly via `GdbClient.write_memory`
+  — was tested live, twice, and produced **no observable effect**
+  (before/after screenshots byte-identical, including once against a
+  frame independently confirmed to show real display content). An
+  earlier pass at this same test initially misread ordinary game
+  rendering during a resume-and-wait gap as write-caused corruption —
+  caught by hashing the actual files rather than trusting a visual
+  comparison, and corrected before it was written down as a finding.
+  See `docs/renderer/VRAM_WRITE_PATH_INVESTIGATION.md` and
+  `evidence/vram_write_path_investigation/` for the full account. Net:
+  the blocker is unchanged (no VRAM write path proven), but one real
+  candidate is now ruled out rather than untested.
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a

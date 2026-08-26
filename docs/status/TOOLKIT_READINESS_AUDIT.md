@@ -487,7 +487,7 @@ today for any subsystem.
 |---|---|
 | Known usable rendering functions | Renderer 1's CLD1 layout-descriptor consumption (`renderer1_runtime.py`) is the only `CONFIRMED_LIVE` rendering hook, and it's for regular dialogue text, not movie playback — unknown whether it's reachable while a movie-player executable (a *different* loaded overlay) is resident |
 | Candidate hook points | None identified specifically for movie-time rendering; the movie-player executable family (`MPRO.EXE` etc.) has not been disassembled for its own rendering calls at all — out of scope for the movie-loader investigation, which deliberately did not analyze movie contents |
-| Required RAM/VRAM resources | Unknown — no VRAM *write* path has been proven (only VRAM *read*, via `screen_capture.py`/`vram_asset_detector.py`) |
+| Required RAM/VRAM resources | Unknown — no VRAM *write* path has been proven (only VRAM *read*, via `screen_capture.py`/`vram_asset_detector.py`). Checked live: no Lua-exposed write function exists (`src/core/pcsxlua.cc`'s real `REGISTER` list has no GPU write call); direct GDB writes to the GPU's GP0 port (`0x1F801810`) were tested twice and produced no observable effect — see `docs/renderer/VRAM_WRITE_PATH_INVESTIGATION.md`. One real candidate ruled out, blocker still open. |
 | Synchronization method | Unknown — no movie-time source (frame counter, timestamp) has been identified |
 | Movie-time source | Not found |
 | Risk of framebuffer overwrite | Real and unassessed — movies use double/streaming buffers whose ownership during playback is unexamined |
