@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-08-27T00:00:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "A real subtitle text, burned directly into OP.STR's video frames and re-encoded to a genuine PS1-compatible MDEC/STR bitstream, patched into a copy of the disc image, plays back correctly and visibly on a real running emulator instance -- closing the gap docs/renderer/BURNED_IN_SUBTITLE_PIPELINE.md left open (no PS1-compatible encoder had been found/tested).",
+  "encoder_found": {
+    "tool": "psxavenc",
+    "source": "https://github.com/WonderfulToolchain/psxavenc/releases/download/v0.3.1/psxavenc-windows.zip",
+    "note": "A real, complete, actively-maintained PS1 audio/video encoder with a prebuilt Windows binary. Not previously evaluated in this project; found and verified working this session."
+  },
+  "pipeline": [
+    "Decoded OP.STR's real raw bytes (already-proven gcrts.movie_str_audio path) to a lossless intermediate (FFV1 video + PCM audio, .mkv) preserving exact frame count/timing.",
+    "PLAIN ROUND-TRIP TEST FIRST (no text changes): re-encoded the unmodified intermediate via `psxavenc -t strcd -f 37800 -c 2 -s 320x240 -r 15`, patched the result into a disc image copy at OP.STR's real LBA (reusing gcrts.disc_text_patch.build_patched_disc_copy), booted it live -- confirmed via real window screenshot: clean, correct playback, visually matching the original.",
+    "Only after the clean round-trip was confirmed: extracted all 2274 frames as PNGs, burned '-insert text here-' onto frames 163-193 (gcrts.burn_in_subtitle, the same ~2s window used throughout this session's subtitle-track work), verified by direct visual inspection that frames 162/194 (just outside) have no text and 163/193 (the boundary) do.",
+    "Re-muxed the edited frame sequence + original audio into a fresh lossless intermediate, re-encoded via psxavenc, verified independently (by re-decoding the .str file itself, not the intermediate) that the burned text survives the encode at exactly frames n=163-193 -- confirming the encoder preserves edits correctly.",
+    "Verified the disc-patched bytes on the actual loaded game disc are byte-identical to the encoded .str file at the correct physical offset.",
+    "Booted live and located the real on-screen appearance time empirically (see calibration note below) via a wide screenshot scan -- found and visually confirmed the burned text rendering correctly, twice, mid-scene, over the real HUMAN ENTERTAINMENT movie footage."
+  ],
+  "result": "CONFIRMED: '-insert text here-' renders correctly, legibly, in the correct position, during real movie playback on a real running PCSX-Redux instance, from a disc image copy built entirely offline (no live RAM injection, no host-side overlay).",
+  "timing_calibration_finding": "The naive assumption 'movie frame n at 15fps = t_ref + n/15 seconds, where t_ref is the moment gcrts.overlay_identity detects MOP.EXE resident' was WRONG for this specific disc-patched file -- the actual on-screen appearance was measured empirically at t_ref+21.5s to t_ref+23.3s, not the assumed t_ref+10.85s to t_ref+12.85s, a ~10.7s discrepancy. This is plausibly a one-time CD-ROM seek/buffer-priming delay before the first video frame actually displays (this exact disc file/location had never been read by this PCSX-Redux process before), separate from the frame-to-frame playback rate itself (which matched the intended ~2.07s (31 frames) cue duration closely once located). Not yet root-caused further -- flagged here as a real, load-bearing timing-model correction for anyone reusing gcrts.overlay_identity-based t_ref anchoring against a freshly-loaded disc image specifically.",
+  "screenshots": {
+    "clean_playback_before_window.png": "real window capture during MOP.EXE playback, before the edited window -- clean, no text, confirms baseline",
+    "live_playback_with_text_1.png / live_playback_with_text_2.png": "two separate captures ~0.9s apart, both clearly showing '-insert text here-' rendered over real movie footage"
+  },
+  "what_this_confirms": [
+    "The full offline burned-in-subtitle pipeline (decode -> edit -> re-encode -> disc-patch -> verify) is real and works end-to-end against this game's actual movie format.",
+    "psxavenc is a viable, working PS1 STR/MDEC encoder for this project's purposes.",
+    "This is the shape of mechanism the user asked for: subtitles genuinely embedded in the disc-resident video data, not a host-side overlay -- the same disc image, if burned to a real CD, would very plausibly show this same text on real PS1 hardware (not itself tested on real hardware this session, but nothing in the pipeline depends on emulator-specific behavior)."
+  ],
+  "what_remains": [
+    "Real hardware verification (burn to an actual CD, test on real PS1 or a verified-accurate alternate emulator) -- not attempted this session.",
+    "The timing-calibration discrepancy above should be understood/resolved before relying on frame-count math alone to place real cues -- empirical verification (as done here) remains necessary for now.",
+    "Only one still-placeholder cue was tested end-to-end; the full op_intro.json track (14 real audio-derived cues) has not been burned in and verified as a complete set.",
+    "psxavenc's own encoding parameters (quality/bitrate, BS v2 vs v3) were used at defaults -- not tuned or compared."
+  ]
+}

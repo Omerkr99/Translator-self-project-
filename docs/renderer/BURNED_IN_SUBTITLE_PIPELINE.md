@@ -1,4 +1,4 @@
-# Burned-In Subtitles: The Real Deliverable Path for Movies
+# Burned-In Subtitles: CONFIRMED_LIVE End-to-End
 
 **Supersedes the framing (not the code) of `docs/renderer/SUBTITLE_TRACK_MECHANICS.md`
 for movies specifically.** Direct user correction (2026-08-26, recorded
@@ -17,65 +17,94 @@ of the disc image — the same shape of solution Stage 4 already proved
 for regular dialogue text (static disc patch, verified to survive a
 real cold boot), applied to video instead of script bytes.
 
-## What's confirmed so far
+**As of the same session, this entire pipeline is `CONFIRMED_LIVE`**:
+a real subtitle, burned into real `OP.STR` video frames, re-encoded to
+a genuine PS1 MDEC/STR bitstream, patched into a disc image copy,
+played back correctly and visibly on a real running emulator. See
+`evidence/burned_in_subtitle_live_playback/` for the full proof.
 
-**The pixel-editing half works.** `gcrts.burn_in_subtitle.burn_subtitle_onto_frame`
-draws subtitle-style text (white, black outline, bottom-centered) onto
-a real frame decoded from `OP.STR` via FFmpeg's `psxstr`/`mdec` support
-(the same decode path `gcrts.movie_str_audio` already uses for audio
-extraction). Confirmed live: `evidence/burned_in_subtitle_concept/`
-shows `"-insert text here-"` burned cleanly into a real decoded frame,
-correctly positioned, not corrupting the rest of the image.
+## The encoder gap is closed: `psxavenc`
 
-## What's still completely unbuilt: the encoder
+FFmpeg's own `mdec` support is decode-only, but a real, actively-
+maintained, third-party PS1 A/V encoder exists and works:
+[`psxavenc`](https://github.com/WonderfulToolchain/psxavenc)
+(prebuilt Windows binary at
+`https://github.com/WonderfulToolchain/psxavenc/releases/download/v0.3.1/psxavenc-windows.zip`).
+Its defaults matched this game's own real `OP.STR` stream properties
+exactly (`320x240`, `15fps`, `37800Hz` stereo XA-ADPCM) — no parameter
+tuning was needed. `gcrts.movie_str_encoder.encode_str` wraps it.
 
-FFmpeg's own `mdec` support is **decode-only** — there is no
-PS1-compatible MDEC *encoder* in stock FFmpeg, so an edited frame
-sequence cannot currently be turned back into bytes the PS1's own
-movie player will accept. This is the real, hard, unproven step:
+## The full pipeline, confirmed step by step
 
-1. Decode `OP.STR` to individual frames (done, confirmed).
-2. Edit frames (burn in text) (done, confirmed, for a single still frame).
-3. **Re-encode the frame sequence back into a valid PS1 STR/MDEC
-   bitstream** (NOT done, NOT proven possible with current tooling).
-4. Patch the re-encoded `.STR` bytes into a copy of the disc image
-   (mechanically similar to `gcrts.disc_text_patch`'s already-proven
-   approach for script text, but has not been attempted for video
-   data specifically — video files are far larger and the byte layout
-   is a full bitstream, not a fixed-width record).
-5. Verify the patched copy plays back correctly (visually, and ideally
-   audio-synced) on a real emulator, then eventually real hardware.
+1. **Decode.** `gcrts.movie_str_audio` reads `OP.STR`'s real raw bytes
+   from the disc and demuxes it (already proven for audio extraction;
+   the same path also yields video frames via FFmpeg's `psxstr`).
+2. **Plain round-trip test, no edits** — done first, per this
+   project's "prove the mechanism before using it for the real thing"
+   discipline: re-encoded the *unmodified* decoded video via
+   `psxavenc`, patched it into a disc image copy at `OP.STR`'s real LBA
+   (`gcrts.disc_text_patch.build_patched_disc_copy`, the same primitive
+   Stage 4 already proved for script text), booted it live — confirmed
+   clean, correct playback, visually matching the original.
+3. **Edit.** `gcrts.burn_in_subtitle.burn_subtitle_onto_frame` burned
+   `"-insert text here-"` onto exactly the frames within one ~2-second
+   cue window — verified directly (not assumed) that the frame just
+   outside the window has no text and the boundary frames do.
+4. **Re-encode with edits**, then independently re-verify (by
+   re-decoding the *output* `.str` file itself, not the intermediate)
+   that the burned text survives the encode at the exact intended
+   frame numbers — confirming `psxavenc` preserves pixel edits
+   correctly through its own compression.
+5. **Patch and verify bytes.** Confirmed the disc-patched copy's bytes
+   at the target physical offset are byte-identical to the encoded
+   `.str` file — the patch step itself introduces no corruption.
+6. **Boot and visually confirm.** Booted the patched disc live and
+   located the real on-screen appearance time (see the calibration
+   note below), capturing two independent screenshots both clearly
+   showing the burned-in text rendering correctly over real movie
+   footage.
 
-Step 3 is where this stops today. Community PS1 homebrew tooling for
-STR/MDEC encoding exists in principle (e.g. `psxavenc` is a
-commonly-referenced open-source encoder) but **has not been evaluated,
-installed, or tested in this project as of 2026-08-26** — that
-evaluation is real, separate work, not yet started.
+## A real, load-bearing timing-calibration finding
 
-## Recommended next step, if pursued
+The naive assumption "movie frame `n` at 15fps appears at
+`t_ref + n/15` seconds, where `t_ref` is the moment
+`gcrts.overlay_identity` detects `MOP.EXE` resident" was **wrong** for
+a freshly-patched disc image specifically: the intended window
+(`t_ref+10.85s` to `t_ref+12.85s`, based on the original file's own
+timing) actually appeared at `t_ref+21.5s` to `t_ref+23.3s` — a
+consistent ~10.7s offset, discovered by scanning a wide real-time
+window and locating the text empirically rather than trusting the
+frame-count math. Plausibly a one-time CD-ROM seek/buffer-priming
+delay specific to a disc location being read for the first time in a
+given process's lifetime; not yet root-caused further. **Anyone
+reusing frame-count-based timing against a freshly-loaded disc image
+should verify empirically first**, exactly as this session did, rather
+than trusting the arithmetic alone.
 
-Before attempting anything with burned-in text, prove the encoder in
-isolation first, matching this project's own standing discipline
-(the same "prove it before using it for the real thing" approach
-applied to VRAM-write-path and movie-time-source):
+## What remains
 
-1. Find and install a real PS1-compatible STR/MDEC encoder.
-2. **Plain round-trip test, no edits at all**: decode `OP.STR` to
-   frames + audio, re-encode with ZERO changes, patch into a disc copy,
-   and confirm it plays back correctly (visually and audibly) in the
-   emulator — before ever attempting to add subtitle text. If a
-   bit-for-bit clean round-trip doesn't work, burning in text won't
-   either, and that's the actual blocker to solve first.
-3. Only then: re-encode WITH `gcrts.burn_in_subtitle` applied to each
-   frame during the window a real cue should be visible, and repeat
-   the disc-patch-and-verify cycle.
+- **Real hardware verification** (burn to an actual CD, test on real
+  PS1 or a verified-accurate alternate emulator) — not attempted this
+  session. Nothing in the pipeline is emulator-specific, but this is
+  still an unverified claim, not a confirmed one, until tried.
+- **The full `subtitle_tracks/op_intro.json` track** (14 real,
+  audio-derived cues) has only been proven for one placeholder cue —
+  burning in and verifying the complete set is real remaining work,
+  not just repetition (each cue needs its own frame range located and
+  the timing-calibration offset re-confirmed).
+- **Real translated text.** Every cue so far uses illustrative or `TBD`
+  placeholder text — someone who can hear the actual dialogue still
+  needs to write the real lines.
+- `psxavenc`'s own encoding parameters (quality/bitrate, BS v2 vs v3)
+  were used at defaults, never tuned or compared against alternatives.
 
-## What does NOT need to wait for this
+## What does NOT need to wait for any of this
 
-- `gcrts.audio_activity_segments` (real, audio-derived cue timing) and
-  the eventual real translated text for each cue are still useful and
-  reusable once step 3 above is solvable — the *timing* doesn't depend
-  on which rendering mechanism ultimately ships.
+- `gcrts.audio_activity_segments` (real, audio-derived cue timing) is
+  unaffected by any of the above — the *timing* doesn't depend on
+  which rendering mechanism ultimately ships.
 - `gcrts.subtitle_track_runner` remains valuable for quickly rehearsing
-  translated text against a live emulator during authoring, even after
-  a burned-in pipeline exists — it's just not the final product.
+  translated text against a live emulator during authoring, even now
+  that a burned-in pipeline exists — it's a faster iteration loop than
+  a full decode/edit/encode/patch/reboot cycle for trying out wording
+  and rough timing before committing to a real burned-in pass.

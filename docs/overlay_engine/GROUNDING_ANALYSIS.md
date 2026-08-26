@@ -422,6 +422,34 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   external composition is no longer the framing for what actually
   ships; re-encoding to a real PS1 bitstream is the next genuine
   unknown, and it has not been started.
+
+  Seventh step, same session: the encoder gap is closed --
+  CONFIRMED_LIVE end-to-end. Found and verified a real, working
+  PS1-compatible video/audio encoder (`psxavenc`, a third-party
+  open-source tool, prebuilt Windows binary) whose defaults matched
+  `OP.STR`'s own real stream properties exactly. Proved a plain
+  round-trip first (decode -> re-encode unmodified -> disc-patch ->
+  boot -- clean playback confirmed) before ever touching content, per
+  this project's own discipline. Then: burned "-insert text here-"
+  onto a real ~2-second frame window (`gcrts.burn_in_subtitle`),
+  re-encoded via the new `gcrts.movie_str_encoder`, patched into a
+  disc image copy, booted live, and visually confirmed the burned-in
+  subtitle rendering correctly over real movie footage -- twice,
+  independently. Evidence:
+  `evidence/burned_in_subtitle_live_playback/`. A real, load-bearing
+  timing-calibration finding came out of this too: frame-count-based
+  timing assumptions were off by ~10.7s for a freshly-loaded disc
+  image (plausibly a one-time CD seek/buffer delay), found only by
+  scanning a wide real-time window empirically rather than trusting
+  the arithmetic -- documented in
+  `docs/renderer/BURNED_IN_SUBTITLE_PIPELINE.md` as a warning for
+  anyone reusing this timing model. 3 new tests
+  (`tests/test_movie_str_encoder.py`, mocked subprocess, no live
+  dependency). This is the actual shape of mechanism the user asked
+  for -- real, disc-resident, no host-side tooling required at
+  playback time. What remains: the full 14-cue track (only one
+  placeholder cue proven so far), real translated text (still
+  placeholder everywhere), and eventual real-hardware verification.
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a
