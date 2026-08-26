@@ -691,19 +691,43 @@ the text pipeline does.
      (`gcrts.disc_text_patch`, `scripts/patch_disc_dialogue_text.py`).
      Re-reading that patched copy completely offline (no live emulator
      involved) correctly produced the translated line with the rest of
-     the ISO untouched. **What's not yet confirmed**: that the running
-     emulator, booted fresh from this copy, shows the translation
-     during actual play — a save-state reload restores frozen RAM
-     rather than re-reading disc, so this needs a genuine cold boot
-     through real menu navigation. **The controller-input blocker for
-     this was resolved in the same session** (`docs/tooling/PCSX_KEYBOARD_INPUT.md`):
-     PCSX-Redux's own keyboard bindings, driven via hardware-level
-     `SendInput` (not the virtual-XInput-gamepad approach that never
-     worked before), produce a real, confirmed response in the running
-     game. `gcrts/pcsx_keyboard_input.py`. The actual cold-boot-and-
-     navigate confirmation run itself is still pending as of this
-     writing, but is no longer blocked on missing capability — only on
-     performing it.
+     the ISO untouched.
+
+     **The controller-input blocker for this was resolved, but not by
+     the mechanism first reported.** `gcrts/pcsx_keyboard_input.py`
+     (OS-level `SendInput` into the game window) was corrected in
+     place — its one apparent success was PCSX-Redux's own ImGui menu
+     reacting to the keystroke, not the emulated controller, consistent
+     with this project's own earlier, more rigorous A/B-tested finding
+     that neither synthetic keyboard nor a real virtual XInput gamepad
+     ever reaches the emulated pad (`docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md`
+     sections 8, 12). The real fix, live-verified end-to-end this
+     session: `gcrts/pcsx_pad_bridge.py` + `pcsx_lua/pad_input_bridge.lua`,
+     driving PCSX-Redux's own Lua-exposed
+     `PCSX.SIO0.slots[1].pads[1].setOverride()`/`.clearOverride()` —
+     confirmed against the real `src/core/pad.cc` source to feed
+     straight into the SIO poll response, independent of window focus
+     or OS input entirely.
+
+     ***Survives reboot/reload* is now `CONFIRMED_LIVE`.** Root cause
+     of the earlier stuck-BIOS-menu problem, found along the way:
+     opening the raw patched `.bin` directly (not its `.cue`) left the
+     BIOS unable to recognize the disc as bootable at all — unrelated
+     to patch correctness. Fixed with a clean `File > Reboot` then
+     `File > Open Disk Image` on `game.cue`. From a genuine fresh PS-X
+     kernel boot (not a save-state), `gcrts.pcsx_pad_bridge` drove
+     START/CIRCLE through the title screen and opening story beats; a
+     live memory read confirmed CAP1.EXE resident
+     (`pc=0x8007431C`, matching `pcsx_lua/spu_playback_trace.lua`'s own
+     `KNOWN_OVERLAYS` signature); the classroom/Kimika scene's dialogue
+     box then rendered `"See"` (Latin script) embedded mid-sentence
+     inside an otherwise all-Japanese line — exactly the patched disc
+     offset's script unit. Evidence:
+     `evidence/stage4_cold_boot_disc_patch_proof/`. Caveat: only
+     `"See"` was clearly legible before the line-wrap boundary, not the
+     full `"See you soon"` the patch wrote — sufficient to confirm the
+     mechanism, not a character-by-character re-verification of the
+     complete string on screen.
 2. ~~Fix `CURRENT_SYSTEM_STATUS.md`'s internal contradictions~~ —
    **done** (same pass that produced this audit): the Subtitles matrix
    row, the stale test/module counts, the movies headline redundant

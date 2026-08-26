@@ -96,3 +96,10 @@ evidence/
 # source disc itself (which lives outside the repo entirely, under
 # קיבצי דמה/). Never committed under any circumstance.
 build_workspace/
+
+# Pad Input Bridge: live command/ack IPC files between
+# gcrts.pcsx_pad_bridge (Python) and pcsx_lua/pad_input_bridge.lua,
+# written to the repo root because that's PCSX-Redux's own working
+# directory -- pure runtime state, never source.
+pad_input_command.jsonl
+pad_input_ack.jsonl

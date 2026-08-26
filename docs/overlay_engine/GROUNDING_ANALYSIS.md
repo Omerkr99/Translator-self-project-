@@ -230,26 +230,68 @@ Stage 4 (= SDD's O2-O4) — Internal gameplay payload (STARTED this session; rea
   a live re-read), so that specific check needs a genuine cold boot
   reaching the target scene through real menu navigation.
 
-  **Follow-up, same session: this exact limitation was resolved.**
-  `docs/tooling/PCSX_KEYBOARD_INPUT.md` -- PCSX-Redux's own configured
-  keyboard bindings, driven via Windows' hardware-level `SendInput` API
-  (not the virtual-XInput-gamepad approach that never worked before),
-  produced an unambiguous, large, real response (a system menu opened)
-  after two real, non-obvious fixes: genuine foreground focus requires
-  `AttachThreadInput` (plain `SetForegroundWindow` from an unrelated
-  process is silently blocked by Windows), and `SendKeys`-style
-  message-queue input is not picked up by the game at all -- only
-  hardware-level `SendInput` is. `gcrts/pcsx_keyboard_input.py` is the
-  reusable module. This removes the "needs a human at the controls"
-  blocker for Stage 4's final check, and for any other part of this
-  project that hit the same wall (including the still-open movie-loader
-  ambiguous groups from earlier this session).
+  **Follow-up, same session: `gcrts.pcsx_keyboard_input` (OS-level
+  `SendInput` into the game window) was a false lead, corrected in
+  place.** Its one dramatic "success" (a Cross press opening a system
+  menu) was PCSX-Redux's own ImGui menu reacting to the OS keystroke,
+  not the emulated PS1 controller -- every subsequent attempt on a
+  different (BIOS) screen failed despite confirmed OS-level focus, and
+  this is actually consistent with, not a contradiction of, this
+  project's own earlier, more rigorous finding
+  (`docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md` sections 8 and 12):
+  neither synthetic keyboard input nor a real virtual XInput gamepad
+  ever reaches the emulated controller in this build.
+
+  **The real fix, found and live-verified this session:**
+  `gcrts.pcsx_pad_bridge` + `pcsx_lua/pad_input_bridge.lua`. PCSX-Redux's
+  Lua API exposes `PCSX.SIO0.slots[1].pads[1].setOverride()`/
+  `.clearOverride()`, confirmed directly against the real
+  `src/core/pad.cc` source: `poll()` ANDs `buttonStatus` with a
+  persistent `overrides` mask and packs that straight into the SIO
+  response bytes the BIOS/game read -- completely independent of
+  GLFW/ImGui/window focus, so none of the OS-input failure modes apply.
+  Live-confirmed end-to-end via the real Python client against the real
+  running instance (`PadBridgeClient.press_button`), including a real,
+  load-bearing quirk: PCSX-Redux's Lua event dispatcher can silently,
+  permanently kill a "GPU::Vsync" listener for no logged reason (a
+  fresh reload always fixes it) -- `press_button` self-heals by
+  reloading the bridge script once and retrying before giving up. This
+  removes the "needs a human at the controls" blocker for Stage 4's
+  final check, and for any other part of this project that hit the
+  same wall (including the still-open movie-loader ambiguous groups
+  from earlier this session). `gcrts.pcsx_keyboard_input` still works
+  fine for its actual proven use (driving PCSX-Redux's own UI, e.g. the
+  Lua Console itself, via `gcrts.pcsx_lua_console`) -- just not for
+  emulated controller input.
+  **Final follow-up, same session: the cold-boot-and-navigate
+  confirmation run was performed, and Stage 4's exit criterion is
+  CONFIRMED_LIVE.** A real root cause for the earlier stuck-BIOS-menu
+  problem was found along the way: opening the raw patched `.bin`
+  directly (rather than its `.cue`) left the BIOS unable to recognize
+  the disc as bootable, falling back to its own memory-card/CD-player
+  shell -- unrelated to any patch-correctness question. Fixed by a
+  clean `File > Reboot` then `File > Open Disk Image` on `game.cue`
+  (log confirmed: `Loaded CD Image: ...game.cue[+cue].`, CD-ROM Label
+  `TWILIGHTSYNDROME`, ID `SLPS00102`). From there: `Start emulation`
+  (a genuine fresh PS-X kernel boot, not a save-state), the publisher
+  logo and opening cinematic played in full, `gcrts.pcsx_pad_bridge`
+  drove START/CIRCLE through the title screen and into the opening
+  story beats, a live memory read confirmed CAP1.EXE resident
+  (`pc=0x8007431C`, matching `pcsx_lua/spu_playback_trace.lua`'s own
+  `KNOWN_OVERLAYS` signature exactly), and the classroom/Kimika scene's
+  dialogue box rendered `"See"` (Latin script) embedded mid-sentence
+  inside an otherwise all-Japanese line — exactly the patched disc
+  offset's script unit, reached through real menu navigation with no
+  save-state and no live RAM injection involved. Evidence:
+  `evidence/stage4_cold_boot_disc_patch_proof/` (`full_frame.png`,
+  `dialogue_zoom.png`, `record.json`). One honest caveat: only `"See"`
+  was clearly legible before the text box's line-wrap boundary, not
+  the full `"See you soon"` the patch wrote — sufficient to confirm the
+  mechanism (foreign script appearing in an all-Japanese line is not
+  something that happens by accident), not a character-by-character
+  re-verification of the complete string on screen.
   Exit criterion (SRS acceptance criteria 3-5, i.e. survives a real
-  patched-image reboot): **static persistence mechanism found, built,
-  and offline-verified; the programmatic-navigation blocker for live
-  in-game confirmation is now resolved. The actual cold-boot-and-navigate
-  confirmation run itself has not yet been performed as of this
-  writing.**
+  patched-image reboot): **CONFIRMED_LIVE.**
 
 Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   Explicitly gated (SRS §12, SDD §19) behind movie-time source and

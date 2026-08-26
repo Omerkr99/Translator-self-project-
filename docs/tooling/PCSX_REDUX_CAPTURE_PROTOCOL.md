@@ -274,3 +274,45 @@ captures) and showed **zero correlation** — don't treat a static,
 non-zero `Frequency` reading (e.g. `37800`, a real XA-ADPCM rate) as
 evidence of active playback; it appears to be a resting/default value
 that doesn't react to individual dialogue events.
+
+## 16. Always open the `.cue`, never the raw `.bin`, for a BIN/CUE image
+
+Opening a modified/patched raw `.bin` directly via `File > Open Disk
+Image` (bypassing its `.cue`) left the BIOS unable to recognize the
+disc as bootable at all — it fell back to the BIOS's own built-in
+memory-card/CD-player shell (a screen with `MEMORY CARD`/`CD PLAYER`
+icons) instead of booting the game, and this looked exactly like a
+genuine stuck/frozen emulator for an extended troubleshooting session
+before the actual cause was found. **A `.cue` file (`FILE "game.bin"
+BINARY` / `TRACK 01 MODE2/2352`) carries track-mode metadata the BIOS
+needs that a bare `.bin` doesn't provide on its own** — always pick
+the `.cue` in the Open Disk Image dialog, confirmed by the log line
+reading `Loaded CD Image: ...game.cue[+cue].` (not a bare `.bin`
+path), immediately followed by real `CD-ROM Label`/`ID`/`EXE Name`
+lines. If the `.cue`'s `FILE` directive was ever rewritten to point at
+a differently-named `.bin` (e.g. a `*_backup` copy made during
+disc-patching work), the wrong disc image loads silently — verify the
+loaded EXE name/CD-ROM label match expectations, and check the `.cue`
+file's own `FILE` line matches the intended `.bin`, if a load succeeds
+but shows unexpected content.
+
+Also: the file-open dialog's row spacing is roughly 21px — a click
+target computed a row or two off lands on an adjacent file with no
+error, silently loading the wrong image (this happened once this
+session: a click meant for `.cue` landed on `game.bin.original_backup`
+instead, loading the *original* disc instead of the *patched* one).
+Always verify via the boot log which file actually loaded, don't trust
+the click coordinate alone.
+
+## 17. `File > Reboot` restarts the whole app, not just the emulated console
+
+`Emulation > Soft Reset`/`Hard Reset` reset the emulated PS1; `File >
+Reboot` is a different, more drastic action that restarts PCSX-Redux
+itself (new main window, same process/PID) and returns to its empty
+idle screen with no disc loaded — any disc image must be explicitly
+reopened via `File > Open Disk Image` afterward, and any Lua scripts
+(the pad-input bridge included, see
+`docs/tooling/PCSX_PAD_INPUT_BRIDGE.md`) must be reloaded since the
+Lua VM itself restarted. Useful specifically when you want a
+maximally-clean cold boot (e.g. to prove a disc-patch survives from
+true power-on), not appropriate as a routine "reset the game" action.

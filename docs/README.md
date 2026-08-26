@@ -164,11 +164,14 @@ object mapping, the Visual Inspector, snapshots, and user-defined pages:
 ### [`tooling/`](tooling/) — reusable methodology and infrastructure
 How live captures are actually taken, and shared decoding tools:
 `MIPS_JAL_DECODER.md`, `PCSX_REDUX_CAPTURE_PROTOCOL.md`,
-`BREAKPOINT_GENERATION_LOG.md`, `PCSX_KEYBOARD_INPUT.md` (programmatic
-controller input via simulated keyboard/`SendInput` -- resolves a
-limitation recorded repeatedly throughout this project's history; an
-earlier virtual-XInput-gamepad attempt never got the game to respond,
-this is a different, working mechanism).
+`BREAKPOINT_GENERATION_LOG.md`, `PCSX_PAD_INPUT_BRIDGE.md` (the real,
+working mechanism for programmatic PS1 controller input --
+PCSX-Redux's own Lua-exposed hardware-level pad override, confirmed
+against the real emulator source; bypasses window focus/OS input
+entirely), `PCSX_KEYBOARD_INPUT.md` (superseded for controller input by
+the above -- OS-level `SendInput` reliably drives PCSX-Redux's own UI
+but not the emulated controller, a distinction this doc's own history
+initially got wrong).
 
 ### [`overlay_engine/`](overlay_engine/) — external/internal overlay subsystem
 The staged plan for a shared external (host-side, emulator-synchronized)

@@ -1,5 +1,24 @@
 # Programmatic Controller Input via Simulated Keyboard
 
+**Superseded for controller input.** The "one dramatic success" this
+doc originally reported (a Cross press opening a menu) turned out to
+be PCSX-Redux's own ImGui menu reacting to the OS keystroke, not the
+emulated PS1 controller — every later attempt on a different (BIOS)
+screen failed despite confirmed OS-level focus. That's actually
+consistent with, not a contradiction of, this project's own earlier,
+more rigorous finding (`docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md`
+sections 8, 12): neither synthetic keyboard nor a real virtual XInput
+gamepad ever reaches the emulated controller in this build. **For
+emulated controller/pad input, use `gcrts.pcsx_pad_bridge` instead**
+(PCSX-Redux's own Lua-exposed hardware-level pad override, confirmed
+against the real emulator source and live-tested end-to-end). This
+module (`gcrts.pcsx_keyboard_input`) is still genuinely useful for its
+other real, confirmed use: driving PCSX-Redux's *own* UI (menus, the
+Lua Console itself — see `gcrts.pcsx_lua_console`), where OS-level
+`SendInput` does reliably land.
+
+---
+
 Resolves a limitation recorded repeatedly throughout this project's
 history: no way to send controller input to the game programmatically.
 The prior documented attempt (`docs/status/CURRENT_SYSTEM_STATUS.md`'s
