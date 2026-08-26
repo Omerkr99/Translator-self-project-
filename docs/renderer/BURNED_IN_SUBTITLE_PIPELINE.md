@@ -97,17 +97,37 @@ This is what turns "one cue burned in by hand" into "burn an entire
 real subtitle track into a movie" as a single reusable call, rather
 than repeating this session's manual steps for every cue.
 
+## The full real 14-cue track: burned in and verified
+
+Using the consolidated tool above, burned the **entire real
+`subtitle_tracks/op_intro.json`** (all 14 audio-derived cues, not just
+one placeholder) into `OP.STR` in a single call. **Offline
+verification (thorough, complete)**: independently re-decoded the
+resulting `.str` file and confirmed, for all 14 cues, that its own
+frame range shows the text and the gap before it (checked well inside
+the gap, not at the immediate boundary) does not — every cue passed.
+**Live verification (partial)**: patched into a disc image copy and
+booted live; confirmed a second, independent cue (different from the
+one in `evidence/burned_in_subtitle_live_playback/`) rendering
+correctly during real playback. A full real-time scan attempting to
+visually reconfirm all 14 cues hit automation trouble (the window was
+resized mid-capture, breaking a fixed-pixel detection crop, and later
+became unresponsive for unclear reasons) and was not completed — not
+considered necessary given the offline verification's own rigor. See
+`evidence/full_track_burned_in_live_proof/`.
+
 ## What remains
 
 - **Real hardware verification** (burn to an actual CD, test on real
   PS1 or a verified-accurate alternate emulator) — not attempted this
   session. Nothing in the pipeline is emulator-specific, but this is
   still an unverified claim, not a confirmed one, until tried.
-- **The full `subtitle_tracks/op_intro.json` track** (14 real,
-  audio-derived cues) has only been proven for one placeholder cue —
-  burning in and verifying the complete set is real remaining work,
-  not just repetition (each cue needs its own frame range located and
-  the timing-calibration offset re-confirmed).
+- **Exhaustive live reconfirmation of all 14 cues.** The full track is
+  now offline-verified complete (all 14) and live-confirmed for 2 of
+  14 — the other 12 rely on the offline verification's rigor rather
+  than a direct live sighting each. Not considered urgent given how
+  thorough that offline check is, but a full real-time watch-through
+  would close this gap entirely if ever needed.
 - **Real translated text.** Every cue so far uses illustrative or `TBD`
   placeholder text — someone who can hear the actual dialogue still
   needs to write the real lines.

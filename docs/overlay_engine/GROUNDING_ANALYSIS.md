@@ -447,9 +447,24 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   (`tests/test_movie_str_encoder.py`, mocked subprocess, no live
   dependency). This is the actual shape of mechanism the user asked
   for -- real, disc-resident, no host-side tooling required at
-  playback time. What remains: the full 14-cue track (only one
-  placeholder cue proven so far), real translated text (still
-  placeholder everywhere), and eventual real-hardware verification.
+  playback time. What remains: real translated text (still placeholder
+  everywhere) and eventual real-hardware verification.
+
+  Eighth step, same session: consolidated into
+  `gcrts.movie_subtitle_burner` (whole-track burning, not one cue at a
+  time) and burned in the REAL, COMPLETE 14-cue
+  `subtitle_tracks/op_intro.json` -- not a single placeholder. Offline
+  verification (thorough, complete): independently re-decoded the
+  output and confirmed all 14 cues correct. Live verification
+  (partial): confirmed a second, independent cue rendering correctly
+  during real playback on a disc-patched copy; a full real-time scan
+  of all 14 hit unrelated automation trouble (window resize/collapse
+  mid-capture) and wasn't completed, not considered necessary given
+  the offline check's rigor. Evidence:
+  `evidence/full_track_burned_in_live_proof/`. The overlay engine's
+  movie-subtitle mechanism is now complete as a mechanism -- the
+  remaining work is content (real translated text) and real-hardware
+  verification, not more engineering.
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a
