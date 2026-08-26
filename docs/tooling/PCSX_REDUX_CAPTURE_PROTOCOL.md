@@ -316,3 +316,30 @@ reopened via `File > Open Disk Image` afterward, and any Lua scripts
 Lua VM itself restarted. Useful specifically when you want a
 maximally-clean cold boot (e.g. to prove a disc-patch survives from
 true power-on), not appropriate as a routine "reset the game" action.
+
+## 18. Prefer Lua `hardResetEmulator()`/`resumeEmulator()` over GUI menu clicks
+
+OS-level menu-click automation for `File > Reboot` / `Emulation >
+Start emulation` proved fragile in practice: dialogs occasionally
+didn't close on the expected double-click, menu-tab click coordinates
+measured earlier in a session stopped landing correctly later (ImGui
+docking/layout can shift), and `find_window_by_process_name` matches
+by process only, not title -- if a dialog is open, it and the main
+window belong to the same process, so the helper can return either one
+ambiguously, causing later clicks meant for the main window to
+silently land on a leftover dialog instead. None of this produces an
+error; it just silently does nothing, which is what makes it
+dangerous — see `docs/renderer/MOVIE_TIME_SOURCE_INVESTIGATION.md`'s
+own account of chasing this for a full investigation before finding
+the actual fix.
+
+**The fix**: `PCSX.hardResetEmulator()` and `PCSX.resumeEmulator()`
+are both real, registered Lua functions (`src/core/pcsxlua.cc`'s
+`REGISTER` list). Calling `PCSX.hardResetEmulator() PCSX.resumeEmulator()`
+through the Lua Console (`gcrts.pcsx_lua_console.run_lua`, already
+proven reliable for the pad-input bridge) reliably resets and starts
+the emulator from a disc already loaded once via the GUI, with none of
+the menu-click fragility. Use this for any live experiment that needs
+a fresh boot/reset; reserve GUI menu clicks for the one thing Lua has
+no equivalent for -- opening a disc image file
+(`File > Open Disk Image`).

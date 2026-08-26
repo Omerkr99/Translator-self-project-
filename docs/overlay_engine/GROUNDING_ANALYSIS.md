@@ -319,6 +319,28 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   `evidence/vram_write_path_investigation/` for the full account. Net:
   the blocker is unchanged (no VRAM write path proven), but one real
   candidate is now ruled out rather than untested.
+
+  **Second investigation, same session: movie-time-source, partial
+  positive.** Tested whether host-side wall-clock time (anchored via
+  `PCSX.hardResetEmulator()`+`PCSX.resumeEmulator()` through the Lua
+  Console — found to be far more reliable than OS-level GUI menu
+  clicks, which proved fragile and are now deprecated for this purpose,
+  see `docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md` section 18) is a
+  reliable proxy for boot/movie playback position. Two independent
+  runs, screenshotted every 2s for 40s and hashed: **17 of 20 samples
+  matched byte-for-byte**, with **every sample through t=22.77s
+  (the BIOS/logo portion) matching exactly**, and most (5/8) matching
+  in the later, faster-changing window too. See
+  `docs/renderer/MOVIE_TIME_SOURCE_INVESTIGATION.md` and
+  `evidence/movie_time_source_investigation/` for the full account,
+  including the honest gap: the 3 mismatches weren't isolated as host-
+  timing jitter versus genuine non-determinism (the frames themselves
+  weren't saved for comparison in that pass — fixed in
+  `scripts/movie_time_source_probe.py`'s current version). Net: a real,
+  encouraging partial result for O5 (external subtitle sync, where
+  sub-second drift during fast content is unlikely to be perceptible),
+  not yet a frame-exact PS1-side source, which O6/O7 (internal
+  composition) would still need.
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a

@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-08-26T22:10:00+00:00",
+  "confidence": "PARTIAL",
+  "claim_tested": "Host-side wall-clock elapsed time, anchored at a fixed action (PCSX.hardResetEmulator() + PCSX.resumeEmulator() via the Lua console), is a reliable proxy for movie/boot-sequence playback position.",
+  "method": "Two independent runs, each: reset+resume via Lua, then screenshot every 2.0s for 40.0s, each sample hashed (SHA-256 of raw pixel bytes). Compared samples at matching t-indices across the two runs.",
+  "result": {
+    "total_samples": 20,
+    "exact_matches": 17,
+    "mismatches_at_indices": [12, 15, 17],
+    "mismatch_t_values_seconds": [24.82, 30.99, 35.11],
+    "all_matches_before_t": 22.77,
+    "pattern": "All 12 samples from t=0.00s through t=22.77s matched byte-for-byte across both runs. From t=24.82s onward (into what is plausibly the opening movie/cinematic, given the earlier Stage 4 boot timeline), most samples still matched (13, 14, 16, 18, 19) but 3 of 8 did not."
+  },
+  "interpretation": "The early boot sequence (BIOS/logos, roughly the first 23 seconds) is fully deterministic against wall-clock time -- rebooting twice and sampling at the same offsets reproduces byte-identical frames every time. Once into the region with rapidly-changing content (plausibly real movie playback), most samples still matched but a minority did not, at a fixed 2-second sampling interval. This is most likely explained by ordinary host-side timing jitter (HTTP round-trip variance for each screenshot request) becoming significant once the underlying content changes frame-to-frame -- a few hundred milliseconds of jitter can land on an adjacent, different frame when content changes every frame, but not when the same static image persists for seconds at a time. This has not been proven to be jitter rather than genuine non-determinism in the game's own playback -- that distinction was not isolated in this pass (e.g. by sampling at a much finer interval, or by measuring the actual host-side round-trip time per screenshot to correlate mismatches with slow requests).",
+  "relevance_to_stage_5": "For SDD O5 (external, host-side subtitle sync), this is an encouraging partial result: subtitle cues typically span multiple seconds, so occasional few-hundred-millisecond drift during fast-changing content is unlikely to be perceptible, and the mechanism is exact during slower-paced content. It does NOT establish a frame-exact PS1-side timing source, which is what SDD O6 (internal/native movie subtitle composition) would need -- that remains unproven and would still require either finer-grained determinism testing or genuine in-RAM instrumentation of the movie-player executable family.",
+  "caveats": [
+    "Only one boot path was tested (fresh hardResetEmulator + resumeEmulator from an already-loaded disc), not a full cold power-on through the disc-loading dialog.",
+    "Sampling interval was 2.0s -- coarse relative to a 60fps/16.7ms frame. The mismatches found do not distinguish 'off by one frame due to host jitter' from 'the game's own playback timing varies run to run' -- both remain possible explanations.",
+    "Not yet tested: whether the specific frames that mismatched are visually similar (adjacent frames of the same scene) or wildly different (which would suggest something other than simple jitter)."
+  ]
+}
