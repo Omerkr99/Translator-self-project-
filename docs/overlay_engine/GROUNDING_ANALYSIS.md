@@ -359,8 +359,21 @@ Stage 5+ (= SDD's O5-O8) — Movie subtitle, audio
   `identify_overlay` code path, no live emulator required; full suite
   1060 passed. Deliberately does NOT depend on VRAM-write-path at all
   (cues render externally) — see `docs/renderer/SUBTITLE_TRACK_MECHANICS.md`
-  for the full design and its honest current limits (no real track
-  authored yet, no live end-to-end run performed yet).
+  for the full design.
+
+  **Fourth step, same session: live-confirmed end-to-end.** Ran
+  `scripts/run_subtitle_track.py` against a real fresh boot
+  (`PCSX.hardResetEmulator()`+`resumeEmulator()`): both cues fired
+  within a few hundred milliseconds of their intended offsets
+  (`t=5.0s`→`5.249s`, `t=12.5s`→`12.726s`), and a real composited
+  desktop screenshot (not `PrintWindow`, which wouldn't show a
+  separate overlapping window) caught the overlay text rendering
+  directly over real game content, confirmed in two consecutive
+  captures. Evidence: `evidence/subtitle_track_live_proof/`. Closes
+  the "no live run yet" gap this same building block was built with.
+  Remaining honest gap: the example track's cues are placeholder text
+  at illustrative timestamps, not a real authored subtitle track for
+  `OP.STR` — the mechanism is proven, the content isn't written yet.
 ```
 
 Stages 1, 2, and 3 are all complete as of this document, each with a

@@ -76,19 +76,29 @@ renderer Stages 2-3 already proved live. `--out` writes a JSON record
 of when each cue actually fired (`CueResult.shown_at_t`, elapsed time
 since the reference trigger) for comparison against the intended `t`.
 
+## Live confirmation
+
+Run live against a real PCSX-Redux instance (fresh boot via
+`PCSX.hardResetEmulator()`+`PCSX.resumeEmulator()`, per
+`docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md` section 18): both cues
+in `op_intro.example.json` fired within a few hundred milliseconds of
+their intended offsets (`t=5.0s` → shown at `t=5.249s`; `t=12.5s` →
+shown at `t=12.726s`), and a real desktop screenshot (not `PrintWindow`
+on a single window, which wouldn't show a separate overlapping Tk
+window -- a full composited desktop capture instead) caught the
+overlay text rendering directly over real game content (the HUMAN
+ENTERTAINMENT publisher-logo scene), confirmed in two consecutive
+captures ~1.5s apart. Evidence:
+`evidence/subtitle_track_live_proof/` (`cue1_overlay_visible.png`,
+`before_cue_no_overlay.png`, `run_results.json`, `record.json`). This
+closes the "no live end-to-end run" gap below.
+
 ## What this does NOT do yet
 
 - **No real track has been authored.** `op_intro.example.json` has
   placeholder text at made-up timestamps -- someone needs to actually
   watch `OP.STR` once and note real line/timestamp pairs before this
   produces a real subtitle experience, not just a mechanism proof.
-- **No live end-to-end run has been performed** against this exact
-  script yet -- the runner logic itself is tested
-  (`tests/test_subtitle_track_runner.py`, fake clock + fake
-  `read_memory`, no live emulator), matching this project's standing
-  convention for orchestration logic vs. live/GUI behavior, but
-  running it against the real emulator with a real movie playing is
-  the natural next step, not yet done.
 - **Single reference overlay per track.** A track can't currently span
   multiple executables (e.g. a cutscene that transitions between two
   movie-player residencies) -- out of scope until a real need for it

@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-08-26T22:44:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "gcrts.subtitle_track_runner.run_subtitle_track, driving a real ExternalOverlayRenderer against a real running PCSX-Redux instance, waits for a reference overlay to become resident and then displays each cue at its configured offset/duration, visibly overlapping real game content on screen.",
+  "method": [
+    "Loaded game.cue via the GUI, then PCSX.hardResetEmulator()+PCSX.resumeEmulator() via the Lua Console for a genuine fresh boot (matching docs/tooling/PCSX_REDUX_CAPTURE_PROTOCOL.md section 18).",
+    "Ran `python -m scripts.run_subtitle_track subtitle_tracks/op_intro.example.json --reference-wait-timeout 90 --out ...` immediately after.",
+    "Concurrently captured real desktop screenshots (PIL ImageGrab, a composited desktop-level capture -- not PrintWindow on a single window, since PrintWindow only captures one window's own content and would not show the separate overlay Tk window overlapping it) every ~1.5s."
+  ],
+  "result": {
+    "cue_1": {"intended_t_offset": 5.0, "actual_shown_at_t": 5.249, "duration": 3.0},
+    "cue_2": {"intended_t_offset": 12.5, "actual_shown_at_t": 12.726, "duration": 4.0},
+    "screenshots": {
+      "before_cue_no_overlay.png": "an earlier poll, no overlay window present, game content alone (a movie frame, t_addr=0x80100000 confirming the movie-player executable family was resident)",
+      "cue1_overlay_visible.png": "captured during cue 1's display window -- the overlay text 'PLACEHOLDER -- replace with the real translated line' renders directly over the HUMAN ENTERTAINMENT publisher logo scene, confirmed real by a second, separately-captured frame ~1.5s later showing the same overlay still present"
+    }
+  },
+  "run_data": "run_results.json -- the exact CueResult output from the live run this evidence corresponds to",
+  "conclusion": "The full pipeline works end-to-end against a real emulator instance: reference-overlay detection -> wall-clock-offset cue timing -> real overlay rendering, all through code paths already covered by tests/test_subtitle_track_runner.py's fake-clock tests, now confirmed live for the first time. Closes the 'no live end-to-end run has been performed yet' gap noted in docs/renderer/SUBTITLE_TRACK_MECHANICS.md.",
+  "caveats": [
+    "The example track's cues contain placeholder text at illustrative (not researched) timestamps -- this proves the mechanism, not a finished subtitle experience for OP.STR.",
+    "Only one live run was captured with matching screenshots; the earlier run (evidence discarded) also completed successfully per its own console output (cues shown at t=+5.890s and t=+12.722s) but wasn't screenshotted in time -- consistent timing across both runs is suggestive of but doesn't rigorously re-prove the determinism already characterized in docs/renderer/MOVIE_TIME_SOURCE_INVESTIGATION.md.",
+    "The overlay window's fixed default screen position (100, 100) happened to overlap the emulator's own content window this session's window layout -- SDD's 'aligned to emulator output' remains aspirational (Stage 2's own documented limitation, unchanged here)."
+  ]
+}

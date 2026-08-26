@@ -1,0 +1,21 @@
+{
+  "track_id": "op_intro",
+  "results": [
+    {
+      "cue": {
+        "t_offset_seconds": 5.0,
+        "text": "PLACEHOLDER -- replace with the real translated line",
+        "duration_seconds": 3.0
+      },
+      "shown_at_t": 5.249
+    },
+    {
+      "cue": {
+        "t_offset_seconds": 12.5,
+        "text": "PLACEHOLDER -- replace with the real translated line",
+        "duration_seconds": 4.0
+      },
+      "shown_at_t": 12.726
+    }
+  ]
+}
