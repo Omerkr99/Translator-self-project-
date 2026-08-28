@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-08-28T03:18:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "The rewritten gcrts.burn_in_subtitle (wrap_text_to_width + updated burn_subtitle_onto_frame) fixes the real overflow bug found in evidence/burned_in_subtitle_live_playback/ -- the long placeholder text now wraps into clean, fully-in-frame lines when burned into a real .STR movie, disc-patched, and played back live in PCSX-Redux. Requested explicitly by the user as tangible proof (\"שתקליט gif של זה ככה שיהיה לנו הוכחה\").",
+  "method": [
+    "Built a new disc (build_workspace/patched_discs/font_fix_demo.bin/.cue) via gcrts.movie_subtitle_burner.build_burned_in_movie using the REWRITTEN burn_in_subtitle.py, with one cue (t_offset_seconds=10.85, duration_seconds=3.0, the same long placeholder text that overflowed before the fix).",
+    "Loaded font_fix_demo.cue into a fresh PCSX-Redux instance via File > Open Disk Image (real GUI interaction, no shortcuts).",
+    "Reset and started emulation via PCSX.hardResetEmulator()+PCSX.resumeEmulator() through the Lua console.",
+    "Polled gcrts.overlay_identity.identify_overlay() against a live GDB read_memory callback (gcrts.gdb_client.GdbClient) until MOP.EXE was detected resident, establishing a real t_ref for this specific boot (found at t=21.95s after the poll started) instead of assuming a fixed wall-clock offset from reset -- per this project's own standing calibration lesson that the offset is not reliable across launches.",
+    "Captured a real-time PrintWindow screenshot burst (100 frames, 0.4s interval, 40s total) starting right after MOP.EXE detection, at a fixed 800x600 window size confirmed constant across the whole burst.",
+    "Scanned the video output panel's bottom band across all 100 frames for bright (burned-in) pixels to locate the real on-screen appearance window empirically, rather than trusting frame-count arithmetic alone.",
+    "Found a clean bright-pixel cluster at t=10.81s-14.02s (matching the intended t_ref+10.85s to +13.85s window almost exactly -- this boot did not show the ~10.7s anomalous offset seen in an earlier session).",
+    "Directly viewed the frame at t=12.01s: confirmed the placeholder text now renders as 3 clean, fully-in-frame wrapped lines over real HUMAN Entertainment splash/movie footage, with no cut-off text at either edge -- the exact bug this rewrite fixes.",
+    "Assembled a 14-frame GIF (t=9.61s to t=14.82s, 400ms/frame) from the captured burst, cropped to the video output panel, showing the real clean-to-subtitled-to-clean transition."
+  ],
+  "result": "The font/word-wrap fix is CONFIRMED_LIVE: the previously-overflowing placeholder text now renders as clean, readable, fully-in-frame wrapped lines during real playback of a disc-patched, psxavenc-re-encoded movie in PCSX-Redux.",
+  "files": {
+    "font_fix_proof.gif": "14-frame animated GIF, cropped to the video output panel, showing clean playback before the cue, the wrapped subtitle appearing and remaining legible for its full duration, and clean playback again after it ends",
+    "before_clean.png": "full-window screenshot at t=9.61s -- no subtitle yet, clean HUMAN Entertainment splash footage",
+    "mid_wrapped_text.png": "full-window screenshot at t=12.01s -- the fixed subtitle rendering as 3 clean wrapped lines, fully inside the frame",
+    "after_clean.png": "full-window screenshot at t=14.82s -- subtitle gone again, clean footage"
+  },
+  "limitations_this_pass": [
+    "Only this single cue/disc was reconfirmed live in this pass -- the full 14-cue real track (subtitle_tracks/op_intro.json) was not rebuilt with the new font code and re-verified live; it was already offline-verified complete for all 14 cues and live-confirmed for 2 cues under the OLD unwrapped font (evidence/full_track_burned_in_live_proof/), before this fix existed.",
+    "The GIF was assembled from screenshots (PrintWindow captures), not from a video/audio recording of the emulator -- consistent with every other live-capture method used in this project this session."
+  ]
+}

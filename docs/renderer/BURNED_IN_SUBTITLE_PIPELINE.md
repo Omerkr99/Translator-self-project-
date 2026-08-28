@@ -116,6 +116,35 @@ became unresponsive for unclear reasons) and was not completed — not
 considered necessary given the offline verification's own rigor. See
 `evidence/full_track_burned_in_live_proof/`.
 
+## Font/word-wrap fix: also `CONFIRMED_LIVE`, with a GIF
+
+The live proofs above (`evidence/burned_in_subtitle_live_playback/`,
+`evidence/full_track_burned_in_live_proof/`) used the ORIGINAL
+`burn_subtitle_onto_frame`, which had no word-wrap at all — reviewing
+those very screenshots surfaced a real legibility bug: the long
+placeholder text ran off both edges of the 320px frame, cut off and
+illegible. `gcrts.burn_in_subtitle` was rewritten to add
+`wrap_text_to_width` (greedy word-wrap using the font's own real
+measured glyph widths, never an assumed average character width;
+stacks wrapped lines above the bottom margin; a single overlong word is
+kept whole rather than hyphenated). Covered by 6 new unit tests
+including a direct regression guard (zero bright pixels in the
+outermost 2 columns on each edge).
+
+This fix was itself re-verified `CONFIRMED_LIVE`, per the user's
+explicit request for tangible proof ("שתקליט gif של זה ככה שיהיה לנו
+הוכחה"): a new disc (`font_fix_demo.bin/.cue`) was built with the fixed
+code, booted fresh, `MOP.EXE` residency polled live via GDB to
+establish a real `t_ref` for that specific boot (found at t=21.95s
+after the poll started — this boot did NOT show the ~10.7s anomalous
+offset from the earlier calibration finding below), and a 100-frame
+screenshot burst empirically located the real on-screen appearance
+window (t=10.81s-14.02s, matching the intended cue almost exactly).
+The text now renders as 3 clean, fully-in-frame wrapped lines. See
+`evidence/font_fix_gif_proof/` for the full record, stills, and a
+14-frame animated GIF showing the real clean-to-subtitled-to-clean
+transition.
+
 ## What remains
 
 - **Real hardware verification** (burn to an actual CD, test on real
