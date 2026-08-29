@@ -343,3 +343,49 @@ the menu-click fragility. Use this for any live experiment that needs
 a fresh boot/reset; reserve GUI menu clicks for the one thing Lua has
 no equivalent for -- opening a disc image file
 (`File > Open Disk Image`).
+
+## 19. `File > Open Disk Image`, hardened: `gcrts.pcsx_disc_loader`
+
+Confirmed by reading the real PCSX-Redux source
+(`src/core/pcsxlua.cc`, `src/core/luaiso.cc`): there is **no Lua-exposed
+way to swap the actively-emulated disc**. `luaiso.cc`'s `CORE_ISO`
+module can open a standalone `CDRIso` for reading/building a NEW image,
+but the actual swap the GUI performs
+(`g_emulator->m_cdrom->setIso(new CDRIso(path))`, `src/gui/gui.cc`) is
+never registered for Lua. So point 18's GUI-click exception for this
+one action is real and permanent, not a gap to close later -- but the
+click sequence itself can still be made far more reliable than this
+session's earlier hand-guessed pixel coordinates.
+
+Two things had to be established empirically before that was possible:
+
+1. **"Open Disk Image" is a real, separate, title-searchable top-level
+   window** (class `GLFW30`), not content drawn inside the main
+   window's own client area as first assumed. `EnumWindows` with an
+   exact title match, scoped to the PCSX-Redux process's PID(s) via
+   `psutil`, reliably finds it -- and its own `GetWindowRect` must be
+   used for all coordinate math. Its on-screen position is independent
+   of the main window's (confirmed: it did not move when the main
+   window did), so never assume a fixed offset from the main window.
+2. **No tested synthetic keyboard input reaches this dialog's text
+   fields.** `SendInput` with `KEYEVENTF_UNICODE` (character text) and
+   a plain `VK_BACK` keystroke were both sent directly at the focused
+   "File name" field and had zero observable effect, even though the
+   exact same window reliably responds to mouse clicks (confirmed:
+   clicking a file row both highlights it and auto-populates "File
+   name"). **Do not try to type a filename into this dialog** --
+   select the file by clicking its row instead.
+
+Since typing is out, `gcrts.pcsx_disc_loader.open_disk_image` selects
+the target file by clicking its row's real pixel position, computed
+from the *actual current directory listing* (`sorted(os.listdir(...),
+key=str.lower)`, confirmed to match the dialog's own case-insensitive
+alphabetical sort against a real 10-file listing) rather than a
+hand-counted offset -- so it stays correct as files are added or
+removed, unlike every ad-hoc version of this click sequence written
+earlier in this session. Live-verified end to end against a freshly
+relaunched PCSX-Redux process with no prior state: `open_disk_image`
+correctly computed row index 8 for `op_title_card_demo.cue` in a real
+10-file directory and the log panel confirmed a clean, correct load
+(`Loaded CD Image: ...op_title_card_demo.bin[+cue].`, correct GAME ID
+and CD-ROM label).
