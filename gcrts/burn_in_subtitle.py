@@ -63,12 +63,23 @@ def wrap_text_to_width(text: str, font, draw: ImageDraw.ImageDraw, max_width: in
     an assumed average character width). A single word wider than
     `max_width` on its own is kept whole on its own line rather than
     split -- standard subtitle convention; that's an authoring problem
-    to reword, not something to hyphenate silently."""
+    to reword, not something to hyphenate silently.
+
+    A literal `\\n` in `text` forces a line break at that point (e.g. a
+    title and its translated subtitle on their own intentional lines)
+    -- each resulting segment is still word-wrapped independently in
+    case it's too wide on its own."""
+    if "\n" in text:
+        lines: list[str] = []
+        for segment in text.split("\n"):
+            lines.extend(wrap_text_to_width(segment, font, draw, max_width))
+        return lines
+
     words = text.split()
     if not words:
         return [text] if text else []
 
-    lines: list[str] = []
+    lines = []
     current = words[0]
     for word in words[1:]:
         candidate = f"{current} {word}"

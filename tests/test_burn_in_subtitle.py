@@ -101,6 +101,25 @@ def test_wrap_text_to_width_empty_text_returns_no_lines():
     assert wrap_text_to_width("", font, draw, max_width=200) == []
 
 
+def test_wrap_text_to_width_honors_explicit_newline_as_a_forced_break():
+    # Title-card style content (e.g. a title and its translated subtitle)
+    # needs author-controlled line breaks, not just width-driven wrapping.
+    font, draw = _font_and_draw()
+    lines = wrap_text_to_width("Twilight Syndrome\nSearch Chapter", font, draw, max_width=294)
+    assert lines == ["Twilight Syndrome", "Search Chapter"]
+
+
+def test_wrap_text_to_width_still_wraps_a_too_wide_segment_after_a_forced_break():
+    font, draw = _font_and_draw()
+    long_second_line = "a very long second segment that cannot possibly fit on one line"
+    lines = wrap_text_to_width(f"Title\n{long_second_line}", font, draw, max_width=100)
+    assert lines[0] == "Title"
+    assert len(lines) > 2, "the long second segment must still wrap across multiple lines"
+    for line in lines[1:]:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        assert bbox[2] - bbox[0] <= 100
+
+
 def test_burn_subtitle_onto_frame_never_overflows_frame_width_for_long_text():
     # The real bug found live: the original implementation let long
     # placeholder text run off both edges of the 320px frame,

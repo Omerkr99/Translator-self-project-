@@ -1,0 +1,11 @@
+{
+  "track_id": "op_title_card",
+  "reference_overlay": "MOP.EXE",
+  "cues": [
+    {
+      "t": 140.2,
+      "duration": 11.466666666666667,
+      "text": "Twilight Syndrome\nSearch Chapter"
+    }
+  ]
+}

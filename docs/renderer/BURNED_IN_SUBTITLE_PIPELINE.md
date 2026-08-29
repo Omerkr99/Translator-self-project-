@@ -145,6 +145,47 @@ The text now renders as 3 clean, fully-in-frame wrapped lines. See
 14-frame animated GIF showing the real clean-to-subtitled-to-clean
 transition.
 
+## Correction: OP.STR has no dialogue -- only its own title card needs translating
+
+Direct user clarification (2026-08-29): OP.STR has no spoken dialogue
+at all -- "אין כלום, רק את שם הפתיחה של המשחק בסוף" (there's nothing,
+just the game's opening title at the end). This means
+`subtitle_tracks/op_intro.json`'s 14 audio-activity-derived cues
+(`gcrts.audio_activity_segments`, RMS-based) were detecting non-speech
+audio (music/sound effects), not real dialogue lines -- their `TBD`
+placeholder text should NOT be treated as pending real translation work
+for this movie. The mechanism they exercised (whole-track burn-in) is
+still validly proven; there just isn't real dialogue content behind it
+for OP.STR specifically.
+
+The one real, translatable piece of content in OP.STR is its own
+closing title card: a particle-assembly animation (starting ~frame
+2015 of 2274 total, 15fps) that settles into a fully static hold of the
+katakana logo "トワイライトシンドローム" from frame 2103 through the
+movie's last frame (~11.4s hold, found by direct pixel-statistics
+inspection of the previously-decoded frames -- mean/std become
+perfectly constant from frame 2103 onward). `subtitle_tracks/op_title_card.json`
+burns the real translation ("Twilight Syndrome" / "Search Chapter", the
+english rendering of 探索編/Tansaku-hen) beneath it, using a small
+addition to `wrap_text_to_width` (a literal `\n` now forces a line
+break, so an intentional two-line title doesn't get auto-wrapped
+unpredictably). `CONFIRMED_LIVE` both offline (independent re-decode of
+the final `.str`) and live (a real emulator boot) -- see
+`evidence/op_title_card_live_proof/`, including a 17-frame GIF of the
+transition into the settled, translated card.
+
+This live pass needed a **gapless** capture: an earlier attempt using
+two separate capture windows with an unmonitored real-time gap between
+them missed the card's appearance entirely (a real, ~19-second-long
+on-screen window was invisible to that approach purely because it fell
+in the gap) -- redone as one continuous 700-frame, 210-second capture
+with no gaps, which caught it cleanly. This is the same t_ref/real-time
+instability documented below, now with an even larger observed swing
+(this run's MOP.EXE-to-title-card real-time span was over 3 minutes,
+vs. ~13-23s in earlier single-cue tests near the start of the movie) --
+reinforcing that any live timing check against this disc needs a wide,
+continuous window, not a narrow one placed by calculation.
+
 ## What remains
 
 - **Real hardware verification** (burn to an actual CD, test on real
