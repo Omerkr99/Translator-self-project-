@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-08-29T23:30:00+00:00",
+  "confidence": "CONFIRMED",
+  "claim": "build_workspace/patched_discs/op_title_card_demo.bin (the current best real-content disc: font-fix + real title-card translation) is structurally sound at the byte and sector level, as a precondition for a real physical CD burn -- not itself proof it will boot on real hardware, which was not attempted this pass (no physical CD burner or PS1 available to this agent).",
+  "why_this_matters": "Emulators are often lenient about disc-image details real CD-ROM hardware is strict about (sector sync patterns, sector mode consistency, exact byte layout). Passing this check meaningfully raises confidence before spending a physical blank CD-R on an unverified image; it does not replace an actual hardware test.",
+  "method": [
+    "Byte-for-byte diff of op_title_card_demo.bin against the original C:\\PCSXRedux\\game\\game.bin, sector by sector (2352-byte physical sectors).",
+    "Confirmed identical total file size (636,488,832 bytes, i.e. the patch changed content in place, never truncated/extended the image).",
+    "Confirmed the changed sectors form exactly ONE contiguous block (LBA 210720-233439, 22720 sectors) matching OP.STR's own allocated region on disc -- no stray writes anywhere else on the 270,616-sector image.",
+    "Within that patched region, verified every one of the 22720 sectors starts with a valid CD-XA sync pattern (00 FF*10 00) -- zero sectors with a corrupted/misaligned sync header.",
+    "Verified every sector's mode byte is 2 (CD-XA Mode 2, correct for this game's video/audio data) -- no stray Mode 0/1 sectors mixed in.",
+    "Inspected CD-XA submode byte values across the region (0xE4, 0x64, 0x48 observed) -- consistent with a real, properly-muxed Form2 audio/video XA stream (EOF/realtime/audio flags in plausible combinations), not garbage."
+  ],
+  "result": "Structurally clean: correct size, single contiguous patched region exactly matching the target file's allocation, zero sector-sync or sector-mode anomalies anywhere in the patched region.",
+  "explicitly_not_verified_this_pass": [
+    "Per-sector EDC/ECC checksum correctness (CD-XA error detection/correction bytes) -- not independently recomputed; relying on psxavenc being a real, purpose-built PS1 encoder already used by hardware-targeting homebrew projects, which is a reasonable but NOT independently confirmed assumption.",
+    "Actual burn to a physical CD-R.",
+    "Actual boot/playback on a real PS1 console (or a verified-accurate non-emulator alternative).",
+    "Whether the target PS1 can even run a burned CD-R without a modchip or swap trick -- unmodified PS1 consoles refuse to boot burned media by design; this is a real prerequisite the user needs to confirm they have (a modded console, a swap-trick setup, or a burn-capable ODE/optical drive emulator like a MODE/PicoStation), not something software validation can substitute for."
+  ]
+}
