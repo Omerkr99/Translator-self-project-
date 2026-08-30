@@ -10,12 +10,17 @@ dated logs: `RENDERER_LIVE_PROOF.md`, `RENDERER_1_RUNTIME_DRIVER.md`,
 `GLOBAL_SELECTION_MODEL.md`, `VISUAL_INSPECTOR_ARCHITECTURE.md`,
 `RUNTIME_SNAPSHOT.md`, `USER_CONTROLLED_PAGES.md`,
 `ASSET_INSPECTOR_ARCHITECTURE.md`, `IMAGE_ASSET_STATUS.md`,
-`BACKLOG_INVESTIGATION_RESULTS.md`, `DISC_FILE_CATALOG.md`.
+`BACKLOG_INVESTIGATION_RESULTS.md`, `DISC_FILE_CATALOG.md`,
+`BURNED_IN_SUBTITLE_PIPELINE.md`, `MOVIE_TIME_SOURCE_INVESTIGATION.md`,
+`PCSX_REDUX_CAPTURE_PROTOCOL.md`.
 
 ## Headline
 
-- **Test count**: 981 passed, 0 failed (`py -m pytest tests/ -q`), ~26s.
-  103 modules in `gcrts/`, 86 test files.
+- **Test count**: 1091 passed, 0 failed (`py -m pytest tests/ -q`), ~30s.
+  128 modules in `gcrts/`, 105 test files. (Figures below this line
+  otherwise describe the system as of the toolkit-readiness audit; the
+  Subtitles/Movies sections and capability-matrix rows for both were
+  updated afterward and are current as of 2026-08-29.)
 - **Strongest completed capabilities**: the live HOST_FITTED text
   editing/injection pipeline (this is what actually renders edited
   dialogue today); Renderer 1's position mechanism, now with an
@@ -1200,21 +1205,66 @@ only perceptual (by-ear) confirmation remains open. See
   `PROGVAB.CDB` holds the sample data these records point to is
   unconfirmed.
 
-### Subtitles — PARTIAL (file export done; in-game rendering not started)
+### Subtitles — Movies: CONFIRMED_LIVE end-to-end (disc-resident, real content); in-game (non-movie) text: not started
 
-Corrected during the toolkit-readiness audit (`TOOLKIT_READINESS_AUDIT.md`):
-this section previously said "not started," which had gone stale.
-`gcrts.subtitle_export` (see the `SUBTITLE_EXPORT.md` follow-up above)
-already builds a real `.srt` file from a confirmed
-`DialogueDatabaseEntry` — real output exists on disk this session
-(`audio_export/fandub/XAPACK22_7/subtitle.srt`). What's still genuinely
-unstarted is anything rendered through the game's own graphics path or
-an emulator overlay during a movie ("Demo A" in
-`TOOLKIT_READINESS_AUDIT.md` §13) — that specific goal remains blocked
-on `RuntimeSnapshot.active_movie`'s coverage (still only 2 of 7 movie
-files `CONFIRMED_LIVE`) and on unstarted questions (movie-time source,
-VRAM write path) that have nothing to do with the `.srt`-export layer
-already built.
+**Superseded (2026-08-29): the shippable mechanism is burned-in video,
+not an `.srt` export or a host-rendered overlay.** Direct user
+correction, recorded in full in `docs/renderer/BURNED_IN_SUBTITLE_PIPELINE.md`
+and the `project-fandub-goal` memory: the deliverable has to survive
+being burned to a real CD and played on real PS1 hardware with no host
+machine involved at playback time. `gcrts.subtitle_export`'s `.srt`
+output and `gcrts.subtitle_track_runner`'s external-overlay renderer
+(both still real, both still described below and in
+`SUBTITLE_TRACK_MECHANICS.md`) are genuinely useful for rehearsing
+timing/content against a live emulator, but neither is the deliverable
+path any more.
+
+**The real pipeline, `CONFIRMED_LIVE` end-to-end**: decode a movie's
+real frames (`gcrts.movie_str_audio`) → burn text directly onto the
+target frames' pixels, with real word-wrap
+(`gcrts.burn_in_subtitle`) → re-encode to a genuine PS1 MDEC/`.STR`
+bitstream via the third-party `psxavenc` encoder
+(`gcrts.movie_str_encoder`) → patch into a disc image copy at the
+movie's real LBA (`gcrts.movie_subtitle_burner`, reusing Stage 4's
+disc-patch primitive) → boot and visually confirm. Proven for a single
+cue, for a full 14-cue track, and — the first *real*, non-placeholder
+content shipped anywhere in this project — for `OP.STR`'s own closing
+title card, translated to "Twilight Syndrome / Search Chapter" and
+confirmed rendering correctly during real playback
+(`evidence/op_title_card_live_proof/`). A real, load-bearing timing
+gotcha: live-playback real-time position relative to a detected
+trigger event is NOT reliably predictable in advance for this disc
+(observed swings from near-zero to several minutes across different
+boots) — always scan a wide, continuous, gapless real-time window
+rather than trusting frame-count arithmetic; a capture with a gap in
+it can miss the entire event.
+
+**Scope correction**: `OP.STR` itself turned out to have no spoken
+dialogue at all (user-confirmed) — the audio-activity-derived 14-cue
+track (`subtitle_tracks/op_intro.json`) was detecting non-speech audio
+(music/SFX), not real lines; its cues remain useful as a mechanism
+proof but not as pending translation content. Whether any of the other
+6 movie files have real dialogue worth this treatment is now an open
+question (see Movies below), not something already answered.
+
+**What's still genuinely unstarted**: in-game (non-movie) dialogue
+text as anything beyond Stage 4's one same-byte-length proof-of-concept
+swap ("See you soon") — no pass has mapped how much real text exists
+in the game, where, or whether it can change length at all; and the
+native kanji glyph-rendering system has not been touched (its
+compressed glyph data is a RAM-resident, per-chapter blob, not a
+static disc asset — see `gcrts.glyph_atlas`'s own docstring) despite
+being a likely prerequisite for any non-movie text that needs more
+characters than the Japanese original used.
+
+**Not affected by any of this**: real-hardware verification (burn to
+an actual CD, boot on real PS1) remains untried for the movie pipeline
+too — everything above is emulator-`CONFIRMED_LIVE` only. A pre-burn
+structural check (byte/sector diff against the original disc, CD-XA
+sync/mode validation across every changed sector) passed cleanly for
+the current best candidate disc (`evidence/real_hardware_prep_validation/`),
+but that is a precondition check, not a substitute for an actual burn
+and boot.
 
 ### Persistent build (disc-level, non-temporary edits) — LIVE_VERIFIED (PCSX-Redux only)
 
@@ -1259,7 +1309,9 @@ already built.
 | Renderer 2 | BLOCKED | No | Full trace never reproduced after 1 hit |
 | CLD1 / layout descriptor | IMPLEMENTED | Yes (via Renderer 1 driver) | — |
 | Script / font pipeline | LIVE_VERIFIED | Yes (external toolkit, verified) | Not yet merged into `gcrts` proper |
-| Movies / `.STR` | PARTIAL | Yes (`RuntimeSnapshot.active_movie`) | `MOP.EXE`/`OP.STR` and `MPRO.EXE` (via `CAP0.EXE`) `CONFIRMED_LIVE`; `MKUBI.EXE`, `MRIKA.EXE`, `MNINO.EXE` predicted via static disassembly (`STATIC_CODE_MATCH`, not yet witnessed live); `MOVER.EXE` pairing and `CAPX.EXE`'s runtime selector still open |
+| Movies / `.STR` | PARTIAL | Yes (`RuntimeSnapshot.active_movie`) | `MOP.EXE`/`OP.STR` and `MPRO.EXE` (via `CAP0.EXE`) `CONFIRMED_LIVE` for detection; `MKUBI.EXE`, `MRIKA.EXE`, `MNINO.EXE` predicted via static disassembly (`STATIC_CODE_MATCH`, not yet witnessed live); `MOVER.EXE` pairing and `CAPX.EXE`'s runtime selector still open. `OP.STR` itself now confirmed to have NO spoken dialogue (only its own title card, translated and burned in — see Subtitles); the other 6 movie files' actual content (dialogue or not) is unchecked |
+| Movie subtitle burn-in | CONFIRMED_LIVE (emulator only) | Yes (`gcrts.movie_subtitle_burner`) | Real hardware unverified; other 6 movie files not yet checked for real dialogue content worth burning in |
 | Audio / XA / voice | PARTIAL | Yes (`RuntimeSnapshot.active_audio` incl. nested `script_context`/`audio_context`/`caption`/`stream_source`/`extraction_status` + top-level `cdrom_driver`/`last_known_setfilter`, via `RuntimeVisualProvider`) | how the resolved filename becomes an actual file read not traced; a real Setfilter(file=2,channel=1) call is live-captured and reproduced but confirmed NOT proven event-specific (likely a default/reset value); a tested extraction backend (`gcrts.audio_event_extraction`) exists but has never run against a real confirmed event; event_end_lba unresolved; position counter's real-time unit uncalibrated; captions limited to dialogue text only; a real, live-firing `CD_init` function (sets the documented SPUCNT "CD Audio Enable" bit, `gcrts.spu_audio_path`) has been decisively ruled out, via a real user-confirmed audible correlation experiment, as the mechanism for that instance — as have both known Key ON/OFF site families; GDB's own SPU hardware register read/write path is confirmed unreliable, but PCSX-Redux's own native SPU debugger (`gcrts.pcsx_spu_observer`) is validated as a working replacement channel and shows CD Audio Enable genuinely, persistently set on real hardware (reversing the earlier "write does not persist" finding); a manual all-voices-muted experiment (native SPU Debug's per-channel Mute controls) found dialogue audio survives every regular SPU voice being muted, reproduced in two independent scenes (`gcrts.spu_audio_path.all_spu_voices_muted_dialogue_still_audible()` → `True`) — the audio bypasses the SPU's 24-voice mixing engine entirely and enters via the CD input path; `classify_playback_backend()` now returns `CD_INPUT_UNKNOWN_FORMAT` — this answers the *routing* question (bypasses the SPU's voice engine), a separate question from physical *stream format*, which the later `classify_stream_format()` function (see above, `→ XA_ADPCM`) and `XA_DECODER_VERIFICATION.md`'s `REFERENCE_VERIFIED` decode already resolved; this row previously read as if the format itself were still unconfirmed, corrected during the toolkit-readiness audit (`TOOLKIT_READINESS_AUDIT.md`); a virtual XInput gamepad (vgamepad/ViGEmBus) was validated at the Windows/XInput level but never got the game itself to respond, so automated dialogue-triggering remains unreliable and further live-correlation work still needs a human trigger |
-| Subtitles | PARTIAL | Yes (`.srt` export only, `gcrts.subtitle_export`) | In-game/overlay rendering not started; a real `.srt` already exists for one confirmed asset |
-| Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware |
+| Subtitles (movies) | CONFIRMED_LIVE (emulator only) | Yes (`gcrts.movie_subtitle_burner`) | Real hardware unverified; `.srt` export and the external-overlay renderer still exist as authoring/rehearsal tools, no longer the deliverable path |
+| Subtitles (in-game, non-movie) | NOT STARTED | — | No mapping of real text volume/locations yet; blocked on the kanji glyph system for anything longer than the Japanese original |
+| Persistent build | LIVE_VERIFIED (emulator only) | No (manual disc-copy step) | Not validated for real hardware; a pre-burn structural/sector check now exists (`evidence/real_hardware_prep_validation/`) but an actual burn+boot is still untried |
