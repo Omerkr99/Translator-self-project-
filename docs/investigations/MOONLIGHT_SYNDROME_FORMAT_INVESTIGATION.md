@@ -684,6 +684,54 @@ this atlas contain usable Latin letters" needs a target entry
 confirmed stable (fully settled, no further nearby animation) before
 another attempt, which this pass did not achieve.
 
+## Latin/ASCII atlas scan attempt: address drift makes live scanning unreliable
+
+Tried again to probe the atlas for Latin characters, this time solving
+the earlier timing race properly: confirmed the primitive list only
+gets rebuilt when new content is added or the player advances — with
+neither happening, the same entry read back byte-identical twice in a
+row (2s apart, no input), confirming a genuinely stable window exists.
+
+Also tried `PCSX.pauseEmulator()` as a way to freeze time entirely
+during the scan — this does NOT work for this purpose: with the CPU
+halted, no new frame is ever computed, so the screen stays frozen on
+whatever was last drawn regardless of what gets written to RAM in the
+meantime (confirmed: identical screenshots before and after a write
+made while paused). Useful negative result for future work: verifying
+a live-memory write's visual effect requires the emulator actually
+running, not paused.
+
+Ran a 16-value column scan (`col=0x50`, every `row` from `0x00` to
+`0xf0`) on the address used for the two earlier successful swaps,
+writing one value, screenshotting, moving to the next. **All 16
+screenshots showed the original, unpatched text, unaffected** — but a
+direct memory read afterward confirmed the *last* written value
+(`col=0x50, row=0xf0`) was genuinely present and stable at that
+address. The conclusion: that address is **no longer the entry
+controlling the currently-visible first character** at all — the
+dialogue box has kept growing in real time during this investigation
+(new lines, more dots), and the primitive list's addressing shifts
+along with it. The two-hour-old address that worked for the original
+breakthrough had gone stale without any error or indication.
+
+**Honest conclusion**: the underlying mechanism (a live, writable
+glyph-cache-coordinate field that cleanly changes rendered characters)
+remains proven and correct — that finding stands. But *systematically
+scanning* the atlas via live screenshots is impractical this way: it
+requires re-locating the currently-correct address immediately before
+every single sample (via the tag-scan technique), and even then a
+naturally-continuing scene can invalidate it mid-scan. This is a real,
+practical limitation of live-memory probing as a *mapping* tool, not a
+limitation of the mechanism itself.
+
+**Recommended path forward for actually answering "does this game have
+usable Latin glyphs"**: stop fighting live, shifting GPU state and
+instead find the **static, disk-resident font/texture resource** this
+data ultimately comes from (the same kind of approach already used for
+Twilight Syndrome's own native glyph atlas) — an offline resource can
+be inspected and mapped without any of this timing instability. This
+is real, scoped, follow-up work, not something this pass completed.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
