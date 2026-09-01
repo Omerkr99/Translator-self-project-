@@ -732,6 +732,105 @@ Twilight Syndrome's own native glyph atlas) — an offline resource can
 be inspected and mapped without any of this timing instability. This
 is real, scoped, follow-up work, not something this pass completed.
 
+## VRAM dump: located likely atlas region, blocked on CLUT/bit-depth decode
+
+Per the plan to stop fighting live GPU-primitive addressing and look
+at the actual texture data directly: fetched the full 1024x512 VRAM
+dump via the existing `/api/v1/gpu/vram/raw` Web API (the same one
+`gcrts.pcsx_redux_adapter` already wraps) and rendered it as a real
+image using numpy for speed. The dump cleanly shows the two
+double-buffered copies of the actual live game frame (correct
+"やめてほしいよね" text fully legible in both) confirming the whole
+capture is valid and current.
+
+A separate region (roughly VRAM x:0-130, y:250-460) shows real,
+structured, non-random data — clearly texture content, not noise —
+but it renders as visual static when decoded as raw 16-bit BGR555
+color. This is the standard signature of **indexed/CLUT texture
+data** (4bpp or 8bpp palette indices) being misinterpreted as direct
+16-bit color, exactly the kind of storage format PS1 games use for
+compact glyph atlases (this project's own established convention from
+Twilight Syndrome's native font work: 4bpp indexed cells, not raw
+color).
+
+**This is very likely the actual glyph atlas region** — its size and
+position are consistent with what a 16x16-celled, multi-hundred-glyph
+table would occupy — but confirming that and actually reading it as
+legible characters (Latin or otherwise) requires knowing this specific
+texture page's real bit depth and CLUT (palette), which hasn't been
+determined yet. This is real, scoped, further work (find the GPU
+texpage/CLUT command associated with this draw region, likely via the
+same disassembly techniques already used successfully elsewhere in
+this investigation), not a dead end — just not yet completed this
+pass.
+
+## MAJOR FINDING: the game's own font already contains a full Latin alphabet
+
+Decoded the located VRAM region as 4bpp indexed texture data (4 pixels
+packed per 16-bit word) using a plain 16-level grayscale ramp as a
+placeholder palette (no need for the real CLUT to make shapes
+legible) — and the result is a **completely legible, complete glyph
+atlas** (`evidence/moonlight_syndrome_full_glyph_atlas/atlas_full_grayscale_decode.png`):
+
+```
+row0 (V=0x00):  ! ? ・ = 、 。 ~ 「 」   (punctuation)
+row1 (V=0x10):  0 1 2 3 4 5 6 7 8 9 A B C D E F
+row2 (V=0x20):  G H I J K L M N O P Q R S T U V
+row3 (V=0x30):  W X Y Z a b c d e f g h i j k l
+row4 (V=0x40):  m n o p q r s t u v w x y z
+row5+:          full hiragana, katakana, and hundreds of kanji
+```
+
+**This directly and completely answers the question this session set
+out to answer**: the game's own native font already contains a full
+Latin alphabet (uppercase AND lowercase), digits, and punctuation —
+nothing needs to be drawn or invented from scratch. Every letter's
+atlas coordinate is a simple, direct calculation (`column_index * 16,
+row_index * 16` — confirmed against the already-established coordinate
+system: the earlier `ん` swap's coordinate `(0xd0, 0x70)` lands exactly
+on `ん`'s real position in this same grid, cross-validating both
+findings against each other). The full A-Z/a-z coordinate table is
+saved as `evidence/moonlight_syndrome_full_glyph_atlas/latin_coordinate_table.json`
+(e.g. `H=(0x10,0x20)`, `E=(0xe0,0x10)`, `L=(0x50,0x20)`, `O=(0x80,0x20)`
+— `HELLO` is fully spellable from this table alone).
+
+## Open mystery: a live write attempt using a Latin coordinate did not render
+
+Tried to confirm this practically: located the current, live-active
+end of the character primitive list (re-scanned for the constant tag,
+confirmed the address was genuinely in the front-buffer range and not
+accidentally the back-buffer copy) and wrote `A`'s real atlas
+coordinate `(0xa0, 0x10)` into it (both buffer copies). **No `A`
+appeared on screen** — the visible line was unaffected.
+
+Checking directly revealed something important: **entries 36-39,
+patched hours earlier in this same session to spell `ほしいな`, were
+still holding those exact patched values** — contradicting the
+earlier belief that they had reverted. Memory says patched; the
+screen has never shown it since the very first successful pair of
+swaps. This suggests a **third, still-unmapped layer**: this
+"GPU-primitive list" may itself only be read into whatever the GPU
+actually executes at specific moments (e.g. once, right when a
+character is first freshly decoded), not continuously — meaning an
+edit lands and persists in this array, and even influences rendering
+*briefly, right after a fresh decode*, but doesn't propagate once that
+window has passed, regardless of which buffer copy is touched. The two
+original clean swaps earlier in this investigation were real (multiple
+independent screenshots agree) — but reliably reproducing that same
+effect on demand, on an arbitrary already-settled character, is not
+yet solved.
+
+**Status, stated precisely**: the *content* question ("does this
+game's font support English, and where") is fully answered — yes, a
+complete Latin alphabet exists natively, coordinates known. The
+*mechanism* question ("how to reliably make the game display it")
+remains open beyond the first proof-of-concept; the render pipeline
+has at least one more layer (this transient-write behavior) that
+hasn't been mapped yet. This is real, scoped, further work — most
+likely another disassembly pass around wherever this primitive list
+gets consumed, now that its *existence and content* are no longer in
+question.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
