@@ -9,6 +9,79 @@ Disc 1), same publisher (Human Entertainment), a different game/engine
 — specifically to test whether the toolkit generalizes or is a
 one-game hack.
 
+---
+
+## SUMMARY FOR FUTURE INVESTIGATORS (read this first)
+
+Everything below this box is the chronological record of how each
+finding was reached — useful for methodology and for re-deriving
+anything that needs double-checking, but not required reading to
+*use* what's already confirmed. This box is the fast-start reference.
+
+**Confirmed, reusable facts:**
+
+- Boot executable: `SLPS_010.01;1` on disc, `PS-X EXE`, entry point
+  `0x800285D0`, loads at `0x80010000`, size `0x4C000`.
+- Decompressed script buffer lives at RAM pointer **`0x801e84a4`**
+  (stable across boots) — holds a readable ASCII label table
+  (`START`, `E000A`.., `SHORTCUT`, `SCENE8`, ..) followed by bytecode.
+  **Confirmed NOT to drive rendering** — do not spend time writing to
+  it expecting visible effect (`evidence/moonlight_syndrome_clean_retest_no_effect/`).
+- Per-character glyph identity in the SCRIPT stream is a big-endian
+  16-bit code, mostly under 256 for kana, larger for kanji (e.g. `誘`=357,
+  `用`=271). Confirmed table so far: し=0x5b, い=0x51, な=0x64, て=0x62,
+  や=0x73, め=0x71, ほ=0x6d, よ=0x75, ね=0x67, ゃ=0x9c, れ=0x79, に=0x65,
+  ら=0x76, っ=0x9f, ん=0x7d(tentative), か=0x55(tentative). This is a
+  **different coordinate space** from the GPU-primitive atlas
+  coordinates below — don't conflate the two.
+- **The actual, live, writable rendering source** is a repeating 16-byte
+  GPU sprite-primitive entry per on-screen character. Find the current
+  ones by scanning ~0x4000 bytes from `0x8008e000` for the 4-byte tag
+  `80 80 80 7E`; each hit's entry starts 4 bytes earlier. Entries below
+  `0x80090000` are the front-buffer copy; add `0x1000` for the
+  double-buffered twin (**both must be written**). Byte layout per
+  16-byte entry: `[X-advance, line-bank] [0x7E808080 constant]
+  [dest-slot counter] [glyph column, glyph row, 0xC0, 0x7F]` — the last
+  4 bytes are what to change to swap a displayed glyph.
+- **The full glyph atlas is in VRAM**, decodable as 4bpp-indexed
+  texture data (any placeholder grayscale palette makes it legible —
+  the real CLUT was never needed). Layout: row0 = punctuation, row1 =
+  `0-9,A-F`, row2 = `G-V`, row3 = `W-Z,a-l`, row4 = `m-z`, row5+ =
+  hiragana/katakana/kanji. **A complete Latin alphabet (upper and
+  lower case), digits, and punctuation are already native to this
+  game's font** — nothing needs to be drawn. Full coordinate table:
+  `evidence/moonlight_syndrome_full_glyph_atlas/latin_coordinate_table.json`.
+  Atlas coordinate = `(pixel_column, pixel_row)`, both multiples of 16,
+  matching the same units as the GPU-primitive glyph field above.
+- **English text renders correctly, live, in real dialogue** —
+  confirmed end to end (`evidence/moonlight_syndrome_full_glyph_atlas/english_letters_live_zoom.png`,
+  literal `HIE` inside a real Japanese line). The one operational
+  requirement: **only write to an entry confirmed genuinely idle**
+  (read its value twice, a few seconds apart, with zero input in
+  between — if identical, it's safe). Writing during active
+  dialogue-box updates gets silently overwritten; this was the entire
+  cause of every earlier "failed" attempt in this file, not a deeper
+  mechanism problem. See "Reusable procedure" section below for the
+  exact step-by-step.
+
+**Confirmed but NOT yet done:**
+
+- No stable, repeatable *tool* wraps this — every success above was a
+  manual, live GDB read/write sequence, not a `gcrts` module.
+- No static/disc-level injection path exists yet — everything proven
+  is a live RAM patch inside a running emulator, lost on reset. Turning
+  this into a real, shippable translation needs either a static
+  resource edit (preferred, matches this project's whole approach for
+  Twilight Syndrome) or a reliable live-injection hook — neither built.
+- Menu/choice-screen text (`話しかける`/`逃げる`/`様子を見る`) uses a
+  visibly different encoding from dialogue text — not decoded, not
+  attempted beyond one inconclusive look.
+- The real CLUT/palette for the atlas was never determined (the
+  grayscale placeholder was sufficient for legibility, not for
+  producing the *real* in-game colors).
+
+---
+
 ## What transfers with zero code changes — CONFIRMED_LIVE
 
 - **ISO9660 reading** (`gcrts.iso9660`): parsed the disc's root
