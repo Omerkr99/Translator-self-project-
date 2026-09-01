@@ -145,6 +145,50 @@ bounded, but substantial future work — comparable in scope to the
 original CDB-codec discovery for Twilight Syndrome, which took
 significant dedicated investigation.
 
+## Call-graph tracing: found real engine structure, still no text codec
+
+Followed the plan from the previous pass: found the single caller of
+the `CdSearchFile`-equivalent function (`0x8003c024`, inside a small
+wrapper at `0x8003c00c` that resolves a filename to a `{lba, size}`-ish
+descriptor — still just file-lookup plumbing, not the codec). That
+wrapper itself has exactly one caller too, landing in a **large command
+dispatcher** at `0x8003c12c` that loads a value from a fixed global
+(`0x8008EB74`) and branches on ~15+ distinct values in `0x1000`-spaced
+bands (`0x1000`, `0x2000`, `0x3000`, `0x4000`, `0x5000`, `0x6000`-ish,
+plus `0`/`1`) — almost certainly the game's own scene/event **script
+opcode dispatcher** (the engine that runs dialogue/staging scripts).
+Traced two of its smaller opcode handlers (`0`, `1`, `0x3000`) into a
+shared helper (`0x8003e118`) expecting to find a script-byte-stream
+reader there — it turned out to be a **controller-input polling
+helper** (checks pad button bitmask `0x0010`, matches the same pattern
+seen in the earlier pad-driver false positive), reused across opcodes
+that need to "wait for a button press" (exactly what a dialogue
+`▼`-advance opcode would need). Real engine structure, still not the
+text/codec itself.
+
+**Pivoted to live memory search instead of more static tracing.**
+Reset the emulator, replayed input back to the exact same dialogue box
+(`ミカ` / `・・・あんなのだったら` / `もっと早く帰ってくればよかった▼`),
+and dumped the *entire* live 2MB PS1 RAM via GDB while it was on
+screen. Searched for the same Shift-JIS byte sequences already ruled
+out on disc — **zero matches in live RAM either**, even though known
+ASCII strings from the executable (`"PS-X Control TAP Driver  Ver
+3.0"`, `"JULIETTA DEBUG SCREEN"`) were found at sane offsets in the
+same dump, confirming the RAM read itself is correct.
+
+**This is a real, meaningful finding, not a dead end**: the on-screen
+text is almost certainly not standard Shift-JIS *anywhere* in this
+game's pipeline — on disc or decompressed in RAM — which strongly
+suggests a **proprietary glyph-index text system**, conceptually
+similar to what this project already independently found for Twilight
+Syndrome's own native renderer (`gcrts.glyph_atlas`'s per-chapter,
+RAM-resident compressed glyph blob, indexed by something other than
+raw character codes). Confirming that and reverse-engineering the
+actual index scheme is its own real sub-investigation — locating the
+font/glyph resource itself, then correlating index values to the
+rendered characters — not something a byte-string search alone can
+finish.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
