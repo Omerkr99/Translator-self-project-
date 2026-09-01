@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-09-01T16:30:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "PCSX-Redux's real slot-based save-state Web API (/api/v1/state/save?slot=N and /api/v1/state/load?slot=N, confirmed against the actual server source in src/core/web-server.cc) can freeze this exact investigation's pre-display checkpoint (the script buffer at the instant it transitions from uninitialized to holding the first dialogue line's real codes, before that line has ever rendered) and reliably restore it, replacing the slow (~20-30s) and non-deterministic hard-reset+input-replay+memory-poll cycle used in every experiment so far this pass.",
+  "method": [
+    "Reached the exact pre-display moment via the established polling technique (button presses interleaved with memory reads, stopping the instant the script buffer transitions from all-zero to its real marker pattern).",
+    "Called GET http://127.0.0.1:8080/api/v1/state/save?slot=1 -- returned 200 'State slot index 1 save successful.'",
+    "Called GET http://127.0.0.1:8080/api/v1/state/load?slot=1 -- returned 200 'State slot index 1 load successful.'",
+    "Re-read the script buffer after the reload and confirmed it was byte-for-byte identical to the state at save time."
+  ],
+  "result": "Confirmed: this exact frozen moment can now be reloaded instantly and repeatably via a single HTTP call, instead of a slow, imperfectly-reproducible reset+replay cycle -- real infrastructure for faster iteration while searching for the actual render-time text source (now that the script buffer itself is confirmed NOT to be it).",
+  "screenshots": {
+    "slot1_reload_confirmed.png": "PCSX-Redux window immediately after the slot-1 reload, log panel visibly showing both the save and load web API requests"
+  }
+}
