@@ -237,6 +237,62 @@ of the visible characters either, so the exact unit this table indexes
 by (raw script bytes vs. rendered glyphs vs. something else) is not
 yet confirmed.
 
+## Found a real GPU sprite-draw list; disproved it as a glyph-identity source
+
+`0x80092388`'s position table turned out to be one column of a
+**struct-of-five-parallel-arrays**, each exactly 101 bytes and spaced
+precisely `0x400` apart (`0x80091788`, `0x80091b88`, `0x80091f88`,
+`0x80092388`, `0x80092788`). Reading all five aligned by index showed
+three are constant across every entry (`0x80`, `0x80`, `0x08`) and the
+fifth only changes once, exactly at the line-break (`0xc0`→`0xd0`,
+a +0x10 step matching a 16px line height) — none of these five vary
+per character, so none of them are glyph identity either.
+
+A wider scan for *real per-character variation* (not just a single
+line-break jump) found a much more promising structure at
+`0x8008f788`/`0x80090788`: a **repeating 4-word group**, structurally
+identical to a PS1 GPU textured-sprite draw command:
+
+```
+word0: low byte = per-char X advance (matches the position table);
+       high-ish byte = line-bank (0xb0 -> 0xc0 at the line break)
+word1: two bytes that vary per character, both near-always multiples
+       of 0x10 -- e.g. (0x90,0x70), (0xd0,0x80), (0x50,0x70)... --
+       looking exactly like (column,row) coordinates into a 16x16-
+       pixel-celled texture atlas, plus a constant 0xc0 and 0x7f
+       (almost certainly a GPU command-type/texture-page tag)
+word2: a per-entry destination slot counter, +0x10 each entry
+word3: constant 0x7e808080 (GPU primitive command byte + a neutral
+       0x808080 tint, the standard convention for an untinted
+       textured sprite)
+```
+
+This is genuinely a real GPU sprite command list — not a guess. But
+checking whether `word1`'s (column,row) value tracks *character
+identity* disproved it: the transcribed text for this exact 26-entry
+window (`くだらないコンパなんかに誘いやがって` + `カヅキの奴・・・`,
+confirmed to be exactly 18+8=26 characters, matching the array length
+precisely) has two different characters (`ん` at index 9, `や` at
+index 14) sharing the *identical* `(col,row)` coordinate, and the
+*same* character (`な`, indices 3 and 8; `い`, indices 4 and 13) maps
+to *different* coordinates each occurrence. A stable per-character
+atlas lookup cannot produce that. The much more likely explanation:
+this is a small **glyph texture cache** (a fixed number of texture
+slots that recently-used glyphs get blitted into, reused/evicted
+round-robin as new characters scroll into view) — the coordinate
+tracks *which cache slot*, not *which character*.
+
+**Implication for where to look next**: the rendering side (GPU
+primitive lists, texture cache slots) is a dead end for finding stable
+character identity — by the time text reaches the GPU command list,
+its original per-character code has already been resolved into "which
+cached texture slot," discarding the identity information a translation
+patch would need. The real target is further upstream: the decompressed
+**script-byte stream** itself (before it's turned into cache-slot
+lookups), which loops back to the original open question — the
+container/compression format for the `*.DAT` files — rather than
+anything reachable by watching the renderer.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
