@@ -503,6 +503,49 @@ clean injection needs the position/width array recomputed and written
 alongside the character codes — a concrete, scoped next step, not an
 open unknown.
 
+## Controlled retest: the width-table hypothesis doesn't hold up
+
+Attempted a tightly-controlled repeat (fresh reset, patch a
+not-yet-displayed cluster, advance, immediately inspect both arrays)
+to confirm the "stale position/width table" explanation for the
+garbling. Two real complications surfaced:
+
+1. **Dialogue branching is not perfectly deterministic across
+   replays.** The same input-replay approach that reliably reached
+   specific lines earlier this session this time diverged onto a
+   different path (reaching `あの・・・聞いてます？` instead of the
+   expected `な、なんか用？` cluster that had just been patched) —
+   real, live evidence that this game's dialogue selection isn't pure
+   fixed-script playback purely keyed on button-press counts (some
+   state — possibly timing-sensitive, possibly menu-choice-dependent —
+   affects which line comes next). The patched cluster's bytes were
+   confirmed still intact (read back correctly) but it's unclear
+   whether/how they were ever actually displayed.
+
+2. **The "width table" theory needs revision.** Checked its live
+   content after several more lines had genuinely rendered on screen —
+   it was **byte-for-byte identical** to the values captured hours
+   earlier for the very first original line
+   (`32,41,55,66,79,92,103,116,132,145,158,173,186,202,215,...`),
+   despite multiple different lines having since displayed correctly.
+   This directly contradicts the "recomputed fresh per new line"
+   assumption the garbling explanation depended on — this array is
+   either stale/unused after its first computation, or serves some
+   other one-time purpose (e.g. an initial textbox-bounds calibration)
+   rather than being the live per-glyph position source read at every
+   render.
+
+**Honest status**: the live-write experiment's core positive result
+stands — writing to a not-yet-displayed character-code cluster does
+measurably change what renders (`evidence/moonlight_syndrome_live_write_experiment/`).
+But the *specific explanation* offered for why the result was garbled
+rather than clean (a stale, un-recomputed width table) is now itself
+in doubt, and finding the real cause needs a different diagnostic
+approach than checking this particular array — likely disassembly
+work around wherever this array actually gets written (to see when
+and how often), rather than more live-memory probing alone. Not a
+quick fix; a genuinely open sub-question.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
