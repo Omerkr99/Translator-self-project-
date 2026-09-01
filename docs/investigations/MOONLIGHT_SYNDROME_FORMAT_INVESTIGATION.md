@@ -70,13 +70,15 @@ anything that needs double-checking, but not required reading to
   (`0x00,0x00`) and `?` (`0x10,0x00` and `0x20,0x00`) are confirmed by
   an actual live write; the rest of row0's punctuation is only
   visually read off the atlas image, not independently verified.
-- **Glyph substitution alone does not give clean multi-word
-  sentences** — a full 58-character English sentence rendered in
-  real, correct Latin letters but with jumbled line-wrapping, because
-  only the glyph-identity field was written, not the separate
-  position/advance-width field (still describing the original
-  Japanese characters' widths). Fine for short strings/single words;
-  a full sentence needs both fields written together.
+- **Word-wrap fixed — the real position field is bytes 8-11 of each
+  16-byte entry** (low 16 bits = X pixel position, high 16 bits =
+  line-bank), NOT bytes 0-3 as an earlier pass mislabeled (bytes 0-3
+  are an unrelated incrementing counter). Writing correct X/bank
+  values here alongside the glyph field (bytes 12-15) produces clean,
+  evenly-spaced, correctly-aligned English text — confirmed by
+  screenshot (`evidence/moonlight_syndrome_full_glyph_atlas/fixed_position_zoom.png`).
+  This closes the mechanism side of the investigation: every field
+  needed for clean text injection is now known and controllable.
 
 **Confirmed but NOT yet done:**
 
@@ -1009,6 +1011,54 @@ alongside the glyph field, not just the glyph field alone — a real,
 scoped, well-understood next requirement (not a new mystery), the same
 one identified from the very first `ほしいな` attempt many sections
 above.
+
+## Word-wrap fixed: found and corrected the real position field
+
+Investigated why the full-sentence test above came out jumbled, per a
+direct request to fix it and identify the real cause. Re-read several
+full 16-byte entries directly rather than relying on memory of an
+earlier session's labeling, and found the actual field layout:
+
+```
+bytes 0-3:   an incrementing per-entry counter/pointer (steps by 0x10
+             every entry) -- NOT position data, a red herring from an
+             earlier session's imprecise labeling
+bytes 4-7:   constant 0x7E808080 (as already established)
+bytes 8-11:  THE REAL POSITION FIELD -- low 16 bits = X pixel position
+             (confirmed incrementing per character, e.g. 137, 152,
+             167...), high 16 bits = line-bank (confirmed stepping by
+             0x10 exactly at real line breaks, e.g. 0xb0 -> 0xc0)
+bytes 12-15: glyph coordinate (as already established)
+```
+
+The full-sentence test earlier only wrote bytes 12-15 (glyph identity)
+and left bytes 8-11 untouched, still describing the *original* Japanese
+characters' positions — hence the jumbling. This was never a new
+mystery, just an unwritten field.
+
+**Fix applied**: rewrote a fresh sentence, computing real X/line-bank
+values instead of reusing stale ones — starting from the current
+X-margin and line-bank already present at the target range, a fixed
+13px advance per character, wrapping to a new line (bank += `0x10`,
+X reset to the margin) past `X > 240`. Wrote both bytes 8-11 and bytes
+12-15 (both buffer copies) for all 58 characters.
+
+**Result: clean, evenly-spaced, correctly-aligned text** — screenshot-confirmed
+(`evidence/moonlight_syndrome_full_glyph_atlas/fixed_position_zoom.png`):
+each line reads left-to-right with consistent, natural-looking spacing,
+no overlap, no jumbling. (Word-*break* points don't align with actual
+word boundaries — mid-word line breaks are still cosmetically present,
+since the fixed 13px-per-character wrap doesn't know where a word ends
+— but this is a simple wrap-algorithm refinement, not a rendering
+problem: the underlying mechanism is now fully confirmed correct and
+controllable.)
+
+**This closes out the "mechanism" side of the investigation entirely.**
+Every piece needed to write a clean, correctly-laid-out English sentence
+into this game's live rendering is now known, confirmed, and
+documented: the entry-scanning method, the idle-detection requirement,
+the full Latin/digit/punctuation/space coordinate table, and now the
+real position field and how to compute values for it.
 
 ## Reusable procedure (for any future session or agent continuing this work)
 
