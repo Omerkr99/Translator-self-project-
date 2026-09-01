@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-09-01T18:20:00+00:00",
+  "confidence": "CONFIRMED_LIVE (root cause), OPEN (full-sentence render not yet achieved in one shot)",
+  "claim": "Root-caused why writing the user's exact requested sentence (\"I wish hed stop, dont you think? / Its really no joke...\", apostrophes omitted, comma confirmed at (0x60,0x00)) rendered its second line correctly but left its first line unchanged, despite both lines being confirmed byte-exact-correct in RAM by direct readback.",
+  "context": "Follows evidence/moonlight_syndrome_full_glyph_atlas/ (the word-wrap fix) and the user's explicit instruction to render their precise, unsimplified two-sentence translation rather than an earlier simplified substitute.",
+  "method": [
+    "Live-tested row0 columns 3-8 one at a time (write + screenshot) since the atlas image proved unreliable for punctuation earlier in this investigation. Confirmed a comma at (0x60,0x00). No apostrophe found in this range.",
+    "Wrote the full 54-character sentence (with the confirmed comma and the existing '.' ellipsis glyph) to a freshly-rescanned 80-entry front-buffer list, computing fresh position (word2) and glyph (word3) values for every character, writing both buffer copies.",
+    "Confirmed by direct readback immediately after writing that specific target entries held exactly the intended values.",
+    "Screenshotted: only line 2 ('Its really no joke...') rendered correctly; line 1 showed unrelated stale fragments.",
+    "Redid the entire write from a fresh rescan with the same byte-exact readback verification -- got the identical split result again.",
+    "Ruled out a double-buffer-flip explanation: read front, front+0x1000, and front-0x1000 directly for the first target entry -- both real copies held the correct new value.",
+    "Decoded all 80 scanned entries' word2/word3 values directly against the known Latin coordinate table (not trusting the screenshot's visual ordering) -- entries ~59-79 spelled 'Its really no joke...' exactly, confirming the write was correct and complete for the whole sentence, not just line 2.",
+    "Reloaded save-state slot 1 (previously labeled in this project's session history as 'the frozen pre-display checkpoint') and screenshotted immediately with zero input -- found a DIFFERENT, already-fully-typed-out Japanese dialogue box with its 'continue' arrow already visible.",
+    "Attempted to advance past this box to set up a provably pre-reveal checkpoint for a fresh test; both the Lua pad bridge and raw keyboard injection (gcrts.pcsx_keyboard_input.press_button) failed to advance the dialogue despite confirmed correct OS-level focus and a confirmed genuinely-running (non-halted) CPU."
+  ],
+  "result": "Root cause identified: slot 1 is a post-reveal, waiting-for-input checkpoint, not pre-reveal as previously assumed. The 'read twice, unchanged' idle check cannot distinguish 'not yet started revealing' from 'already finished revealing' -- both look stable. At write time, line 1's entries were already post-reveal (further primitive-list writes to already-drawn characters have no visible effect, matching the same principle already documented for the script buffer in evidence/moonlight_syndrome_clean_retest_no_effect/), while line 2's entries were still pre-reveal (its first draw read the patched values directly).",
+  "screenshots": {
+    "final_sentence_result.png / final_sentence_result2.png (scratchpad, not committed)": "the two identical split-render attempts",
+    "line_recheck.png (scratchpad, not committed)": "zoomed crop of the narrow first-line region showing the stale fragments",
+    "full_window_2x.png (scratchpad, not committed)": "full window showing both lines together -- line 2 legible, line 1 stale"
+  },
+  "important_caveats": [
+    "The underlying rendering mechanism (entry format, position field, glyph table, comma) is fully confirmed correct -- this was never a mechanism bug.",
+    "Getting the ENTIRE sentence to render in one shot requires a checkpoint provably pre-reveal for every character in it (e.g. a precisely-timed GDB interrupt() right as the box opens), not a save state that merely looks static.",
+    "A separate, currently-unsolved tooling regression blocked setting up that checkpoint this session: neither the Lua pad bridge nor raw keyboard injection successfully advanced dialogue against the live emulator, despite confirmed correct window focus and a confirmed non-halted CPU. This is flagged as open, not worked around."
+  ]
+}

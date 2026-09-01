@@ -79,6 +79,37 @@ anything that needs double-checking, but not required reading to
   screenshot (`evidence/moonlight_syndrome_full_glyph_atlas/fixed_position_zoom.png`).
   This closes the mechanism side of the investigation: every field
   needed for clean text injection is now known and controllable.
+- **A comma is confirmed** at `(0x60, 0x00)` (row0, column 6) — found by
+  systematic live column-by-column testing of row0 (columns 3-8), since
+  the atlas image alone is too low-resolution to read punctuation
+  reliably. **No apostrophe was found** among columns 3-8 tested live —
+  still an open gap; sentences needing one must currently omit it.
+- **Critical correction — "idle" does NOT mean "not yet drawn"; it
+  can equally mean "already fully drawn."** The read-twice-unchanged
+  idle check (see "Reusable procedure" below) cannot distinguish a
+  character that hasn't started its reveal yet from one that finished
+  revealing and is just sitting there waiting for the player to
+  continue. Save-state slot 1 (previously described in this project's
+  session history as "the frozen pre-display checkpoint") is actually
+  the **latter** — reloading it shows a dialogue box with its Japanese
+  text *already fully typed out* and the "continue" arrow already
+  showing. **Once a character has actually been drawn/revealed once,
+  further writes to its GPU-primitive entry have zero visible effect**
+  — that pixel data is already baked into the frame; the primitive
+  list only controls a character's *first* draw. This is why a
+  two-line sentence write can render its second line correctly while
+  its first line stays unchanged: the second line's entries were still
+  pre-reveal (idle because not yet started) while the first line's
+  entries were post-reveal (idle because already finished) at the
+  moment of the write. See "Root cause of the split-line render
+  mismatch" section below for the full analysis. **Practical
+  implication**: to reliably change an *entire* multi-line dialogue,
+  the patch must land before **any** of its characters have been
+  revealed even once — a plain "wait until idle" checkpoint is not
+  enough; the checkpoint must specifically be pre-reveal (e.g. halt
+  the CPU via GDB the instant the box opens, before its first
+  character draws, rather than trusting a static save state to be
+  pre-display just because it looked that way once).
 
 **Confirmed but NOT yet done:**
 
@@ -95,6 +126,20 @@ anything that needs double-checking, but not required reading to
 - The real CLUT/palette for the atlas was never determined (the
   grayscale placeholder was sufficient for legibility, not for
   producing the *real* in-game colors).
+- **Getting an entire multi-line sentence to render (not just the
+  portion that happens to still be pre-reveal at write time) requires
+  a genuinely pre-reveal checkpoint** — see the correction above and
+  the full section near the end of this file. Not yet achieved for a
+  full two-line sentence in one shot.
+- **Both this session's input-injection paths (the Lua pad bridge
+  and raw-keyboard `press_button`) stopped advancing dialogue against
+  the live emulator instance** during this pass — OS-level focus was
+  confirmed correct (`GetForegroundWindow()` matched the target, even
+  after a real mouse click into the viewport), the CPU was confirmed
+  genuinely running (registers changing between reads, not halted),
+  yet repeated CIRCLE/CROSS presses produced zero change across many
+  screenshots. Root cause not yet found — flagged as a separate,
+  open tooling problem, not a game-logic or rendering issue.
 
 ---
 
@@ -1100,3 +1145,124 @@ own text/compression format — was always expected to require fresh
 reverse-engineering per game (this was never something the earlier
 Twilight Syndrome work could have made generic), and that work has
 been started, not finished, here.
+
+## Finding the comma, and testing the user's exact requested sentence
+
+Per an explicit request to render the precise, unsimplified sentence
+("I wish he'd stop, don't you think? / It's really no joke...") rather
+than an earlier simplified substitute, first needed to confirm real
+punctuation beyond `!` and `?`. The atlas image alone was already shown
+unreliable for punctuation (see the `?`/`・` correction earlier in this
+file), so row0's columns 3-8 were tested **live**, one at a time:
+write the candidate coordinate into a real on-screen character slot,
+screenshot, repeat. Column 6 (`0x60,0x00`) rendered a clean comma.
+Columns 5 and 8 showed tilde-like marks (not cleanly identified, not
+needed for this sentence). No apostrophe was found in this range.
+
+Given the confirmed comma but no apostrophe, the sentence was rendered
+with apostrophes omitted (matching the game's own convention of using
+`・` for other omitted punctuation): `"I wish hed stop, dont you
+think?"` / `"Its really no joke..."` — 33 + 21 = 54 characters
+including the forced line break, using the confirmed comma and the
+`・` glyph (`0x40,0x00`) for the ellipsis.
+
+## Root cause of the split-line render mismatch
+
+Wrote the full sentence to the last 54 entries of a freshly-rescanned
+80-entry front-buffer list, computing fresh X/line-bank values (per
+the word-wrap fix above) and writing both word2 (position) and word3
+(glyph) to both buffer copies for every character. Read back several
+target entries immediately after writing and **confirmed byte-exact**:
+the intended values were genuinely present in RAM, not just intended.
+
+The screenshot, however, showed only the **second** line rendering
+correctly — `"Its really no joke..."` was clearly legible (the arrow
+overlapping where the final "..." would sit) — while the **first**
+line showed unrelated stale fragments ("n k!") instead of "I wish hed
+stop, dont you think?", unchanged from an earlier, different jumbled
+attempt. Re-doing the entire write from a fresh rescan, re-verifying
+byte-exact correctness by direct readback immediately after writing,
+and separately ruling out a double-buffer-flip explanation (checked
+`front`, `front+0x1000`, and `front-0x1000` directly — both real copies
+held the correct new value; the write was definitely landing) all
+produced the exact same split result.
+
+To find the real explanation, decoded all 80 scanned entries' word2/word3
+values directly against the known Latin coordinate table rather than
+trusting the screenshot's on-screen ordering. This decode showed
+entries roughly 59-79 spelling `"Its really no joke..."` **exactly**,
+character for character, matching the intended line 2 precisely
+(including the space glyph at the right points and the `・`-ellipsis at
+the end) — strong, independent confirmation the write itself was
+correct and complete for the *entire* sentence, not just line 2.
+
+The actual explanation is a mistaken assumption about what the
+"pre-display" checkpoint (save-state slot 1) actually captured.
+Reloading it and screenshotting immediately, with **zero input**,
+showed a **different, already-fully-typed-out** Japanese dialogue box
+(`ミカ　・・・あんなのだったら　もっと早く帰ってくれば良かった`)
+with its own "continue" arrow already visible — i.e. slot 1 is a
+**post-reveal, waiting-for-input** checkpoint, not a pre-reveal one.
+The label "frozen pre-display checkpoint" from earlier in this
+project's session history was a mislabeling.
+
+This resolves the split cleanly: the "read twice, unchanged = safe to
+write" idle check (documented earlier in this file as the operational
+requirement for a safe write) cannot distinguish "hasn't started
+revealing yet" from "already finished revealing" — both look
+perfectly stable over a few seconds of zero input. At the moment of
+the sentence write, line 1's entries had **already finished** their
+reveal (idle because done), so the write landed in RAM but the
+already-drawn pixels were never touched again. Line 2's entries were
+**still pre-reveal** (idle because not yet started), so its first-ever
+draw read our patched values directly. This is the same underlying
+principle already documented in
+`evidence/moonlight_syndrome_clean_retest_no_effect/` for the script
+buffer (writes only affect content that hasn't been displayed for the
+first time yet) — now nailed down precisely at the GPU-primitive layer
+instead.
+
+**Practical conclusion**: the mechanism itself (entry format, position
+field, glyph table, comma) is fully correct and was never in question.
+What's still needed to render the user's *entire* exact sentence in
+one shot is a checkpoint that is provably pre-reveal for **every**
+character in it — not a save state that merely looks static, but one
+halted (e.g. via a precisely-timed GDB `interrupt()` right as the box
+opens, before its first character draws) at a point confirmed, by
+inspecting the primitive entries themselves, to hold no real glyph
+data yet.
+
+## Open tooling problem: pad input stopped reaching the live emulator
+
+Attempting to set up exactly that pre-reveal checkpoint (advance past
+the currently-loaded, already-revealed box, then halt at the instant
+the target box opens) required advancing dialogue, and neither
+input path this project has relied on all session worked:
+
+- The Lua pad bridge (`gcrts.pcsx_pad_bridge.PadBridgeClient`) timed
+  out waiting for an ack on `CIRCLE`, even immediately after reloading
+  `pcsx_lua/pad_input_bridge.lua` via `run_lua` and after an explicit
+  `GdbClient.resume()` (in case an earlier, unrelated `interrupt()` had
+  left the CPU halted — it hadn't; registers were already changing).
+- Raw keyboard injection (`gcrts.pcsx_keyboard_input.press_button`)
+  also produced no change, across several attempts, despite confirming
+  at each step that OS-level focus genuinely landed on the emulator
+  window (`GetForegroundWindow()` matched the target hwnd both
+  immediately before and after the press) and even after an explicit
+  mouse click into the game viewport before pressing.
+- Ruled out a CPU-halt explanation directly: read the register block
+  twice, half a second apart, and confirmed the bytes differ — the CPU
+  is genuinely executing, not stopped at a breakpoint.
+- The on-screen "continue" arrow shows a small idle bob/animation
+  between screenshots, confirming the game's own render loop is alive
+  and specifically sitting in its normal "waiting for player input"
+  state — it simply isn't recognizing the injected presses as valid
+  controller input.
+
+This is a real, currently-unsolved tooling regression, not a rendering
+or format problem — flagged here rather than worked around, per this
+project's standing rule against silently pushing past an unexplained
+result. Likely candidates for a future pass: the emulator's virtual
+pad binding may no longer match `DEFAULT_VK_MAP`'s scan codes, or
+input forwarding may require some additional "grab keyboard"/play-mode
+toggle in the UI that a state load via the web API doesn't set.
