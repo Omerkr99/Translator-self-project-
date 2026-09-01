@@ -405,6 +405,59 @@ coverage (katakana, kanji, punctuation) is now a mechanical repeat of
 this same procedure against more sampled lines, not an open research
 question.
 
+## Table expanded further, and a first demo sentence
+
+Advanced through one more menu (`話しかける`/`逃げる`/`様子を見る` —
+noted separately below, since its own encoding looks structurally
+different) and one more dialogue line (`な、なんか用？`) and repeated
+the exact same dump-and-decode procedure.
+
+**`な` confirmed a 5th independent time** (value `0x64`, identical to
+every prior sample). Two new characters got their first
+confirmation, consistent with the pattern already established (still
+single-sample, not yet cross-checked against a second independent
+line): `ん` = `0x7d`, `か` = `0x55`. One kanji and one punctuation mark
+were also captured for the first time, both consistent with the
+"common kana get small codes, less-common kanji get larger ones"
+pattern already seen with `誘` (357): `用` (a kanji) = `0x10f` (271),
+and `？` (a question mark) = `0x02` — a very low, special-looking code,
+plausibly from a separate small punctuation/control range rather than
+the general character table.
+
+**Confirmed table so far** (14 characters with 2+ independent,
+zero-mismatch confirmations each — the same bar as `な`):
+
+| kana | code | | kana | code | | kana | code |
+|---|---|---|---|---|---|---|---|
+| し | 0x5b | | や | 0x73 | | に | 0x65 |
+| い | 0x51 | | め | 0x71 | | ら | 0x76 |
+| な | 0x64 | | ほ | 0x6d | | っ | 0x9f |
+| て | 0x62 | | よ | 0x75 | | | |
+| | | | ね | 0x67 | | | |
+| | | | ゃ | 0x9c | | | |
+| | | | れ | 0x79 | | | |
+
+Plus 4 single-sample entries awaiting a second confirmation: `ん`=0x7d,
+`か`=0x55, `用`=0x10f (kanji), `？`=0x02 (punctuation).
+
+**First demo: a real sentence built entirely from confirmed codes.**
+`ほしいな` ("hoshii na" — a natural, casual phrase along the lines of
+"I wish..."/"I want that...", fitting this game's dramatic dialogue
+tone) uses only the four fully-confirmed characters `ほ`, `し`, `い`,
+`な`:
+
+```
+ほ し い な
+0x6d 0x5b 0x51 0x64
+```
+
+Writing this into the actual script buffer (once the surrounding
+opcode format around a text run is understood well enough to build a
+correctly-framed replacement, not just the character values
+themselves) is the next real step toward an actual injected/patched
+sentence — this demo shows the codes are known and ready, not yet that
+the full write-back path has been built and proven.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
