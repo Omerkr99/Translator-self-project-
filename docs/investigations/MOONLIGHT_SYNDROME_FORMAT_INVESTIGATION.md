@@ -639,6 +639,51 @@ moving the mechanism from a live RAM poke to something repeatable
 Real, scoped, follow-up work — but the hard question ("where do you
 even write to change displayed text") is now answered.
 
+## Important limitation found: the GPU-primitive list is transient, not permanent
+
+Attempted to complete the full demo (spell `ほしいな` cleanly) using the
+breakthrough above. Harvested real, live glyph-cache coordinates for
+`ほ`, `し`, `い` directly from a naturally-rendered `やめてほしいよね`
+line (confirmed by scanning for the constant `0x7e808080` tag across
+memory and verifying the hit list was perfectly sequential at 16-byte
+intervals, so the entry-index arithmetic was independently checked,
+not assumed): `ほ=(0x90,0xa0)`, `し=(0xd0,0xc0)`, `い=(0x20,0xe0)`, and
+a fresh `な=(0x30,0x70)` from a currently-rendering line. Patched 4
+consecutive not-yet-fully-settled entries (both buffer copies each) to
+spell the full sentence.
+
+**Result: no visible change this time** — screenshotted immediately
+after, the target line was completely unchanged. Checking directly
+revealed why: **the two entries from the earlier successful swap had
+themselves silently reverted back to their original, unpatched values**
+in the meantime, even though nothing in this session had gone near
+them again. The dialogue box was still actively "typing" out trailing
+`・` characters and the `▼` arrow during this whole window — i.e. the
+game was still actively updating this same on-screen region.
+
+**Conclusion, stated plainly**: the GPU-primitive list is confirmed
+writable and does drive real pixels (the two clean swaps documented
+above were genuine, screenshot-proven, not a fluke) — but it is
+**periodically rebuilt from some other, still-unidentified true
+source**, at least whenever nearby content is still actively animating
+or updating. A write here is a real, visible, but **transient** effect,
+not a stable injection point a shipped translation patch could rely
+on as-is. This is valuable, honest information, not a reason to
+discard the finding: it correctly identifies the final rendering
+stage and rules it out as the *permanent* write target, narrowing where
+a real, disc-shippable fix would need to hook in (upstream of this
+rebuild, wherever that turns out to be — still open).
+
+A follow-up attempt to probe the glyph atlas broadly for Latin/ASCII
+characters (by writing a spread of coordinates to the same target
+entry and screenshotting each) was compromised by this same volatility
+— the entry being probed had already reverted/was being actively
+overwritten by the game during the scan, so the samples are
+inconclusive and are not reported as a real finding. Answering "does
+this atlas contain usable Latin letters" needs a target entry
+confirmed stable (fully settled, no further nearby animation) before
+another attempt, which this pass did not achieve.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
