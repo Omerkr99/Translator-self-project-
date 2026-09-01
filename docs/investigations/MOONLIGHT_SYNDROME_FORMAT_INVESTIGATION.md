@@ -55,14 +55,28 @@ anything that needs double-checking, but not required reading to
   matching the same units as the GPU-primitive glyph field above.
 - **English text renders correctly, live, in real dialogue** —
   confirmed end to end (`evidence/moonlight_syndrome_full_glyph_atlas/english_letters_live_zoom.png`,
-  literal `HIE` inside a real Japanese line). The one operational
-  requirement: **only write to an entry confirmed genuinely idle**
-  (read its value twice, a few seconds apart, with zero input in
-  between — if identical, it's safe). Writing during active
-  dialogue-box updates gets silently overwritten; this was the entire
-  cause of every earlier "failed" attempt in this file, not a deeper
-  mechanism problem. See "Reusable procedure" section below for the
-  exact step-by-step.
+  literal `HIE` inside a real Japanese line; later extended to a full
+  58-character sentence, also confirmed rendering in real, legible
+  Latin glyphs). The one operational requirement: **only write to an
+  entry confirmed genuinely idle** (read its value twice, a few
+  seconds apart, with zero input in between — if identical, it's
+  safe). Writing during active dialogue-box updates gets silently
+  overwritten; this was the entire cause of every earlier "failed"
+  attempt in this file, not a deeper mechanism problem. See "Reusable
+  procedure" section below for the exact step-by-step.
+- **A blank/space glyph is confirmed** at `(0xe0, 0x40)` (the two
+  unused columns right after `z` in the Latin table's last row).
+  **Correction**: `(0x20,0x00)` is `?`, not `・` — only `!`
+  (`0x00,0x00`) and `?` (`0x10,0x00` and `0x20,0x00`) are confirmed by
+  an actual live write; the rest of row0's punctuation is only
+  visually read off the atlas image, not independently verified.
+- **Glyph substitution alone does not give clean multi-word
+  sentences** — a full 58-character English sentence rendered in
+  real, correct Latin letters but with jumbled line-wrapping, because
+  only the glyph-identity field was written, not the separate
+  position/advance-width field (still describing the original
+  Japanese characters' widths). Fine for short strings/single words;
+  a full sentence needs both fields written together.
 
 **Confirmed but NOT yet done:**
 
@@ -947,6 +961,54 @@ No garbling, no corruption, no side effects on the surrounding text.
 **This is complete, end-to-end confirmation that this game's own
 native rendering pipeline can display arbitrary English text**, using
 only mechanisms already fully understood and documented in this file.
+
+## Full-sentence test: whole English sentences render, word-wrap does not
+
+Tested writing a full, real, multi-word English sentence (the
+project's own English translation of the two Japanese lines already
+being used as the test line throughout this file) using the confirmed
+procedure, to see how the writing system handles something longer than
+3-4 letters.
+
+**New glyph found: a genuine blank/space cell.** Before the full test,
+tried coordinate `(0xe0, 0x40)` — the two unused columns right after
+`z` in row4 of the Latin atlas — as a space candidate. Confirmed via
+screenshot: renders as a real, clean blank gap
+(`evidence/moonlight_syndrome_full_glyph_atlas/space_glyph_confirmed.png`).
+**Correction to the punctuation row**: `(0x20, 0x00)` (the third glyph
+in row0) is `?`, not `・` as row0 was transcribed earlier in this
+file — the transcription of that row needs re-checking; only `!` at
+`(0x00,0x00)` and `?` at `(0x10,0x00)`/`(0x20,0x00)` are independently
+confirmed by an actual live write, not just visual reading of the
+atlas image.
+
+**Method**: took the current 80 stable front-buffer entries, used the
+last 58 (index 22 onward) for a 58-character sentence built entirely
+from confirmed glyphs (`A-Z`, the space cell, `?`), writing each
+character's coordinate to both buffer copies exactly as the procedure
+above describes.
+
+**Result**: the full sentence rendered in real, legible Latin
+characters — no garbling, no missing glyphs, no crash — but the
+**line-wrapping was jumbled** (`K! ITS R` / `EALLY NO JOKE???`,
+`evidence/moonlight_syndrome_full_glyph_atlas/full_sentence_live_zoom.png`).
+This is the expected, already-understood consequence of changing only
+the glyph-identity field: each entry's **position/X-advance data is
+untouched**, still describing where the *original* Japanese characters
+were meant to sit. Latin letters have different real widths than kana,
+so reusing old position data produces correct individual glyphs at
+wrong, jumbled-looking positions — this is a layout problem, not a
+rendering problem, and matches the position/width table this
+investigation already documented (and already found to be a separate,
+not-yet-controlled field) earlier in this file.
+
+**Net conclusion**: glyph substitution alone is sufficient for
+short strings or single words where line-wrap doesn't matter. A clean,
+readable full sentence needs the position/advance-width field written
+alongside the glyph field, not just the glyph field alone — a real,
+scoped, well-understood next requirement (not a new mystery), the same
+one identified from the very first `ほしいな` attempt many sections
+above.
 
 ## Reusable procedure (for any future session or agent continuing this work)
 
