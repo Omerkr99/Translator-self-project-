@@ -189,6 +189,54 @@ font/glyph resource itself, then correlating index values to the
 rendered characters — not something a byte-string search alone can
 finish.
 
+## Live memory diffing: found a real per-glyph position table
+
+Advanced the dialogue (via the pad bridge) to a new set of lines
+(`くだらないコンパなんかに誘いやがって` / `カヅキの奴・・・`, appended
+below the earlier lines — this text box accumulates rather than
+replacing), and dumped the full 2MB RAM again for a second snapshot.
+Diffed the two dumps directly (byte-for-byte, merging changes within 8
+bytes of each other) rather than guessing — 43 changed regions total,
+almost all tiny (1–17 bytes, plausibly stack/counter noise) except a
+handful of internally-structured ones.
+
+One region, `0x80092388`–`0x800923ed` (101 bytes), decodes cleanly as
+an array of 27 little-endian 32-bit integers, monotonically increasing
+within each line and resetting to a small value at a line break:
+
+```
+32, 41, 55, 66, 79, 92, 103, 116, 132, 145, 158, 173, 186, 202, 215,
+230, 245, 257,   (line 1: 17 deltas, all in 9-16px)
+32, 45, 59, 72, 86, 102, 110, 118,   (line 2, restarts at 32)
+0                                      (terminator)
+```
+
+The deltas between consecutive values (9, 14, 11, 13, 13, 11, 13, 16,
+13, 13, 15, 13, 16, 13, 15, 15, 12, 13, 14, 13, 14, 16, 8, 8) are all
+in the 8–16 pixel range — the right order of magnitude for a
+proportionally-spaced glyph advance-width table, and consistent with
+this era's ~16px-square CJK glyph cells (the same ballpark as Twilight
+Syndrome's own native 16x16 `gcrts.glyph_atlas` cells, though not
+proof the two games share a format). Two other regions in the same
+diff (`0x80091788`/`0x80091b88`, both constant-`0x80000000`-repeated,
+and `0x80092788`, `0xc0000000`/`0xd0000000`-repeated) are still
+unexplained — same 4-byte-per-entry shape, but a single repeated value
+across many entries rather than per-character variation, so probably a
+per-line attribute/flag rather than per-character identity.
+
+**What this confirms**: there is a real, live, parseable per-glyph
+layout structure in RAM, and it changes in lockstep with on-screen text
+exactly as expected — strong evidence this dialogue system is a
+genuine variable-width text layout engine, not a fixed-grid one.
+**What's still missing**: this table gives pixel positions, not
+character *identity* — the parallel array that says *which* glyph goes
+at each position (the thing that would actually let a translation
+patch replace it) has not been located yet. The character count
+implied by this table (17 then 8) does not cleanly match a naive count
+of the visible characters either, so the exact unit this table indexes
+by (raw script bytes vs. rendered glyphs vs. something else) is not
+yet confirmed.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
