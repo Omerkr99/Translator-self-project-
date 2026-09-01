@@ -831,6 +831,78 @@ likely another disassembly pass around wherever this primitive list
 gets consumed, now that its *existence and content* are no longer in
 question.
 
+## MYSTERY RESOLVED: it was a timing race all along, not a third layer
+
+Ran one more controlled experiment to test the "third layer" hypothesis
+directly: re-scanned for the current front-buffer entries, patched the
+last 3 with an unambiguous, easy-to-recognize test coordinate
+(`(0x00, 0x00)`, the atlas's very first punctuation glyph), then
+**polled the same addresses every 2 seconds for 20 seconds with zero
+input** — perfectly stable the whole time, no reversion at all when
+genuinely idle. This directly disproves any kind of automatic/timed
+rebuild.
+
+Then checked the screen: **the patch had rendered correctly** — the
+line's trailing `・・・` became `！！！` (three exclamation marks),
+clean and legible, screenshot-confirmed
+(`evidence/moonlight_syndrome_full_glyph_atlas/stability_proof_exclamation_marks.png`).
+
+**This resolves the entire mystery.** There is no undiscovered third
+layer. The earlier `ほしいな`/`A` failures were simply writes made
+*during* an active processing window (the box was still mid-update at
+those exact moments) — a plain timing race, not a fundamentally
+different rendering path. The fix is exactly what it sounds like:
+**confirm the target is genuinely idle (no new dialogue advancement,
+value reads back identical across a few seconds of polling) before
+writing** — not some deeper architectural blocker.
+
+## FULL CONFIRMATION: real English letters rendered live in dialogue
+
+Immediately re-tested with real Latin letters using the now-understood,
+reliable procedure: patched the same 3 confirmed-idle entries with
+`H`, `I`, `E`'s real atlas coordinates from the Latin coordinate table
+above (`(0x10,0x20)`, `(0x20,0x20)`, `(0xe0,0x10)`), verified the
+bytes read back correctly, then screenshotted.
+
+**Result: `HIE` rendered cleanly, in the game's own font, directly
+inside a live, real Japanese dialogue line** —
+`しゃれにならないって・・・HIE` — screenshot-confirmed at both full-window
+and zoomed resolution
+(`evidence/moonlight_syndrome_full_glyph_atlas/english_letters_live_zoom.png`).
+No garbling, no corruption, no side effects on the surrounding text.
+
+**This is complete, end-to-end confirmation that this game's own
+native rendering pipeline can display arbitrary English text**, using
+only mechanisms already fully understood and documented in this file.
+
+## Reusable procedure (for any future session or agent continuing this work)
+
+1. Get to any point where dialogue is on screen and **genuinely idle**
+   (no further player input, no further script advancement pending).
+2. Locate the live front-buffer character-primitive entries: read
+   ~0x4000 bytes starting around `0x8008e000`, search for the constant
+   4-byte tag `80 80 80 7e`, and take all hits below `0x80090000` (the
+   front-buffer copy; hits at or above are the back-buffer copy, offset
+   exactly `+0x1000` from their front-buffer twin).
+3. Confirm genuine idleness before touching anything: read one
+   candidate entry's word 4 (`hit_address - 4 + 12`, 4 bytes) twice, a
+   few seconds apart, with zero input in between. If identical, it's
+   safe to patch. If it's still changing, wait longer.
+4. To set a character, write `[column, row, 0xC0, 0x7F]` to that
+   entry's word 4, **and to the same offset +0x1000 bytes later** (the
+   double-buffered twin — both must be written or the effect won't
+   hold reliably across frames). `column`/`row` come from the Latin
+   table (`evidence/moonlight_syndrome_full_glyph_atlas/latin_coordinate_table.json`)
+   or by visually locating a character in the full atlas image
+   (`evidence/moonlight_syndrome_full_glyph_atlas/atlas_full_grayscale_decode.png`)
+   and computing `(pixel_column // 16 * 16, pixel_row // 16 * 16)`.
+5. Screenshot to confirm.
+
+This is a live-RAM technique only, proven inside a running emulator —
+turning it into an actual shippable translation (a static disc/resource
+edit, not a manual RAM poke) is real, separate, scoped future work, not
+something this pass attempted.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
