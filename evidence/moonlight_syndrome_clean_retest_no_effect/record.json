@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-09-01T16:10:00+00:00",
+  "confidence": "CONFIRMED_LIVE (a negative result)",
+  "claim": "Writing custom character codes into the script buffer at RAM pointer 0x801e84a4 (the buffer this whole investigation used to decode the character-code table) does NOT affect what the game renders, even under close-to-ideal timing conditions. This corrects the earlier evidence/moonlight_syndrome_live_write_experiment/ record's conclusion.",
+  "method": [
+    "Fresh hard reset.",
+    "Polled the target buffer (ptr+0x3f9) in a tight loop, interleaved with the button presses needed to progress through boot, checking after every single press for the buffer's transition from all-zero to the real marker pattern (fffdffff8000...).",
+    "The check immediately after the transition was detected (buffer had just gone from all-zero to holding the game's own freshly-written original codes) was used to write the patch instantly -- before this line had ever been displayed even once this session.",
+    "Patched the first 4 character-code slots with the confirmed 'hoshii na' codes (0x6d,0x5b,0x51,0x64) and continued the input replay to let the line actually render.",
+    "Captured a screenshot of the rendered result, then independently re-read the buffer to confirm the patch was still intact (not reverted by the game)."
+  ],
+  "result": "The line rendered with its completely ORIGINAL, unpatched text ('...anna no dattara / motto hayaku kaette kureba yokatta'), with zero visible trace of the patch -- despite the buffer, re-read immediately after, still holding the exact patched bytes untouched.",
+  "screenshots": {
+    "01_full_window_unchanged.png": "full PCSX-Redux window showing the dialogue box with completely original text after the patch",
+    "02_zoom_confirms_original_text.png": "4x zoomed crop confirming character-by-character that the displayed text is unchanged from the original"
+  },
+  "conclusion": "This buffer is confirmed to correctly hold character-identity data that matches on-screen text (the decode table built from it independently checks out against real dialogue), but it is NOT the live source the renderer actually reads from at display time. Whatever the true render-time source is (read once and converted immediately into the GPU-primitive/texture-cache layer documented earlier, before or without ever going through this buffer as an intermediate for rendering purposes) has not been located. Character-code READING is solid; character-code WRITING (actually changing displayed text) is an open problem, not close to solved, despite earlier appearances to the contrary."
+}

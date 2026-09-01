@@ -1,6 +1,7 @@
 {
+  "SUPERSEDED_CORRECTION": "A cleaner, better-timed, verifiably-persistent repeat of this same write (patching the very first dialogue line's codes at the exact moment its buffer first populated, before any display) produced ZERO visible effect on rendering, even though the patched bytes were confirmed still present in the buffer afterward. This means the 'measurably changes what renders' claim below does not hold up -- the garbled result documented here was most likely an unrelated rendering glitch from that messier attempt's Lua runtime error/unplanned pause, not a real effect of the write itself. See MOONLIGHT_SYNDROME_FORMAT_INVESTIGATION.md's 'Correction: writing to this buffer does NOT drive rendering after all' section for the full corrected account. This record is kept for its accurate method/screenshot documentation, not for its conclusion.",
   "timestamp": "2026-09-01T15:31:00+00:00",
-  "confidence": "CONFIRMED_LIVE",
+  "confidence": "SUPERSEDED (see correction note above)",
   "claim": "Writing custom character codes directly into Moonlight Syndrome's live, decompressed script buffer (found earlier this session at RAM pointer 0x801e84a4) measurably changes what the game renders on screen -- proving the buffer model (upfront-decompressed script, an offset acting as a read/display cursor rather than a write cursor) is correct. It does NOT yet produce clean, legible replacement text: the companion per-glyph position/advance-width array (found earlier at the same pointer's struct-of-arrays region) was not updated to match, producing visibly garbled/overlapping glyphs instead of the intended sentence.",
   "method": [
     "Reset the emulator fresh, replayed input back to the same real dialogue box used throughout this investigation.",

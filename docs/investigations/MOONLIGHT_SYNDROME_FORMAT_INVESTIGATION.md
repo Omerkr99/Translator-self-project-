@@ -546,6 +546,51 @@ work around wherever this array actually gets written (to see when
 and how often), rather than more live-memory probing alone. Not a
 quick fix; a genuinely open sub-question.
 
+## Correction: writing to this buffer does NOT drive rendering after all
+
+Per the user's own suggestion to try patching a genuinely different,
+cleaner spot: caught the very first dialogue line's character-code
+buffer at the exact moment it transitioned from uninitialized zeros to
+the real marker pattern (polled memory in a tight loop alongside the
+button-press replay — hit it precisely, one poll after the buffer was
+still all-zero). Patched the first 4 slots with `ほしいな`'s codes
+**immediately**, before this line had ever been displayed for the
+first time in this fresh boot — about as clean a timing shot as this
+kind of live experiment can get.
+
+**Result: the line rendered with its ORIGINAL, unpatched text** —
+`・・・あんなのだったら`, completely unchanged — and a direct memory
+read immediately afterward confirmed the buffer still held the exact
+patched bytes (`006d005b00510064...`, followed by the untouched
+original continuation), byte-for-byte, not overwritten or reverted by
+the game.
+
+**This means the earlier "garbled result" experiment's conclusion
+needs to be walked back.** With a cleaner, better-timed, verifiably-
+persistent patch producing **zero visible effect at all** this time,
+the most likely explanation is that the garbled output seen in the
+earlier experiment was *not* actually caused by that patch — it was
+probably an unrelated rendering glitch or side effect of the messier,
+less-controlled input sequence used to reach it (that attempt also hit
+a Lua runtime error and an unplanned emulator pause along the way).
+The buffer this whole investigation has been reading and writing is
+now confirmed, through a real, controlled, reproducible test, to
+**correctly hold character-identity data** (the decode table built
+from it is still valid — it was checked against real on-screen text
+independently of this write question) but to **not be the live source
+the renderer actually consults** at display time. Something else —
+read once, converted immediately into whatever the GPU-primitive/cache
+layer uses, and never sourced from this particular buffer again after
+that first read — is the true render input, and it hasn't been located
+yet.
+
+**Honest status, corrected**: character-code *decoding* (read-side) is
+real and confirmed. Character-code *writing* (making the game display
+something new) is **not yet achieved** — this specific buffer, despite
+being a genuine, correctly-decoded copy of the text, is not a valid
+injection point. Finding the actual write-effective location is a new,
+open question, not a refinement of the current one.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
