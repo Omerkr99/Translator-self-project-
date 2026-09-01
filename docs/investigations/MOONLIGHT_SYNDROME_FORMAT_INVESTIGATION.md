@@ -458,6 +458,51 @@ themselves) is the next real step toward an actual injected/patched
 sentence — this demo shows the codes are known and ready, not yet that
 the full write-back path has been built and proven.
 
+## Live write experiment: real proof, honestly not yet clean
+
+Tested actually writing a custom sentence into the running game, per
+direct request, with screenshots as proof
+(`evidence/moonlight_syndrome_live_write_experiment/`).
+
+**First attempt (negative, but informative): patching an
+already-displayed line.** Overwrote the first dialogue line's own
+character-code bytes (already on screen) via `GdbClient.write_memory`.
+Confirmed via screenshot: **zero visible effect**, even after advancing
+to a new page below it. Consistent with the earlier GPU-primitive/
+texture-cache finding — once a line is converted to cached sprite draw
+commands, it is never re-read from source.
+
+**Second attempt: patching a not-yet-displayed line.** First confirmed
+a real structural fact live: content well *ahead* of the current
+read-cursor position was already sitting in the script buffer,
+undisplayed — i.e. the whole scene's script decompresses upfront, and
+the "offset counter" tracked earlier is a **read/display cursor**, not
+a write cursor. This meant a line that hadn't been shown yet
+(`やめてほしいよね`) could be safely patched ahead of time. Overwrote
+its 8 character-code slots with the confirmed codes for `ほしいな`
+(repeated twice: `0x6d,0x5b,0x51,0x64,0x6d,0x5b,0x51,0x64`), read the
+bytes back to confirm the write landed, then advanced the dialogue via
+the pad bridge until the game's own cursor reached that position.
+
+**Result: the write measurably changed what rendered — but not
+cleanly.** The line that should have shown clean text instead rendered
+as a small, garbled, overlapping glyph cluster (see
+`03_closeup_garbled_result.png`). This is real, positive proof the
+buffer is genuinely read live at first-display time (a null result
+here would have meant the buffer model was wrong) — but it also
+surfaces a concrete, previously-undiscovered requirement: this game's
+renderer uses a **separate, parallel per-glyph position/advance-width
+array** (the struct-of-arrays block documented earlier), computed from
+the *original* characters' pixel widths. Only the character-code array
+was patched; the position/width array still describes the old
+characters, so new glyphs get drawn at old-width-derived positions,
+producing exactly this kind of overlapping garble.
+
+**Honest status**: writability is proven; legibility is not, yet. A
+clean injection needs the position/width array recomputed and written
+alongside the character codes — a concrete, scoped next step, not an
+open unknown.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text

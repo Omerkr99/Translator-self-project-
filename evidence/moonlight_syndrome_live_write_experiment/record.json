@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-09-01T15:31:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "Writing custom character codes directly into Moonlight Syndrome's live, decompressed script buffer (found earlier this session at RAM pointer 0x801e84a4) measurably changes what the game renders on screen -- proving the buffer model (upfront-decompressed script, an offset acting as a read/display cursor rather than a write cursor) is correct. It does NOT yet produce clean, legible replacement text: the companion per-glyph position/advance-width array (found earlier at the same pointer's struct-of-arrays region) was not updated to match, producing visibly garbled/overlapping glyphs instead of the intended sentence.",
+  "method": [
+    "Reset the emulator fresh, replayed input back to the same real dialogue box used throughout this investigation.",
+    "Located the not-yet-displayed 'yamete hoshii yo ne' line's 8-character code cluster ahead of the current read-cursor position (confirmed live: content well past the current display position was already present in the buffer, undecompressed-on-demand -- i.e. the whole scene's script loads upfront).",
+    "Overwrote those 8 character-code slots via GdbClient.write_memory with the confirmed codes for 'hoshii na' (ho=0x6d, shi=0x5b, i=0x51, na=0x64), repeated twice to fill all 8 slots, and read the bytes back to confirm the write landed correctly.",
+    "Advanced the dialogue via the pad bridge until the game's own read-cursor reached that exact position and rendered it live.",
+    "Captured before/after screenshots of the same script position."
+  ],
+  "result": "The originally-clean 'yamete hoshii yo ne' line rendered as a small, garbled, overlapping glyph cluster instead of the intended clean 'hoshii na hoshii na' text after the patch -- a real, measurable change from the write (confirming the buffer is genuinely read live at render time, not cached/ignored), but not yet a usable, legible replacement.",
+  "screenshots": {
+    "01_before_original_text.png / 01b_before_original_zoom.png": "the original, unpatched line rendering cleanly, captured earlier this session before any write was made",
+    "02_after_patched_bytes_rendered.png": "full window after the patched bytes were displayed -- same script position, now garbled",
+    "03_closeup_garbled_result.png": "6x zoomed crop isolating the garbled glyph cluster where the clean 8-character line used to render"
+  },
+  "why_the_result_is_garbled_not_clean": [
+    "This game's rendering pipeline (documented earlier this session) uses a SEPARATE, parallel per-glyph position/advance-width table (found at the same pointer's struct-of-arrays block) computed from the ORIGINAL characters' pixel widths.",
+    "Only the character-code array was overwritten; the position/width array was left untouched, still describing the original 8 characters' widths.",
+    "The renderer then draws the NEW glyphs at OLD width-derived positions, producing overlapping/compressed output -- exactly the kind of artifact seen in the screenshots.",
+    "A clean injection would need to also recompute and write the position/width array to match the new glyphs' real widths, which has not been attempted yet."
+  ],
+  "earlier_negative_result_this_pass": "Also tried overwriting an ALREADY-DISPLAYED line's source bytes (the very first dialogue line, already on screen) -- confirmed via screenshot this had ZERO visible effect, even after advancing to a new page below it. This is consistent with the GPU-primitive/texture-cache findings documented earlier: once a line is converted to cached sprite draw commands, it is never re-read from the source buffer, so a patch only has any effect on lines that have not yet been displayed for the first time.",
+  "conclusion": "Real, live, two-sided proof: (1) the source script buffer is genuinely read at first-display time (not cached ahead of render, not ignored) -- writes to not-yet-shown lines DO change what renders; (2) a full, clean text-replacement pipeline for this game needs to handle the position/width table alongside the character codes, not just the codes alone -- a concrete, scoped next requirement, not yet built."
+}
