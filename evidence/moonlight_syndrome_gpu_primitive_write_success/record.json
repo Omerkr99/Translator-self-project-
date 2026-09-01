@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-09-01T16:45:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "Found the real, live-writable render source for Moonlight Syndrome's dialogue text: a small 2-byte 'glyph cache coordinate' field inside each character's GPU sprite-primitive entry (the repeating 4-word structure documented earlier this investigation). Writing a different, already-cached glyph's coordinate into this field changes the on-screen character CLEANLY -- no garbling, no position/width corruption -- confirmed twice independently on two different characters in the same line.",
+  "context": "Follows directly from the prior correction (evidence/moonlight_syndrome_clean_retest_no_effect/): the decompressed script buffer at RAM pointer 0x801e84a4 is confirmed NOT to drive rendering. Using the new save-state slot-1 checkpoint (evidence/moonlight_syndrome_savestate_slot1_checkpoint/) for fast iteration, tried the GPU-primitive list directly instead -- the layer closest to actual pixels, one level past the script buffer.",
+  "method": [
+    "Loaded save-state slot 1 (the frozen pre-display checkpoint), let the dialogue line render naturally and completely unpatched.",
+    "Read the live GPU-primitive list for the rendered line's first two characters at 0x8008f640 -- each character's entry is 4 words: [X-advance + line-bank], [constant 0x7e808080 command/tint tag], [destination-slot counter], [glyph-cache coordinate + constant 0xc07f tag].",
+    "Entry 1 (originally the character '・', a middle dot) had glyph-coordinate bytes 30 00. Overwrote both the front-buffer copy (0x8008f64c) and its double-buffer twin 0x1000 bytes later (0x9064c) with bytes d0 70 -- a coordinate already observed elsewhere in this investigation as producing the character 'ん' (n).",
+    "Screenshot confirmed: the first character changed cleanly from '・' to 'ん' -- the line read 'ん・・あんなのだったら' instead of the original '・・・あんなのだったら'.",
+    "Repeated on entry 2 (the second middle dot): overwrote both buffer copies (0x8008f65c and 0x9065c) with bytes 40 60 -- a coordinate observed elsewhere as producing 'な' (na).",
+    "Screenshot confirmed: the second character also changed cleanly, to 'な' -- the line then read 'んな あんなのだったら'."
+  ],
+  "result": "Two independent, clean, non-garbled character substitutions in the same real dialogue line, both confirmed by screenshot. This is the actual, live, writable text-rendering source for this game -- not the script buffer this investigation spent most of its effort on, but a specific 2-byte field inside each character's own GPU sprite-primitive command.",
+  "screenshots": {
+    "01_before_original_dots.png": "before either patch -- original line, three middle dots visible",
+    "02_after_glyph_changed_cleanly.png": "after the first patch -- first dot changed cleanly to 'n', rest of line unaffected",
+    "03_full_window_after.png": "full window at the same point",
+    "04_second_swap_also_clean.png": "after the second patch -- second dot also changed cleanly to 'na'",
+    "05_full_window_two_swaps.png": "full window with both swaps visible"
+  },
+  "important_caveats": [
+    "This proves WRITABILITY at the GPU-primitive layer using coordinates for glyphs already known from earlier observation in this same investigation -- it has NOT yet been tried with a coordinate for a glyph never seen live before, so the full (column,row)-to-character atlas map is still only partially known (limited to characters this investigation happened to observe by chance).",
+    "Both buffer copies (front and back, 0x1000 apart) had to be patched for the change to hold reliably across the double-buffered render -- patching only one copy earlier in this pass produced no visible change, consistent with the emulator flipping between the two.",
+    "This was done live, in RAM, during active emulation -- not yet built into a repeatable tool or a disc-level patch. Turning this into an actual translation-injection pipeline (mapping every needed character to its atlas coordinate, and writing the GPU-primitive commands for a whole replacement sentence, ideally from a static disc/resource edit rather than a live RAM poke) is real, separate, scoped follow-up work."
+  ]
+}

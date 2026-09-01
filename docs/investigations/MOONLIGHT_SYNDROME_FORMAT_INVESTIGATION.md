@@ -591,6 +591,54 @@ being a genuine, correctly-decoded copy of the text, is not a valid
 injection point. Finding the actual write-effective location is a new,
 open question, not a refinement of the current one.
 
+## BREAKTHROUGH: the real, live-writable render source found
+
+Set up a fast-iteration checkpoint first (PCSX-Redux's real slot-based
+save-state Web API, `/api/v1/state/save` and `/state/load?slot=N`,
+verified against the actual server source) — froze the exact
+pre-display moment and confirmed it reloads byte-for-byte identically,
+replacing the slow (~20-30s), imperfectly-reproducible reset+replay
+cycle every prior experiment needed (`evidence/moonlight_syndrome_savestate_slot1_checkpoint/`).
+
+Loaded that checkpoint, let the line render completely naturally
+(unpatched), then went one layer past the script buffer — directly
+into the **GPU sprite-primitive list** documented earlier (the
+repeating 4-word structure per character: `[X-advance+line-bank]`,
+`[constant 0x7e808080 command/tint]`, `[destination-slot counter]`,
+`[glyph-cache coordinate + constant 0xc07f tag]`). Overwrote the
+glyph-cache-coordinate field (the last 2 meaningful bytes of word 4)
+for the line's first character — a middle dot (`・`) — with a
+coordinate already observed elsewhere in this investigation as
+producing the character `ん`. Patched both the front-buffer copy and
+its double-buffered twin 0x1000 bytes later (patching only one had no
+effect, confirming the double-buffering theory from earlier).
+
+**Result: the first dot changed cleanly to `ん`** — `・・・あんなのだったら`
+became `ん・・あんなのだったら` — no garbling, no position corruption,
+nothing else on the line affected. Repeated on the second character
+(the second dot) with a different known coordinate (observed elsewhere
+as `な`): **also changed cleanly**, giving `んな あんなのだったら`. Two
+independent, clean substitutions, both screenshot-confirmed
+(`evidence/moonlight_syndrome_gpu_primitive_write_success/`).
+
+**This is the actual answer.** Not the script buffer (confirmed
+useless for this purpose), not a stale width table — a specific 2-byte
+glyph-cache-coordinate field inside each character's own GPU
+sprite-primitive command, one layer closer to the actual pixels than
+anything tried before. Writing to it changes exactly one character,
+cleanly, with zero side effects on layout or neighboring glyphs.
+
+**Scope of what's proven vs. what remains**: this used coordinates for
+glyphs already observed by chance earlier in this investigation (`ん`,
+`な`) — it has NOT yet been tried with a glyph never seen live before,
+so the full (column,row)-to-character atlas map is still only
+partially known. Turning this into an actual translation tool needs:
+mapping enough atlas coordinates to spell arbitrary sentences, and
+moving the mechanism from a live RAM poke to something repeatable
+(ideally a static resource/disc edit, not manual GDB writes each time).
+Real, scoped, follow-up work — but the hard question ("where do you
+even write to change displayed text") is now answered.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
