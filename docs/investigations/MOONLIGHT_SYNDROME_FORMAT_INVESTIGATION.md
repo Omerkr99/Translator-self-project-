@@ -293,6 +293,64 @@ lookups), which loops back to the original open question — the
 container/compression format for the `*.DAT` files — rather than
 anything reachable by watching the renderer.
 
+## Breakthrough: a real script buffer with a readable label table, and a strong character-code candidate
+
+Went back upstream from the rendering dead-end, per the previous
+section's own conclusion. `0x8008bee8`'s diff (`0x3f9`→`0x441`, a
+72-byte delta for the 26 newly-added characters, ~2.77 bytes/char —
+plausible for a mixed 1/2-byte code table) sits right next to a stable
+32-bit value, `0x801e84a4`, that looks like a RAM pointer. It is one:
+dumping bytes at that address found a real, structured **script
+buffer with a readable ASCII label table** at its very start —
+
+```
+24000000 "START"    2503 0000 "E000A"   4b040000 "E000B"
+c8040000 "E000C"    eb050000 "E000D"    ... "SHORTCUT" ...
+"START005" ... "SCENE8" ... "E00CC"
+```
+
+(offset, then a null-padded ASCII label — script jump-target names,
+left un-stripped in this build). Past the label table (~offset
+`0x1b0`), the buffer becomes dense binary opcode data — this is a
+real, decompressed, in-RAM script bytecode buffer, not a guess.
+
+Within that buffer, the exact byte range the diff pointed at
+(`ptr+0x3fc` onward) decodes cleanly as a run of **big-endian 16-bit
+values, almost all under 256** (occasionally larger, e.g. one `0x0165`
+= 357) — precisely the shape expected for a custom character/glyph
+code table:
+
+```
+87, 136, 118, 100, 81, 169, 205, 226, 100, 125, 85, 357, 81, 115,
+126, 159, 98   (17 values, for the 18-character line
+                "くだらないコンパなんかに誘いやがって")
+```
+
+**Strong positive signal**: aligning these 1:1 against the visible
+characters (`く,だ,ら,な,い,コ,ン,パ,な,ん,か,に,誘,い,や,が,っ,て`),
+the two occurrences of `な` (positions 3 and 8) both land on value
+`100` — an exact match, and not something that would happen by chance
+for a real character-code table.
+
+**Open discrepancy**: the two occurrences of `い` (positions 4 and 13)
+land on *different* values (`81` and `115`), and there are 18 visible
+characters but only 17 values before the next marker — off by exactly
+one. The leading hypothesis: characters carrying a dakuten/handakuten
+mark (`だ`, `パ`, `が` all appear in this exact line) consume **two**
+codes each (a base kana code plus a separate diacritic marker), which
+would shift the alignment partway through the line and explain both
+the off-by-one count and the `い`/`い` mismatch — but this hasn't been
+confirmed against a second, independent line yet, so it stays a strong
+hypothesis, not a closed finding.
+
+**This is the strongest lead of the whole investigation** — a real,
+located, decompressed script buffer with small-integer character codes
+that demonstrably repeat correctly for at least one repeated
+character. Closing the gap needs the same kind of work already applied
+here, just repeated against 2-3 more known dialogue lines to nail the
+exact diacritic-handling rule and confirm the code-to-character
+mapping isn't coincidental.
+
 ## Net result so far
 
 Every layer of the toolkit that doesn't depend on game-specific text
