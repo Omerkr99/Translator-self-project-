@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-09-02T20:30:00+00:00",
+  "confidence": "CONFIRMED_LIVE",
+  "claim": "Found the true root cause behind every garbled/partial dialogue-injection result in this investigation: a genuine write race between the game's own text-population routine and any external write to the same GPU-primitive entries, not a buffer-copy or idle-detection issue. Found and confirmed a reliable fix (wait for population to stabilize before writing). Also corrected two related mistaken assumptions: the front/back buffer split is a pairing relationship, not a fixed address cutoff; and writing past the real end of a scanned entry list can corrupt live GPU/DMA state.",
+  "context": "Follows the split-line render mismatch investigation (evidence/moonlight_syndrome_exact_sentence_split_render/), which had already correctly identified that already-revealed characters can't be changed, but had not yet identified that ACTIVELY POPULATING characters are a live race, not just an idle-detection ambiguity.",
+  "method": [
+    "Caught a fresh dialogue box mid-population (via repeated front-buffer entry-count polling until it changed, then GDB interrupt() to halt the CPU).",
+    "Wrote English letters directly into entries the game's own population routine was still actively writing kanji into, then resumed.",
+    "Screenshot showed a jumbled MIX of both writers' output at different positions -- direct, unambiguous proof of a live race, not a one-shot 'already baked in vs not' situation.",
+    "Fixed by polling the front-buffer entry count every ~0.1s until it stayed unchanged for 3+ consecutive reads (population genuinely finished for that box) before writing.",
+    "Wrote the test string 'I wish h' (8 characters) into a settled, not-yet-visually-revealed entry range using this technique.",
+    "Screenshot confirmed a perfectly clean render, zero garbling -- direct proof the stabilize-then-write technique reliably avoids the race.",
+    "Separately discovered, while investigating a box's true capacity, that the long-assumed 'front buffer = address < 0x80090000' rule is wrong: a long enough box's real front-buffer entries can extend past that address. Corrected rule: front/back is determined by pairing (address A is front if A+0x1000 is also a real tag hit), confirmed by scanning a wider region and checking that exactly half of all hits pair up at +0x1000 offset.",
+    "Attempted to extrapolate addresses forward past the actual last scanned tag hit (guessing the next 16-byte stride would be another valid entry) to gain more writing room -- this produced a real DMA bus error and garbled/scattered kanji rendering, confirmed via the emulator's own log ('Got an unknown GPU data word', 'DMA bus error: code=00908000'). Recovered via a full save-state reload (slot 1), not a simple re-write."
+  ],
+  "result": "Three real findings: (1) the race-condition root cause and its fix, proven with a clean 'I wish h' render; (2) the corrected front/back buffer pairing rule; (3) a hard safety boundary -- never write past the real end of a freshly-scanned entry list, since doing so can corrupt live GPU/DMA state, not just fail silently.",
+  "screenshots": {
+    "clean_write_I_wish_h.png": "the confirmed-clean, non-garbled render of the 8-character test string, proving the stabilize-then-write fix works"
+  },
+  "important_caveats": [
+    "Getting a full 50+ character sentence into a single box in one shot remains unsolved: native plain-view boxes in this playthrough were consistently short enough that no real surplus tail existed once the corrected pairing rule was applied, and extrapolating past scanned bounds to manufacture more room is now confirmed dangerous (see the DMA corruption finding).",
+    "The window between 'population stabilized' and 'visually revealed' can be very short or already closed for a short box -- each investigation step (a screenshot, a memory read) consumes real time via a GDB round-trip, so minimize steps between catching a change and writing the replacement.",
+    "This finding is specific to the plain-view dialogue mechanism; portrait/conversation-mode dialogue uses a different, still-unlocated rendering mechanism where none of this applies."
+  ]
+}

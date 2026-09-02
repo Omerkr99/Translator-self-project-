@@ -110,6 +110,24 @@ anything that needs double-checking, but not required reading to
   the CPU via GDB the instant the box opens, before its first
   character draws, rather than trusting a static save state to be
   pre-display just because it looked that way once).
+- **Superseding correction, found later the same session**: the real
+  mechanism behind every garbled/partial result above (including the
+  "idle ambiguity" explanation just given) is a genuine **write race**
+  — while a box is actively populating, the game and any external
+  write are racing for the same bytes, character by character, and
+  whichever write lands last wins (proven directly: a mixed jumble of
+  our English letters and the game's own kanji at the same positions).
+  The reliable fix is to wait for the entry count to *stabilize*
+  (unchanged across several consecutive reads, ~0.1s apart) before
+  writing — confirmed clean with a perfect, non-garbled render of
+  `"I wish h"`. See "The real root cause behind every garbled/partial
+  render this file has seen" near the end of this file. Also corrected
+  there: the front/back buffer split is a **pairing** relationship
+  (`A` and `A+0x1000` both being real hits), not the fixed
+  `< 0x80090000` address cutoff used earlier in this file — and
+  **never write past the actual end of a freshly-scanned entry list**;
+  doing so once caused a real GPU/DMA corruption (bus error, garbled
+  screen) requiring a save-state reload to recover from.
 
 **Confirmed but NOT yet done:**
 
@@ -1265,4 +1283,206 @@ project's standing rule against silently pushing past an unexplained
 result. Likely candidates for a future pass: the emulator's virtual
 pad binding may no longer match `DEFAULT_VK_MAP`'s scan codes, or
 input forwarding may require some additional "grab keyboard"/play-mode
+toggle in the UI that a state load via the web API doesn't set.
+
+## Root cause of the pad-input regression, found: a dead Lua listener
+
+The "open tooling problem" above is now understood, not just flagged.
+`pcsx_lua/pad_input_bridge.lua`'s own header comment already documents
+the failure mode it was designed around: raw OS-level input (keyboard
+`SendInput`/`PostMessage`, mouse clicks) is **confirmed structurally
+unreliable** against this specific game/emulator combination — this
+session's repeated keyboard/mouse attempts (menu clicks that never
+opened a dropdown, `press_button` calls with zero visible effect
+despite confirmed OS focus) independently re-confirmed exactly that,
+the hard way, before finding this comment. **Raw OS input is not a
+viable fallback here; the Lua pad-override bridge is the only working
+path** — trying to fix input by going back to keyboard/mouse is a dead
+end already explored and closed.
+
+The bridge itself works — `pad_input_ack.jsonl` shows a real run of 12
+successfully-acked presses earlier in this session — but its
+`GPU::Vsync` event listener can silently stop being invoked partway
+through a session (documented as a known, unexplained PCSX-Redux
+quirk in the script's own comments) with no error, no log line,
+nothing — it just stops acking. The fix the script prescribes
+(re-run `dofile("pcsx_lua/pad_input_bridge.lua")` in the Lua Console
+to get a fresh listener) does work, but has its own sharp edges
+discovered this session:
+
+- The automation this project had (`gcrts.pcsx_lua_console.run_lua`,
+  which clicks a **hardcoded** screen offset and types) is fragile
+  against this window's actual, frequently-changing layout/size —
+  it silently no-ops (types into nothing) far more often than it
+  succeeds. Confirmed by watching the Lua Console's own log panel:
+  most `dofile(...)` attempts left zero trace, a few left a genuine
+  `[string "console:"]` execution error (malformed input from the
+  same fragile automation), and only occasional attempts actually
+  echoed cleanly.
+- **The most reliable fix found this session was simply having the
+  user click the Input field and type the `dofile(...)` line
+  themselves** — real mouse/keyboard input the OS treats as a genuine
+  user action never had this problem, unlike our own synthetic
+  `SendInput`/`PostMessage` attempts.
+- Even a confirmed-successful reload does not ack instantly. Observed
+  delays before the very next press finally got acked ranged from
+  under a second up to **90+ seconds** in the worst case seen this
+  session, with no visible indication in between that anything is
+  happening. The working pattern that emerged: pre-stage the next
+  command (write `pad_input_command.jsonl` yourself) *before* asking
+  for the reload, so the fresh listener's very first poll cycle picks
+  it up, then poll `pad_input_ack.jsonl` / the front-buffer entry
+  count for up to ~90-120s rather than giving up early.
+- The listener also appears to reliably survive for only about one
+  press after each fresh reload before going quiet again — this
+  matches the script's own documented pitfall almost exactly and
+  means, in practice, **expect to need a fresh reload before nearly
+  every single press** in a long session like this one, not just
+  once at the start.
+
+## Portrait/conversation-mode dialogue: a different, unlocated mechanism
+
+Selecting the "talk" option (話しかける) on this game's action menu
+(話しかける/逃げる/様子を見る, reached mid-scene, navigated with
+Up/Down + Circle) enters a face-portrait conversation mode with its
+own dialogue box. Extensive searching this session **failed to locate
+this mode's text-rendering mechanism**:
+
+- The known `0x8008e000` GPU-primitive scan region shows only stale,
+  frozen leftover content while in portrait mode — writes there had
+  zero visible effect, confirming it isn't read by whatever renders
+  portrait-mode text.
+- Three independent broad-memory search strategies all failed to find
+  an alternative structure: (1) a live diff across a full 1MB region
+  while portrait text was actively changing found only two small
+  dynamic areas, neither matching the known glyph-entry format (one
+  looked like animation/icon coordinates, the other a jump table);
+  (2) scanning broadly for the same `80 80 80 xx` prefix with
+  alternate trailing bytes (`7c`, `2c`, `66`, `60`, `2e`) found only a
+  couple of unrelated hits, not a text engine; (3) scanning for the
+  glyph-word's constant tail bytes (`C0 7F`) across 512KB found 512
+  hits, all perfectly explained by the *already-known* front+back
+  buffer pair — no separate structure.
+- Portrait mode may render text via a directly-blitted/pre-composited
+  texture rather than a sprite-primitive list, or live at an address
+  this session's search patterns didn't cover. **Not solved — a real
+  open item**, distinct from (and harder than) the plain-view
+  mechanism this file otherwise documents completely.
+- Practical implication: **stay in plain (non-portrait) dialogue
+  views** for any further injection work with the mechanism already
+  proven in this file. Selecting 逃げる (run away) or 様子を見る
+  (watch) does not reliably avoid triggering portrait mode either —
+  both were tried and one led right back into it; getting stuck in a
+  portrait conversation loop was resolved once, by chance, by pressing
+  Cross instead of Circle, but that was not confirmed as a reliable
+  general exit.
+
+## The real root cause behind every garbled/partial render this file has seen: a live write race
+
+This is the single most important correction in this whole
+investigation. Every earlier "it half-worked" or "it came out
+garbled" result in this file — including the original ん/な swap
+caveats, the split-line sentence mismatch, and a fresh corrupted
+attempt this session — was quietly attributed to timing, buffer
+copies, or indexing assumptions. The real, now-confirmed cause is
+simpler and more fundamental: **while a box's characters are actively
+being populated, the game and this project's own writes are in a
+genuine race for the same memory, character by character, and
+whichever write happens last wins.**
+
+Direct proof: entries were overwritten with English letters ("i",
+"h") while the game was still populating that exact region with its
+own kanji ("味", "生", "評", "最") — the resulting screenshot showed a
+**jumbled mix of both**, different characters at different positions
+each landing whichever write got there last. This is not a rendering
+bug or a buffer-copy issue; it is two writers racing the same bytes.
+
+**The fix, confirmed clean**: wait for the box's population to
+genuinely *stabilize* — read the front-buffer entry count repeatedly
+(every ~0.1s) until it stops changing for several consecutive reads —
+before writing anything. Once population has settled, the game is no
+longer writing to that region at all, so a write lands cleanly with
+no race. Tested and confirmed: the string `"I wish h"` was written
+into a settled (post-population, pre-visual-reveal) 8-entry range and
+rendered **perfectly, with zero garbling** — direct proof this
+technique reliably avoids the race
+(`evidence/moonlight_syndrome_race_condition_solved/clean_write_I_wish_h.png`).
+
+**Caveat discovered the hard way**: "population settled" and "not yet
+visually revealed" are two different windows, and the second one can
+be very short or already closed for a *short* box — merely reading
+memory or taking a screenshot after catching a change can itself
+consume enough real time (each check involves a real GDB round-trip)
+for a short box's reveal to complete before you get to write. Minimize
+any investigation/resume cycles between catching a change and writing
+the replacement.
+
+## Corrected: the front/back buffer split is NOT a fixed address boundary
+
+Earlier in this file (and for most of this session), front-buffer
+entries were identified as "address `< 0x80090000`", with anything at
+or above treated as the back-buffer copy. **This is wrong in general**
+— it happened to hold for the specific boxes checked early on, but a
+long enough box's real front-buffer entries can legitimately extend
+past `0x80090000`, and treating them as back-buffer copies hides real,
+usable front-buffer content from view (this actually happened —
+entries up to `0x80090630` were live front-buffer content for a long
+box, not back-buffer noise).
+
+**The correct rule**: front/back is a *pairing* relationship, not an
+address range. For any hit address `A`, it is a front-buffer entry if
+`A + 0x1000` is *also* a hit address (its back-buffer twin); scan a
+wide enough region (this session used `0x8008e000` + `0x6000` bytes)
+and pair by offset rather than by a fixed cutoff.
+
+## New safety finding: writing past the real entry-list end can corrupt live GPU/DMA state
+
+Attempting to extrapolate addresses forward past the actual, currently
+known entries (guessing that the next 16-byte stride would be another
+valid entry, rather than confirming a real `80 80 80 7E` tag hit there
+first) produced a real, visible failure: **`DMA bus error` in the
+emulator's log, followed by garbled/scattered kanji rendering and an
+"unknown GPU data word" warning.** This is not a cosmetic glitch — it
+corrupted live GPU command-stream state. Recovery was a full
+save-state reload (`slot 1`), not a simple re-write.
+
+**Rule going forward: only ever write to an address that is a
+confirmed, freshly-scanned `80 80 80 7E` tag hit (both the target
+entry and, ideally, evidence the following entries are real too) —
+never extrapolate past the end of what has actually been scanned,
+even by one stride.** This is a hard boundary, not a soft guideline;
+the corruption was immediate and required a state reload to clear.
+
+## Status at the end of this session
+
+**Solved and proven, fully reusable:**
+- The complete plain-view text-rendering mechanism (entry format,
+  position field, full Latin/digit/punctuation/comma table, word-wrap).
+- The real cause of every past partial/garbled result (the population
+  race), and a confirmed-clean fix for it (wait for stabilization).
+- The correct front/back buffer identification rule (pairing, not a
+  fixed address).
+- The root cause of this session's pad-input breakage (a dead Lua
+  listener needing a fresh, often slow, reload — not a rendering
+  issue) and the most reliable workaround found (manual user input
+  into the Lua Console, not automation).
+
+**Still open:**
+- Getting an entire long (50+ character) sentence into a single box
+  in one clean shot — blocked by native plain-view boxes in this
+  playthrough consistently being short enough that no real surplus
+  tail exists, combined with the new, confirmed rule against
+  extrapolating past scanned bounds to manufacture more room. The
+  fix is understood in principle (catch a box early enough, using a
+  write-watchpoint or tighter polling, before *any* of its own
+  content populates, then write the full sentence into freshly
+  scanned real entries only) but was not achieved end-to-end this
+  session.
+- Portrait/conversation-mode's text-rendering mechanism — not located.
+- No static/disc-level injection path; no reusable `gcrts` tool wraps
+  any of this yet — still entirely manual, live GDB scripting.
+- No apostrophe glyph found (comma at `(0x60,0x00)` is confirmed; `?`,
+  `!`, `.`/`・`, space are all confirmed; apostrophe remains a gap).
+- The real VRAM CLUT/palette was never determined (not needed for
+  legibility, would be needed for producing exact in-game colors).
 toggle in the UI that a state load via the web API doesn't set.
